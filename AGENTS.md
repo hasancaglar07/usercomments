@@ -75,6 +75,7 @@ If no new rule is detected → do not update the file.
 \### Task Delivery (ALL TASKS)
 
 \- Read `proje.md` and relevant `stitch_homepage/*/code.html` before any UI work
+\- Read `docs/deploy-cloudflare.md` and `docs/geliştirme.md` before starting tasks to align delivery with deployment/dev constraints
 \- Süreç: Önce eksikleri tespit edip planla, ardından uygula; böylece ilerleme net takip edilir
 \- Preserve pixel-perfect markup and class names; do not change UI markup unless explicitly requested
 \- Web changes stay in App Router (`apps/web/app`) and shared layout in `apps/web/components/layout`

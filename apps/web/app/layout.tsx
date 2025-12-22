@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "UserComments.net | Real User Reviews & Honest Product Comments",
   description: "Read what real people say before you buy. Thousands of user comments and honest experiences on the latest products.",
+  icons: {
+    icon: '/favicon.png',
+  },
 };
 
 export default function RootLayout({
