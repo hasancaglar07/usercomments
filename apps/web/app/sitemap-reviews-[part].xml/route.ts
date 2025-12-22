@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { getSiteUrl } from "@/src/lib/seo";
 import type { NextRequest } from "next/server";
 

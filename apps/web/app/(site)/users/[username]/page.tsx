@@ -1,4 +1,5 @@
 import { ReviewListProfile } from "@/components/lists/ReviewList";
+export const runtime = "edge";
 import type { Metadata } from "next";
 import { SidebarProfile } from "@/components/layout/Sidebar";
 import type { ReviewCardProfileData } from "@/components/cards/ReviewCard";

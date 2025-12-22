@@ -1,4 +1,5 @@
 import { ReviewListCategory } from "@/components/lists/ReviewList";
+export const runtime = "edge";
 import type { Metadata } from "next";
 import { SidebarCategory } from "@/components/layout/Sidebar";
 import type {

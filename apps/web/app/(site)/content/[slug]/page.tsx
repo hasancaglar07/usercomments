@@ -1,4 +1,5 @@
 import ReviewDetailClient from "@/components/reviews/ReviewDetailClient";
+export const runtime = "edge";
 import type { Metadata } from "next";
 import { getReviewBySlug, getReviewComments } from "@/src/lib/api";
 import { buildMetadata } from "@/src/lib/seo";
@@ -161,9 +162,8 @@ function buildReviewHtml(review: Review, comments: Comment[]): string {
   const title = escapeHtml(review.title);
   const ratingAvg = review.ratingAvg ?? 0;
   const ratingCount = review.ratingCount ?? 0;
-  const ratingLabel = `${ratingAvg.toFixed(1)}${
-    ratingCount ? ` (${formatNumber(ratingCount)})` : ""
-  }`;
+  const ratingLabel = `${ratingAvg.toFixed(1)}${ratingCount ? ` (${formatNumber(ratingCount)})` : ""
+    }`;
   const votesUp = review.votesUp ?? 0;
   const votesDown = review.votesDown ?? 0;
   const votesLabel = `Helpful (${formatNumber(votesUp)}) | ${formatNumber(

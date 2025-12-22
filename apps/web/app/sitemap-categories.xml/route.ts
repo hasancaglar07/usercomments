@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { getSiteUrl } from "@/src/lib/seo";
 
 const REVALIDATE_SECONDS = 300;

@@ -1,3 +1,4 @@
+export const runtime = "edge";
 export default async function Page() {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   let apiStatus = "API base URL is not set.";
@@ -28,9 +29,8 @@ export default async function Page() {
           API base URL: {apiBaseUrl ?? "Not configured"}
         </p>
         <p
-          className={`text-sm font-semibold ${
-            apiOk ? "text-green-600 dark:text-green-400" : "text-red-500"
-          }`}
+          className={`text-sm font-semibold ${apiOk ? "text-green-600 dark:text-green-400" : "text-red-500"
+            }`}
         >
           {apiStatus}
         </p>
