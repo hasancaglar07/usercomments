@@ -1,7 +1,9 @@
 import "../../styles/globals.css";
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
-import AuthSync from "../../components/auth/AuthSync";
+import { AuthProvider } from "../../components/auth/AuthProvider";
+
+export const runtime = "edge";
 
 export default function SiteLayout({
   children,
@@ -9,11 +11,10 @@ export default function SiteLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
+    <AuthProvider>
       <Header />
-      <AuthSync />
       {children}
       <Footer />
-    </>
+    </AuthProvider>
   );
 }

@@ -1,6 +1,6 @@
 import type { ParsedEnv } from "../env";
 import { getSupabaseClient } from "../supabase";
-import type { Comment, PaginationInfo, Review } from "../types";
+import type { Comment, PaginationInfo, Review, ReviewStatus } from "../types";
 import { buildPaginationInfo } from "../utils/pagination";
 import { slugify } from "../utils/slug";
 import { mapCommentRow, mapReviewRow } from "./mappers";
@@ -17,6 +17,39 @@ type CursorResult<T> = {
   nextCursor: string | null;
 };
 
+type DbReviewRow = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content_html?: string | null;
+  rating_avg?: number | string | null;
+  rating_count?: number | string | null;
+  views?: number | string | null;
+  votes_up?: number | string | null;
+  votes_down?: number | string | null;
+  photo_urls?: unknown;
+  photo_count?: number | string | null;
+  comment_count?: number | string | null;
+  category_id?: number | string | null;
+  sub_category_id?: number | string | null;
+  created_at: string;
+  profiles?:
+    | {
+        username: string | null;
+        profile_pic_url: string | null;
+      }
+    | {
+        username: string | null;
+        profile_pic_url: string | null;
+      }[]
+    | null;
+};
+
+type ReviewWithCountRow = DbReviewRow & {
+  total_count?: number | string | null;
+};
+
 const HIDDEN_REVIEW_TITLE = "Review not available";
 const HIDDEN_REVIEW_EXCERPT = "This review is currently unavailable.";
 
@@ -27,14 +60,16 @@ const reviewListSelect = `
   excerpt,
   rating_avg,
   rating_count,
+  views,
   votes_up,
   votes_down,
   photo_urls,
   photo_count,
+  comment_count,
   category_id,
   sub_category_id,
   created_at,
-  profiles(username)
+  profiles(username, profile_pic_url)
 `;
 
 const reviewDetailSelect = `
@@ -64,6 +99,7 @@ export async function fetchPopularReviews(
     .select(reviewListSelect)
     .eq("status", "published")
     .order("votes_up", { ascending: false })
+    .order("views", { ascending: false })
     .limit(limit);
 
   if (error) {
@@ -184,8 +220,19 @@ export async function fetchReviewBySlug(
       id: string;
       slug: string;
       created_at: string;
-      profiles?: { username: string | null } | { username: string | null }[] | null;
+      profiles?:
+      | { username: string | null; profile_pic_url: string | null }
+      | { username: string | null; profile_pic_url: string | null }[]
+      | null;
     });
+  }
+
+  if (data.status === "pending") {
+    return null;
+  }
+
+  if (data.status === "draft") {
+    return null;
   }
 
   return mapReviewRow(data as {
@@ -203,7 +250,10 @@ export async function fetchReviewBySlug(
     category_id?: number | string | null;
     sub_category_id?: number | string | null;
     created_at: string;
-    profiles?: { username: string | null } | { username: string | null }[] | null;
+    profiles?:
+    | { username: string | null; profile_pic_url: string | null }
+    | { username: string | null; profile_pic_url: string | null }[]
+    | null;
   });
 }
 
@@ -214,11 +264,12 @@ export async function fetchReviewMetaById(
   slug: string;
   categoryId: number | null;
   status: string;
+  authorUsername?: string | null;
 } | null> {
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("reviews")
-    .select("slug, category_id, status")
+    .select("slug, category_id, status, profiles(username)")
     .eq("id", id)
     .maybeSingle();
 
@@ -234,6 +285,9 @@ export async function fetchReviewMetaById(
     slug: data.slug,
     categoryId: data.category_id ?? null,
     status: data.status ?? "published",
+    authorUsername: Array.isArray(data.profiles)
+      ? data.profiles[0]?.username ?? null
+      : data.profiles?.username ?? null,
   };
 }
 
@@ -323,6 +377,7 @@ export async function createReview(
       sub_category_id: payload.subCategoryId ?? null,
       user_id: payload.userId,
       source: "user",
+      status: "pending",
     })
     .select("id, slug")
     .single();
@@ -359,9 +414,9 @@ export async function addComment(
     text: string;
     created_at: string;
     profiles?:
-      | { username: string | null; profile_pic_url: string | null }
-      | { username: string | null; profile_pic_url: string | null }[]
-      | null;
+    | { username: string | null; profile_pic_url: string | null }
+    | { username: string | null; profile_pic_url: string | null }[]
+    | null;
   });
 }
 
@@ -412,7 +467,56 @@ export async function addVote(
   return { votesUp, votesDown };
 }
 
-export async function fetchReviewsByUserId(
+export async function incrementReviewViews(
+  env: ParsedEnv,
+  reviewId: string
+): Promise<{ views: number } | null> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase.rpc("increment_review_view", {
+    review_id: reviewId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return null;
+  }
+
+  const rawViews = data[0]?.views ?? 0;
+  const views = typeof rawViews === "number" ? rawViews : Number(rawViews);
+  return { views: Number.isFinite(views) ? views : 0 };
+}
+
+export async function fetchReviewsByUserComments(
+  env: ParsedEnv,
+  userId: string,
+  page: number,
+  pageSize: number
+): Promise<ReviewListResult> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase.rpc("get_user_commented_reviews", {
+    target_user_id: userId,
+    page,
+    page_size: pageSize,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []) as ReviewWithCountRow[];
+  const items = rows.map((row) => mapReviewRow(row as DbReviewRow));
+  const totalItems = normalizeTotalCount(rows[0]?.total_count);
+
+  return {
+    items,
+    pageInfo: buildPaginationInfo(page, pageSize, totalItems),
+  };
+}
+
+export async function fetchSavedReviews(
   env: ParsedEnv,
   userId: string,
   page: number,
@@ -423,12 +527,52 @@ export async function fetchReviewsByUserId(
   const to = from + pageSize - 1;
 
   const { data, error, count } = await supabase
+    .from("saved_reviews")
+    .select(
+      `review_id, reviews(${reviewListSelect})`,
+      { count: "exact" }
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    throw error;
+  }
+
+  const items = (data ?? [])
+    .map((row) => (row as { reviews: DbReviewRow | null }).reviews)
+    .filter((review): review is DbReviewRow => Boolean(review))
+    .map((review) => mapReviewRow(review));
+
+  return {
+    items,
+    pageInfo: buildPaginationInfo(page, pageSize, count ?? 0),
+  };
+}
+
+export async function fetchReviewsByUserId(
+  env: ParsedEnv,
+  userId: string,
+  page: number,
+  pageSize: number,
+  statuses: ReviewStatus[] = ["published"]
+): Promise<ReviewListResult> {
+  const supabase = getSupabaseClient(env);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
     .from("reviews")
     .select(reviewListSelect, { count: "exact" })
     .eq("user_id", userId)
-    .eq("status", "published")
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .order("created_at", { ascending: false });
+
+  if (statuses.length > 0) {
+    query = query.in("status", statuses);
+  }
+
+  const { data, error, count } = await query.range(from, to);
 
   if (error) {
     throw error;
@@ -444,7 +588,10 @@ function buildHiddenReview(row: {
   id: string;
   slug: string;
   created_at: string;
-  profiles?: { username: string | null } | { username: string | null }[] | null;
+  profiles?:
+  | { username: string | null; profile_pic_url: string | null }
+  | { username: string | null; profile_pic_url: string | null }[]
+  | null;
 }): Review {
   const profile = Array.isArray(row.profiles)
     ? row.profiles[0] ?? null
@@ -457,16 +604,30 @@ function buildHiddenReview(row: {
     contentHtml: `<p>${HIDDEN_REVIEW_EXCERPT}</p>`,
     ratingAvg: undefined,
     ratingCount: undefined,
+    views: undefined,
     votesUp: undefined,
     votesDown: undefined,
     photoUrls: [],
     photoCount: 0,
+    commentCount: undefined,
     author: {
       username: profile?.username ?? "unknown",
       displayName: profile?.username ?? undefined,
+      profilePicUrl: profile?.profile_pic_url ?? undefined,
     },
     createdAt: row.created_at,
   };
+}
+
+function normalizeTotalCount(value: number | string | null | undefined): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 async function ensureUniqueSlug(

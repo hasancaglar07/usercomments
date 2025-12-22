@@ -1,6 +1,8 @@
 import type { ParsedEnv } from "../env";
 import { getSupabaseClient } from "../supabase";
 import type { AuthUser, UserRole } from "../auth";
+import type { UserProfile } from "../types";
+import { mapProfileRow } from "./mappers";
 
 const ROLE_VALUES: UserRole[] = ["user", "moderator", "admin"];
 
@@ -130,4 +132,77 @@ export async function fetchProfileByUserId(
     userId: data.user_id,
     username: data.username,
   };
+}
+
+export async function fetchProfileDetailsByUserId(
+  env: ParsedEnv,
+  userId: string
+): Promise<UserProfile | null> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("user_id, username, bio, profile_pic_url, created_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapProfileRow(data as {
+    user_id: string;
+    username: string;
+    bio: string | null;
+    profile_pic_url: string | null;
+    created_at: string | null;
+  });
+}
+
+export async function updateProfileByUserId(
+  env: ParsedEnv,
+  userId: string,
+  payload: {
+    username?: string;
+    bio?: string | null;
+    profilePicUrl?: string | null;
+  }
+): Promise<UserProfile | null> {
+  const supabase = getSupabaseClient(env);
+  const updates: Record<string, unknown> = {};
+  if (payload.username !== undefined) {
+    updates.username = payload.username;
+  }
+  if (payload.bio !== undefined) {
+    updates.bio = payload.bio;
+  }
+  if (payload.profilePicUrl !== undefined) {
+    updates.profile_pic_url = payload.profilePicUrl;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("user_id", userId)
+    .select("user_id, username, bio, profile_pic_url, created_at")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapProfileRow(data as {
+    user_id: string;
+    username: string;
+    bio: string | null;
+    profile_pic_url: string | null;
+    created_at: string | null;
+  });
 }

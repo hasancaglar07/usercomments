@@ -86,9 +86,9 @@ export const profileUser: UserProfile = {
   bio: "Passionate about tech gadgets and skincare products. I believe in honest, detailed reviews to help others make informed decisions. Currently testing the latest flagship phones. 📸 📱",
   profilePicUrl: "/stitch_assets/images/img-057.png",
   stats: {
-    reviewCount: "142",
-    totalViews: "54k",
-    reputation: "+1,203",
+    reviewCount: 142,
+    totalViews: 54000,
+    reputation: 1203,
     location: "San Francisco, CA",
   },
 };

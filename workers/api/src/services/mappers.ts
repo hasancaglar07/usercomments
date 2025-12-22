@@ -5,6 +5,7 @@ type DbProfile = {
   username: string;
   bio: string | null;
   profile_pic_url: string | null;
+  created_at?: string | null;
 };
 
 type DbCategory = {
@@ -21,21 +22,25 @@ type DbReview = {
   content_html?: string | null;
   rating_avg?: number | string | null;
   rating_count?: number | string | null;
+  views?: number | string | null;
   votes_up?: number | string | null;
   votes_down?: number | string | null;
   photo_urls?: unknown;
   photo_count?: number | string | null;
+  comment_count?: number | string | null;
   category_id?: number | string | null;
   sub_category_id?: number | string | null;
   created_at: string;
   profiles?:
-    | {
-        username: string | null;
-      }
-    | {
-        username: string | null;
-      }[]
-    | null;
+  | {
+    username: string | null;
+    profile_pic_url: string | null;
+  }
+  | {
+    username: string | null;
+    profile_pic_url: string | null;
+  }[]
+  | null;
 };
 
 type DbComment = {
@@ -44,15 +49,15 @@ type DbComment = {
   text: string;
   created_at: string;
   profiles?:
-    | {
-        username: string | null;
-        profile_pic_url: string | null;
-      }
-    | {
-        username: string | null;
-        profile_pic_url: string | null;
-      }[]
-    | null;
+  | {
+    username: string | null;
+    profile_pic_url: string | null;
+  }
+  | {
+    username: string | null;
+    profile_pic_url: string | null;
+  }[]
+  | null;
 };
 
 export function mapCategoryRow(row: DbCategory): Category {
@@ -69,6 +74,7 @@ export function mapProfileRow(row: DbProfile): UserProfile {
     displayName: row.username,
     bio: row.bio ?? undefined,
     profilePicUrl: row.profile_pic_url ?? undefined,
+    createdAt: row.created_at ?? undefined,
   };
 }
 
@@ -80,9 +86,11 @@ export function mapReviewRow(row: DbReview): Review {
 
   const ratingAvg = normalizeNumber(row.rating_avg);
   const ratingCount = normalizeNumber(row.rating_count);
+  const views = normalizeNumber(row.views);
   const votesUp = normalizeNumber(row.votes_up);
   const votesDown = normalizeNumber(row.votes_down);
   const photoCount = normalizeNumber(row.photo_count);
+  const commentCount = normalizeNumber(row.comment_count);
   const categoryId = normalizeNumber(row.category_id);
   const subCategoryId = normalizeNumber(row.sub_category_id);
 
@@ -94,13 +102,16 @@ export function mapReviewRow(row: DbReview): Review {
     contentHtml: row.content_html ?? undefined,
     ratingAvg,
     ratingCount,
+    views,
     votesUp,
     votesDown,
     photoCount: photoCount ?? photoUrls?.length,
     photoUrls,
+    commentCount,
     author: {
       username: profile?.username ?? "unknown",
       displayName: profile?.username ?? undefined,
+      profilePicUrl: profile?.profile_pic_url ?? undefined,
     },
     createdAt: row.created_at,
     categoryId: categoryId ?? undefined,

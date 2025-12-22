@@ -1,37 +1,29 @@
 import type { Category, StarType } from "@/src/types";
 
-export const FALLBACK_REVIEW_IMAGES = [
-  "/stitch_assets/images/img-011.png",
-  "/stitch_assets/images/img-012.png",
-  "/stitch_assets/images/img-013.png",
-  "/stitch_assets/images/img-014.png",
-  "/stitch_assets/images/img-015.png",
-  "/stitch_assets/images/img-017.png",
-];
+function buildDataUrl(svg: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
-export const FALLBACK_AVATARS = [
-  "/stitch_assets/images/img-004.png",
-  "/stitch_assets/images/img-005.png",
-  "/stitch_assets/images/img-006.png",
-  "/stitch_assets/images/img-007.png",
-  "/stitch_assets/images/img-008.png",
-  "/stitch_assets/images/img-009.png",
-  "/stitch_assets/images/img-010.png",
-  "/stitch_assets/images/img-026.png",
-  "/stitch_assets/images/img-027.png",
-];
+const AVATAR_PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<rect width="64" height="64" rx="32" fill="#e2e8f0"/>
+<circle cx="32" cy="24" r="12" fill="#94a3b8"/>
+<path d="M16 54c4-10 12-16 16-16s12 6 16 16" fill="#94a3b8"/>
+</svg>`;
 
-export const FALLBACK_PROFILE_IMAGES = [
-  "/stitch_assets/images/img-057.png",
-  "/stitch_assets/images/img-033.png",
-  "/stitch_assets/images/img-035.png",
-];
+const REVIEW_PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+<rect width="160" height="120" rx="12" fill="#e2e8f0"/>
+<circle cx="122" cy="34" r="12" fill="#94a3b8"/>
+<path d="M20 96l34-34 26 26 20-20 40 40H20z" fill="#cbd5f5"/>
+</svg>`;
 
-export const FALLBACK_THUMBNAILS = [
-  "/stitch_assets/images/img-058.png",
-  "/stitch_assets/images/img-059.png",
-  "/stitch_assets/images/img-060.png",
-];
+export const DEFAULT_AVATAR = buildDataUrl(AVATAR_PLACEHOLDER_SVG);
+export const DEFAULT_REVIEW_IMAGE = buildDataUrl(REVIEW_PLACEHOLDER_SVG);
+export const DEFAULT_THUMBNAIL = DEFAULT_REVIEW_IMAGE;
+
+export const FALLBACK_REVIEW_IMAGES = [DEFAULT_REVIEW_IMAGE];
+export const FALLBACK_AVATARS = [DEFAULT_AVATAR];
+export const FALLBACK_PROFILE_IMAGES = [DEFAULT_AVATAR];
+export const FALLBACK_THUMBNAILS = [DEFAULT_THUMBNAIL];
 
 export function pickFrom(list: string[], index: number): string {
   if (list.length === 0) {

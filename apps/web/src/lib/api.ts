@@ -35,22 +35,63 @@ function getBaseUrl(): string {
 async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
   const baseUrl = getBaseUrl();
   const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
-  const response = await fetch(url, {
-    ...init,
-    cache: init?.cache ?? "no-store",
-    headers: {
-      ...(init?.headers ?? {}),
-    },
-  });
+  const method = init?.method ?? "GET";
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      ...init,
+      cache: init?.cache ?? "no-store",
+      headers: {
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : "Network error.";
+    throw new Error(`API request failed (${method} ${url}): ${message}`);
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  const responseText = await response.text();
+  const maxBody = 500;
+  const bodySnippet =
+    responseText.length > maxBody
+      ? `${responseText.slice(0, maxBody)}...`
+      : responseText;
 
   if (!response.ok) {
-    const message = await response.text();
+    let detail = bodySnippet;
+    if (contentType.includes("application/json") && responseText) {
+      try {
+        const data = JSON.parse(responseText) as { error?: string };
+        if (data?.error) {
+          detail = data.error;
+        }
+      } catch {
+        // ignore JSON parse errors for error payloads
+      }
+    }
     throw new Error(
-      `API request failed (${response.status} ${response.statusText}): ${message}`
+      `API request failed (${response.status} ${response.statusText}) (${method} ${url}): ${detail || "No response body"}`
     );
   }
 
-  return response.json() as Promise<T>;
+  if (!responseText) {
+    throw new Error(`API response was empty (${method} ${url}).`);
+  }
+
+  try {
+    return JSON.parse(responseText) as T;
+  } catch (error) {
+    const message =
+      error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : "Invalid JSON response.";
+    throw new Error(`API response parse failed (${method} ${url}): ${message}`);
+  }
 }
 
 export async function getPopularReviews(limit = 3): Promise<Review[]> {
@@ -144,8 +185,35 @@ export async function getUserReviews(
   );
 }
 
+export async function getUserComments(
+  username: string,
+  page: number,
+  pageSize: number
+): Promise<PaginatedResult<Review>> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  return fetchJson<PaginatedResult<Review>>(
+    `/api/users/${encodeURIComponent(username)}/comments?${searchParams}`,
+    {
+      cache: "force-cache",
+      next: { revalidate: 60 },
+    }
+  );
+}
+
 export async function getReviewBySlug(slug: string): Promise<Review> {
   return fetchJson<Review>(`/api/reviews/slug/${encodeURIComponent(slug)}`);
+}
+
+export async function incrementReviewView(
+  reviewId: string
+): Promise<{ id: string; views: number }> {
+  return fetchJson<{ id: string; views: number }>(
+    `/api/reviews/${encodeURIComponent(reviewId)}/view`,
+    { method: "POST", cache: "no-store" }
+  );
 }
 
 export async function getReviewComments(

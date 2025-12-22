@@ -26,10 +26,27 @@ function normalizeUrl(url: URL): string {
   return normalized.toString();
 }
 
-function buildCacheKeyRequest(request: Request): Request {
+export function buildCacheKeyRequest(request: Request): Request {
   const url = new URL(request.url);
   const normalized = normalizeUrl(url);
   return new Request(normalized, { method: "GET" });
+}
+
+export function buildCacheKeyFromUrl(url: string): Request {
+  return buildCacheKeyRequest(new Request(url));
+}
+
+export async function purgeCacheUrls(urls: string[]): Promise<number> {
+  const cache = (caches as CacheStorage & { default: Cache }).default ?? caches;
+  let deleted = 0;
+  for (const url of urls) {
+    const key = buildCacheKeyFromUrl(url);
+    const didDelete = await cache.delete(key);
+    if (didDelete) {
+      deleted += 1;
+    }
+  }
+  return deleted;
 }
 
 export async function cacheResponse(

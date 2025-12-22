@@ -1,5 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabase";
+import { AUTH_COOKIE_NAME } from "./auth-cookies";
 
 let accessToken: string | null = null;
 let currentUser: User | null = null;
@@ -12,10 +13,43 @@ function notify() {
   listeners.forEach((listener) => listener(currentUser));
 }
 
+function setCookie(name: string, value: string, maxAgeSeconds: number) {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const secure =
+    typeof location !== "undefined" && location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax${secure}`;
+}
+
+function clearCookie(name: string) {
+  if (typeof document === "undefined") {
+    return;
+  }
+  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
+function syncAuthCookie(session: Session | null) {
+  if (!session?.access_token) {
+    clearCookie(AUTH_COOKIE_NAME);
+    return;
+  }
+  const maxAge =
+    typeof session.expires_in === "number" && session.expires_in > 0
+      ? session.expires_in
+      : 60 * 60;
+  setCookie(AUTH_COOKIE_NAME, session.access_token, maxAge);
+}
+
 function setSession(session: Session | null) {
   accessToken = session?.access_token ?? null;
   currentUser = session?.user ?? null;
   hasLoadedSession = true;
+  syncAuthCookie(session);
   notify();
 }
 

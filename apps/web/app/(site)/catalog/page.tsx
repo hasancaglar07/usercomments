@@ -1,4 +1,6 @@
 import { ReviewListCatalog } from "@/components/lists/ReviewList";
+import Link from "next/link";
+import EmptyState from "@/components/ui/EmptyState";
 import type { Metadata } from "next";
 import { SidebarCatalog } from "@/components/layout/Sidebar";
 import {
@@ -32,6 +34,8 @@ import {
   catalogPopularTopics,
 } from "@/data/mock/reviews";
 import { catalogTopAuthors } from "@/data/mock/users";
+
+export const runtime = "edge";
 
 const DEFAULT_PAGE_SIZE = 10;
 const POPULAR_LIMIT = 4;
@@ -153,9 +157,10 @@ function buildCatalogCards(
       imageAlt: review.title,
       authorAvatarAlt: `${review.author.username} Avatar`,
       authorAvatarDataAlt: `Avatar of user ${review.author.username}`,
-      authorAvatarUrl: pickFrom(FALLBACK_AVATARS, index),
+      authorAvatarUrl:
+        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
       category: categoryMeta,
-      viewsLabel: formatCompactNumber(review.ratingCount ?? 0),
+      viewsLabel: formatCompactNumber(review.views ?? 0),
       likesLabel: formatCompactNumber(review.votesUp ?? 0),
       showImageOverlay: Boolean(review.photoCount && review.photoCount > 1),
     };
@@ -169,6 +174,7 @@ function buildPopularTopics(
   return reviews.map((review, index) => {
     const categoryLabel = getCategoryLabel(categories, review.categoryId) ?? "General";
     return {
+      slug: review.slug,
       rankLabel: String(index + 1).padStart(2, "0"),
       title: review.title,
       metaLabel: `${categoryLabel} • ${formatCompactNumber(review.ratingCount ?? 0)} ratings`,
@@ -196,7 +202,8 @@ function buildTopAuthors(
         username,
         displayName: review.author.displayName ?? username,
       },
-      avatarUrl: pickFrom(FALLBACK_AVATARS, rankIndex),
+      avatarUrl:
+        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, rankIndex),
       avatarAlt: `${username} Avatar`,
       avatarDataAlt: `Avatar of user ${username}`,
       rankLabel: `#${rankIndex + 1}`,
@@ -257,6 +264,11 @@ export default async function Page({ searchParams }: CatalogPageProps) {
   }
 
   const categoryPills = buildCategoryPills(categories);
+  const totalReviews = pagination.totalItems ?? 0;
+  const catalogSubtitle =
+    totalReviews > 0
+      ? `Discover ${formatCompactNumber(totalReviews)} reviews from our community.`
+      : "Discover honest reviews from our community.";
   const baseParams = new URLSearchParams();
   if (searchParams?.pageSize) {
     baseParams.set("pageSize", String(pageSize));
@@ -287,12 +299,12 @@ export default async function Page({ searchParams }: CatalogPageProps) {
         <nav aria-label="Breadcrumb" className="flex mb-6">
           <ol className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
             <li>
-              <a className="hover:text-primary flex items-center" href="/">
+              <Link className="hover:text-primary flex items-center" href="/">
                 <span className="material-symbols-outlined text-[18px] mr-1">
                   home
                 </span>
                 Home
-              </a>
+              </Link>
             </li>
             <li>
               <span className="mx-1">/</span>
@@ -309,8 +321,7 @@ export default async function Page({ searchParams }: CatalogPageProps) {
                 Review Catalog
               </h2>
               <p className="text-slate-500 dark:text-slate-400">
-                Discover honest reviews from our community of over 5 million
-                users.
+                {catalogSubtitle}
               </p>
             </div>
             <Suspense fallback={null}>
@@ -328,11 +339,22 @@ export default async function Page({ searchParams }: CatalogPageProps) {
           </Suspense>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <ReviewListCatalog
-            cards={cards}
-            pagination={pagination}
-            buildHref={buildHref}
-          />
+          {cards.length > 0 ? (
+            <ReviewListCatalog
+              cards={cards}
+              pagination={pagination}
+              buildHref={buildHref}
+            />
+          ) : (
+            <div className="lg:col-span-8">
+              <EmptyState
+                title="No reviews yet"
+                description="There are no reviews yet in this category. Be the first to write one!"
+                ctaLabel="Write the first review"
+                authenticatedHref="/node/add/review"
+              />
+            </div>
+          )}
           <SidebarCatalog popularTopics={popularTopics} topAuthors={topAuthors} />
         </div>
       </main>

@@ -402,21 +402,25 @@ export const profilePagination: PaginationInfo = {
 
 export const catalogPopularTopics: CatalogPopularTopic[] = [
   {
+    slug: "dyson-airwrap-multi-styler",
     rankLabel: "01",
     title: "Dyson Airwrap Multi-styler",
     metaLabel: "Beauty • 45 new reviews",
   },
   {
+    slug: "baldurs-gate-3",
     rankLabel: "02",
     title: "Baldur's Gate 3",
     metaLabel: "Games • 128 new reviews",
   },
   {
+    slug: "kia-sportage-2024",
     rankLabel: "03",
     title: "Kia Sportage 2024",
     metaLabel: "Auto • 12 new reviews",
   },
   {
+    slug: "airpods-pro-2nd-gen",
     rankLabel: "04",
     title: "AirPods Pro (2nd Gen)",
     metaLabel: "Tech • 67 new reviews",

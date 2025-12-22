@@ -1,10 +1,13 @@
-import { ReviewListProfile } from "@/components/lists/ReviewList";
+import ReviewListProfileClient from "@/components/lists/ReviewListProfileClient";
+import UserProfileActionsClient, {
+  UserProfileHeaderActions,
+} from "@/components/user/UserProfileActionsClient";
 export const runtime = "edge";
 import type { Metadata } from "next";
 import { SidebarProfile } from "@/components/layout/Sidebar";
 import type { ReviewCardProfileData } from "@/components/cards/ReviewCard";
 import type { ProfilePopularReview } from "@/components/layout/Sidebar";
-import type { Category, Review, UserProfile } from "@/src/types";
+import type { Category, PaginationInfo, Review, UserProfile } from "@/src/types";
 import {
   FALLBACK_PROFILE_IMAGES,
   FALLBACK_REVIEW_IMAGES,
@@ -15,7 +18,12 @@ import {
   getCategoryLabel,
   pickFrom,
 } from "@/src/lib/review-utils";
-import { getCategories, getUserProfile, getUserReviews } from "@/src/lib/api";
+import {
+  getCategories,
+  getUserComments,
+  getUserProfile,
+  getUserReviews,
+} from "@/src/lib/api";
 import { buildMetadata } from "@/src/lib/seo";
 import {
   profileReviewCards,
@@ -90,6 +98,76 @@ function parseTab(value?: string): ProfileTab {
   return "reviews";
 }
 
+type ProfileBadge = {
+  label: string;
+  className: string;
+};
+
+function formatMemberSince(value?: string): string {
+  if (!value) {
+    return "recently";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "recently";
+  }
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildProfileBadges(stats?: UserProfile["stats"]): ProfileBadge[] {
+  if (!stats) {
+    return [];
+  }
+
+  const badges: ProfileBadge[] = [];
+  const karma = stats.karma ?? stats.reputation ?? 0;
+  const reviewCount = stats.reviewCount ?? 0;
+  const totalViews = stats.totalViews ?? 0;
+  const totalComments = stats.totalComments ?? 0;
+
+  if (karma >= 1000) {
+    badges.push({
+      label: "Expert Reviewer",
+      className:
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20",
+    });
+  }
+  if (reviewCount >= 50) {
+    badges.push({
+      label: "Top 5% Reviewer",
+      className:
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20",
+    });
+  }
+  if (totalViews >= 10000) {
+    badges.push({
+      label: "Trend Setter",
+      className:
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20",
+    });
+  }
+  if (totalComments >= 100) {
+    badges.push({
+      label: "Community Builder",
+      className:
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20",
+    });
+  }
+
+  if (badges.length === 0) {
+    badges.push({
+      label: "New Reviewer",
+      className:
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20",
+    });
+  }
+
+  return badges.slice(0, 2);
+}
+
 function buildProfileCards(
   reviews: Review[],
   categories: Category[]
@@ -102,7 +180,7 @@ function buildProfileCards(
     imageAlt: review.title,
     tagLabel: getCategoryLabel(categories, review.categoryId) ?? "General",
     likesLabel: formatCompactNumber(review.votesUp ?? 0),
-    commentsLabel: "0",
+    commentsLabel: formatCompactNumber(review.commentCount ?? 0),
   }));
 }
 
@@ -118,21 +196,22 @@ function buildPopularReviews(reviews: Review[]): ProfilePopularReview[] {
     thumbnailUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_THUMBNAILS, index),
     thumbnailAlt: review.title,
     ratingLabel: (review.ratingAvg ?? 0).toFixed(1),
-    viewsLabel: `${formatCompactNumber(review.ratingCount ?? 0)} views`,
+    viewsLabel: `${formatCompactNumber(review.views ?? 0)} views`,
   }));
 }
 
-function hydrateProfile(
-  profile: UserProfile,
-  reviews: Review[]
-): UserProfile {
-  const reviewCount = profile.stats?.reviewCount ?? String(reviews.length);
-  const totalViews = profile.stats?.totalViews ?? formatCompactNumber(
-    reviews.reduce((total, review) => total + (review.ratingCount ?? 0), 0)
-  );
-  const reputation = profile.stats?.reputation ?? formatCompactNumber(
-    reviews.reduce((total, review) => total + (review.votesUp ?? 0), 0)
-  );
+function hydrateProfile(profile: UserProfile, reviews: Review[]): UserProfile {
+  const reviewCount =
+    profile.stats?.reviewCount ?? reviews.length;
+  const totalViews =
+    profile.stats?.totalViews ??
+    reviews.reduce((total, review) => total + (review.views ?? 0), 0);
+  const reputation =
+    profile.stats?.reputation ??
+    reviews.reduce((total, review) => total + (review.votesUp ?? 0), 0);
+  const totalComments =
+    profile.stats?.totalComments ??
+    reviews.reduce((total, review) => total + (review.commentCount ?? 0), 0);
 
   return {
     ...profile,
@@ -142,6 +221,8 @@ function hydrateProfile(
       reviewCount,
       totalViews,
       reputation,
+      karma: profile.stats?.karma ?? reputation,
+      totalComments,
       location: profile.stats?.location ?? "",
     },
   };
@@ -154,6 +235,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
 
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
   let baseProfile: UserProfile | null = allowMockFallback ? profileUser : null;
+  let categories: Category[] = [];
   let reviews: Review[] = allowMockFallback
     ? profileReviewCards.map((card) => card.review)
     : [];
@@ -161,6 +243,13 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   let reviewPagination = allowMockFallback
     ? profilePagination
     : { page, pageSize, totalPages: 0, totalItems: 0 };
+  let commentCards: ReviewCardProfileData[] = [];
+  let commentPagination: PaginationInfo = {
+    page,
+    pageSize,
+    totalPages: 1,
+    totalItems: 0,
+  };
   let cards = reviewCards;
   let pagination = reviewPagination;
   let reviewCount = allowMockFallback
@@ -171,20 +260,30 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
 
   if (apiConfigured) {
     try {
-      const [userProfile, userReviews, categories] = await Promise.all([
-        getUserProfile(params.username),
-        getUserReviews(params.username, page, pageSize),
-        getCategories(),
-      ]);
+      const commentsPromise =
+        activeTab === "comments"
+          ? getUserComments(params.username, page, pageSize)
+          : Promise.resolve(null);
+      const [userProfile, userReviews, categoryItems, commentResult] =
+        await Promise.all([
+          getUserProfile(params.username),
+          getUserReviews(params.username, page, pageSize),
+          getCategories(),
+          commentsPromise,
+        ]);
 
       baseProfile = userProfile;
+      categories = categoryItems;
       reviews = userReviews.items;
       reviewCards = buildProfileCards(userReviews.items, categories);
       reviewPagination = userReviews.pageInfo;
       reviewCount = reviewPagination.totalItems ?? userReviews.items.length;
-      cards = reviewCards;
-      pagination = reviewPagination;
       popularReviews = buildPopularReviews(userReviews.items);
+
+      if (commentResult) {
+        commentCards = buildProfileCards(commentResult.items, categories);
+        commentPagination = commentResult.pageInfo;
+      }
     } catch (error) {
       console.error("Failed to load profile API data", error);
       if (!allowMockFallback) {
@@ -195,7 +294,13 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
     errorMessage = "API base URL is not configured.";
   }
 
-  if (activeTab !== "reviews") {
+  if (activeTab === "reviews") {
+    cards = reviewCards;
+    pagination = reviewPagination;
+  } else if (activeTab === "comments") {
+    cards = commentCards;
+    pagination = commentPagination;
+  } else {
     cards = [];
     pagination = { page, pageSize, totalPages: 1, totalItems: 0 };
   }
@@ -209,6 +314,12 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
   }
 
   const profile = hydrateProfile(baseProfile, reviews);
+  reviewCount = profile.stats?.reviewCount ?? reviewCount;
+  const memberSince = formatMemberSince(profile.createdAt);
+  const badges = buildProfileBadges(profile.stats);
+  const reviewCountLabel = formatCompactNumber(profile.stats?.reviewCount ?? 0);
+  const totalViewsLabel = formatCompactNumber(profile.stats?.totalViews ?? 0);
+  const reputationLabel = formatCompactNumber(profile.stats?.reputation ?? 0);
   const baseParams = new URLSearchParams();
   if (pageSize !== DEFAULT_PAGE_SIZE) {
     baseParams.set("pageSize", String(pageSize));
@@ -219,17 +330,11 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
     params.set("page", "1");
     return `?${params.toString()}`;
   };
-  const buildPageHref = (targetPage: number) => {
-    const params = new URLSearchParams(baseParams);
-    params.set("tab", activeTab);
-    params.set("page", String(targetPage));
-    return `?${params.toString()}`;
-  };
 
   return (
-    <div
-      className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display transition-colors duration-200"
-      data-page="user-profile"
+    <UserProfileActionsClient
+      username={profile.username}
+      displayName={profile.displayName ?? profile.username}
     >
       <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 md:px-10 py-8 flex flex-col gap-6">
         {errorMessage ? (
@@ -263,42 +368,27 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
                   </span>
                 </div>
                 <p className="text-text-sub-light dark:text-text-sub-dark text-sm">
-                  Member since November 2021
+                  Member since {memberSince}
                 </p>
-                <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                    Top 5% Reviewer
-                  </span>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20">
-                    Beauty Expert
-                  </span>
-                </div>
+                {badges.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
+                    {badges.map((badge) => (
+                      <span key={badge.label} className={badge.className}>
+                        {badge.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="flex gap-3 w-full md:w-auto justify-center md:justify-end">
-              <button className="flex items-center justify-center rounded-lg h-10 px-6 bg-primary hover:bg-primary-dark text-white text-sm font-bold shadow-sm transition-all gap-2 flex-1 md:flex-none">
-                <span className="material-symbols-outlined text-[18px]">
-                  person_add
-                </span>
-                <span>Follow</span>
-              </button>
-              <button className="flex items-center justify-center rounded-lg h-10 px-4 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-main-light dark:text-text-main-dark text-sm font-bold transition-all gap-2 flex-1 md:flex-none">
-                <span className="material-symbols-outlined text-[18px]">
-                  mail
-                </span>
-                <span>Message</span>
-              </button>
-              <button className="flex items-center justify-center rounded-lg h-10 w-10 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark transition-all">
-                <span className="material-symbols-outlined text-[20px]">
-                  more_horiz
-                </span>
-              </button>
+              <UserProfileHeaderActions />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-border-light dark:border-border-dark">
             <div className="flex flex-col items-center justify-center">
               <p className="text-text-main-light dark:text-text-main-dark text-xl md:text-2xl font-bold">
-                {profile.stats?.reviewCount}
+                {reviewCountLabel}
               </p>
               <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
                 Reviews
@@ -306,7 +396,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
             </div>
             <div className="flex flex-col items-center justify-center border-l border-r border-border-light dark:border-border-dark">
               <p className="text-text-main-light dark:text-text-main-dark text-xl md:text-2xl font-bold">
-                {profile.stats?.totalViews}
+                {totalViewsLabel}
               </p>
               <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
                 Total Views
@@ -314,7 +404,7 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
             </div>
             <div className="flex flex-col items-center justify-center">
               <p className="text-green-600 dark:text-green-400 text-xl md:text-2xl font-bold">
-                {profile.stats?.reputation}
+                {reputationLabel}
               </p>
               <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
                 Reputation
@@ -324,10 +414,11 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
         </section>
         <div className="flex flex-col lg:flex-row gap-8">
           <SidebarProfile profile={profile} popularReviews={popularReviews} />
-          <ReviewListProfile
-            cards={cards}
-            pagination={pagination}
+          <ReviewListProfileClient
+            username={params.username}
             activeTab={activeTab}
+            initialCards={cards}
+            initialPagination={pagination}
             reviewCount={reviewCount}
             tabHrefs={{
               reviews: buildTabHref("reviews"),
@@ -335,10 +426,12 @@ export default async function Page({ params, searchParams }: UserProfilePageProp
               comments: buildTabHref("comments"),
               saved: buildTabHref("saved"),
             }}
-            buildHref={buildPageHref}
+            page={page}
+            pageSize={pageSize}
+            categories={categories}
           />
         </div>
       </div>
-    </div>
+    </UserProfileActionsClient>
   );
 }

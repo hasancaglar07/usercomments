@@ -1,14 +1,19 @@
 import { z, ZodError } from "zod";
 import { getEnv, type Env, type ParsedEnv } from "./env";
 import { getAuthUser, hasRole, type AuthUser } from "./auth";
-import { cacheResponse } from "./utils/cache";
+import { cacheResponse, purgeCacheUrls } from "./utils/cache";
 import { checkRateLimit, getClientIp } from "./utils/rateLimit";
 import {
   buildPaginationInfo,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
 } from "./utils/pagination";
-import { fetchCategories, fetchSubcategories } from "./services/categories";
+import {
+  createCategory,
+  fetchCategories,
+  fetchSubcategories,
+  updateCategory,
+} from "./services/categories";
 import {
   addComment,
   addVote,
@@ -21,6 +26,9 @@ import {
   fetchReviewMetaById,
   fetchReviews,
   fetchReviewsByUserId,
+  fetchReviewsByUserComments,
+  fetchSavedReviews,
+  incrementReviewViews,
 } from "./services/reviews";
 import { searchReviews } from "./services/search";
 import { fetchUserProfileRecord } from "./services/users";
@@ -30,7 +38,20 @@ import {
   fetchReports,
   updateReportStatus,
 } from "./services/reports";
-import { fetchProfileByUserId } from "./services/profiles";
+import {
+  fetchAdminComments,
+  fetchAdminReviewDetail,
+  fetchAdminReviews,
+  fetchAdminUserDetail,
+  fetchAdminUsers,
+  updateAdminComment,
+  updateAdminReview,
+} from "./services/admin";
+import {
+  fetchProfileByUserId,
+  fetchProfileDetailsByUserId,
+  updateProfileByUserId,
+} from "./services/profiles";
 import {
   updateCommentStatus,
   updateReviewStatus,
@@ -176,7 +197,7 @@ const reportStatusSchema = z.object({
 });
 
 const reviewStatusSchema = z.object({
-  status: z.enum(["published", "hidden", "deleted"]),
+  status: z.enum(["published", "hidden", "deleted", "pending", "draft"]),
 });
 
 const commentStatusSchema = z.object({
@@ -186,6 +207,108 @@ const commentStatusSchema = z.object({
 const userRoleSchema = z.object({
   role: z.enum(["user", "moderator", "admin"]),
 });
+
+const adminReviewQuerySchema = z.object({
+  status: z.enum(["published", "hidden", "deleted", "pending", "draft"]).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+});
+
+const adminReviewUpdateSchema = z
+  .object({
+    title: z.string().trim().min(3).max(160).optional(),
+    excerpt: z.string().trim().min(10).max(300).optional(),
+    contentHtml: z.string().min(10).optional(),
+    photoUrls: z.array(z.string().url()).optional(),
+    categoryId: z.coerce.number().int().positive().optional(),
+    subCategoryId: z.coerce.number().int().positive().nullable().optional(),
+  })
+  .refine(
+    (value) =>
+      value.title !== undefined ||
+      value.excerpt !== undefined ||
+      value.contentHtml !== undefined ||
+      value.photoUrls !== undefined ||
+      value.categoryId !== undefined ||
+      value.subCategoryId !== undefined,
+    "At least one field is required."
+  );
+
+const adminCommentQuerySchema = z.object({
+  status: z.enum(["published", "hidden", "deleted"]).optional(),
+  reviewId: z.string().uuid().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+});
+
+const adminCommentUpdateSchema = z.object({
+  text: z.string().trim().min(1).max(2000),
+});
+
+const adminUserQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+});
+
+const userListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+});
+
+const adminCategoryCreateSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  parentId: z.number().int().positive().nullable().optional(),
+});
+
+const adminCategoryUpdateSchema = z
+  .object({
+    name: z.string().trim().min(2).max(60).optional(),
+    parentId: z.number().int().positive().nullable().optional(),
+  })
+  .refine(
+    (value) => value.name !== undefined || value.parentId !== undefined,
+    "At least one field is required."
+  );
+
+const profileUpdateSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(3)
+      .max(24)
+      .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _.")
+      .optional(),
+    bio: z.string().trim().max(280).optional().nullable(),
+    profilePicUrl: z.string().url().optional().nullable(),
+  })
+  .refine(
+    (value) =>
+      value.username !== undefined ||
+      value.bio !== undefined ||
+      value.profilePicUrl !== undefined,
+    "At least one field is required."
+  );
 
 const searchQuerySchema = z.object({
   q: z.string().trim().optional().default(""),
@@ -357,6 +480,90 @@ function buildSitemapIndex(urls: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`;
 }
 
+const POPULAR_LIMITS = [3, 4, 6];
+const LATEST_LIMITS = [3];
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE_CACHE = 10;
+
+function buildApiUrl(origin: string, path: string, params?: URLSearchParams): string {
+  const url = new URL(path, origin);
+  if (params) {
+    url.search = params.toString();
+  }
+  return url.toString();
+}
+
+function buildReviewCacheUrls(options: {
+  origin: string;
+  slug?: string;
+  reviewId?: string;
+  categoryId?: number | null;
+  authorUsername?: string | null;
+}): string[] {
+  const urls: string[] = [];
+  const { origin, slug, reviewId, categoryId, authorUsername } = options;
+
+  if (slug) {
+    urls.push(buildApiUrl(origin, `/api/reviews/slug/${slug}`));
+  }
+  if (reviewId) {
+    const params = new URLSearchParams({ limit: "10" });
+    urls.push(buildApiUrl(origin, `/api/reviews/${reviewId}/comments`, params));
+  }
+
+  POPULAR_LIMITS.forEach((limit) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    urls.push(buildApiUrl(origin, "/api/reviews/popular", params));
+  });
+
+  LATEST_LIMITS.forEach((limit) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    urls.push(buildApiUrl(origin, "/api/reviews/latest", params));
+  });
+
+  const baseParams = new URLSearchParams({
+    page: String(DEFAULT_PAGE),
+    pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+    sort: "latest",
+  });
+  urls.push(buildApiUrl(origin, "/api/reviews", baseParams));
+
+  if (categoryId) {
+    const categoryParams = new URLSearchParams(baseParams);
+    categoryParams.set("categoryId", String(categoryId));
+    urls.push(buildApiUrl(origin, "/api/reviews", categoryParams));
+    urls.push(buildApiUrl(origin, `/api/categories/${categoryId}/subcategories`));
+  }
+
+  urls.push(buildApiUrl(origin, "/api/categories"));
+
+  if (authorUsername) {
+    const userParams = new URLSearchParams({
+      page: String(DEFAULT_PAGE),
+      pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+    });
+    urls.push(buildApiUrl(origin, `/api/users/${authorUsername}/reviews`, userParams));
+    urls.push(buildApiUrl(origin, `/api/users/${authorUsername}`));
+  }
+
+  return urls;
+}
+
+function buildCategoryCacheUrls(origin: string, parentId?: number | null): string[] {
+  const urls = [buildApiUrl(origin, "/api/categories")];
+  if (parentId) {
+    urls.push(buildApiUrl(origin, `/api/categories/${parentId}/subcategories`));
+  }
+  return urls;
+}
+
+function queueCachePurge(ctx: ExecutionContext, urls: string[]) {
+  if (urls.length === 0) {
+    return;
+  }
+  ctx.waitUntil(purgeCacheUrls(urls));
+}
+
 async function handleHealth(): Promise<Response> {
   return jsonResponse({ ok: true, timestamp: new Date().toISOString() }, {
     headers: { "Cache-Control": "no-store" },
@@ -431,6 +638,23 @@ async function handleReviewComments({ env, params, url }: HandlerContext): Promi
   return jsonResponse(result);
 }
 
+async function handleReviewView({ env, params, request }: HandlerContext): Promise<Response> {
+  const { id } = reviewIdParamSchema.parse(params);
+  enforceRateLimit(request, env);
+  const meta = await fetchReviewMetaById(env, id);
+  if (!meta || meta.status !== "published") {
+    return errorResponse(404, "Review not found");
+  }
+  const result = await incrementReviewViews(env, id);
+  if (!result) {
+    return errorResponse(404, "Review not found");
+  }
+  return jsonResponse(
+    { id, views: result.views },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 async function handleCreateReview({ env, request }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   enforceRateLimit(request, env, user.id);
@@ -448,7 +672,13 @@ async function handleCreateReview({ env, request }: HandlerContext): Promise<Res
   return jsonResponse(result, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
 
-async function handleCreateComment({ env, request, params }: HandlerContext): Promise<Response> {
+async function handleCreateComment({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   enforceRateLimit(request, env, user.id);
   const { id } = reviewIdParamSchema.parse(params);
@@ -458,10 +688,26 @@ async function handleCreateComment({ env, request, params }: HandlerContext): Pr
   }
   const { text } = createCommentSchema.parse(await readJson(request));
   const comment = await addComment(env, { reviewId: id, userId: user.id, text });
+  queueCachePurge(
+    ctx,
+    buildReviewCacheUrls({
+      origin: url.origin,
+      slug: meta.slug,
+      reviewId: id,
+      categoryId: meta.categoryId,
+      authorUsername: meta.authorUsername ?? null,
+    })
+  );
   return jsonResponse(comment, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
 
-async function handleVote({ env, request, params }: HandlerContext): Promise<Response> {
+async function handleVote({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   enforceRateLimit(request, env, user.id);
   const { id } = reviewIdParamSchema.parse(params);
@@ -476,6 +722,16 @@ async function handleVote({ env, request, params }: HandlerContext): Promise<Res
       userId: user.id,
       type,
     });
+    queueCachePurge(
+      ctx,
+      buildReviewCacheUrls({
+        origin: url.origin,
+        slug: meta.slug,
+        reviewId: id,
+        categoryId: meta.categoryId,
+        authorUsername: meta.authorUsername ?? null,
+      })
+    );
     return jsonResponse(result, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (
@@ -558,24 +814,90 @@ async function handleUserProfile({ env, params }: HandlerContext): Promise<Respo
 
 async function handleUserReviews({ env, params, url }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
-  const { page, pageSize } = z
-    .object({
-      page: z.coerce.number().int().positive().default(1),
-      pageSize: z.coerce
-        .number()
-        .int()
-        .positive()
-        .max(MAX_PAGE_SIZE)
-        .default(DEFAULT_PAGE_SIZE),
-    })
-    .parse(getQueryObject(url));
+  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
 
   const record = await fetchUserProfileRecord(env, username);
   if (!record) {
     return errorResponse(404, "User not found");
   }
-  const result = await fetchReviewsByUserId(env, record.userId, page, pageSize);
+  const result = await fetchReviewsByUserId(
+    env,
+    record.userId,
+    page,
+    pageSize,
+    ["published"]
+  );
   return jsonResponse(result);
+}
+
+async function handleUserComments({ env, params, url }: HandlerContext): Promise<Response> {
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+
+  const result = await fetchReviewsByUserComments(
+    env,
+    record.userId,
+    page,
+    pageSize
+  );
+  return jsonResponse(result);
+}
+
+async function handleUserDrafts({
+  env,
+  params,
+  request,
+  url,
+}: HandlerContext): Promise<Response> {
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+
+  const user = await requireAuth(request, env);
+  if (user.id !== record.userId) {
+    return errorResponse(403, "Forbidden");
+  }
+
+  const result = await fetchReviewsByUserId(
+    env,
+    record.userId,
+    page,
+    pageSize,
+    ["draft"]
+  );
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleUserSaved({
+  env,
+  params,
+  request,
+  url,
+}: HandlerContext): Promise<Response> {
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+
+  const user = await requireAuth(request, env);
+  if (user.id !== record.userId) {
+    return errorResponse(403, "Forbidden");
+  }
+
+  const result = await fetchSavedReviews(env, record.userId, page, pageSize);
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
 async function handleSearch({ env, url }: HandlerContext): Promise<Response> {
@@ -596,6 +918,48 @@ async function handleSearch({ env, url }: HandlerContext): Promise<Response> {
     pageSize,
   });
   return jsonResponse(result);
+}
+
+async function handleProfile({ env, request }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  const profile = await fetchProfileDetailsByUserId(env, user.id);
+  if (!profile) {
+    return errorResponse(404, "Profile not found");
+  }
+  return jsonResponse(profile, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleProfileUpdate({
+  env,
+  request,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  enforceRateLimit(request, env, user.id);
+  const payload = profileUpdateSchema.parse(await readJson(request));
+  const normalizedUsername = payload.username?.toLowerCase();
+  const normalizedBio = payload.bio === "" ? null : payload.bio;
+
+  try {
+    const updated = await updateProfileByUserId(env, user.id, {
+      username: normalizedUsername,
+      bio: normalizedBio,
+      profilePicUrl: payload.profilePicUrl,
+    });
+    if (!updated) {
+      return errorResponse(404, "Profile not found");
+    }
+    return jsonResponse(updated, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      String(error.code) === "23505"
+    ) {
+      return errorResponse(409, "Username is already taken");
+    }
+    throw error;
+  }
 }
 
 async function handlePresign({ env, request }: HandlerContext): Promise<Response> {
@@ -657,9 +1021,125 @@ async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): P
   return xmlResponse(buildUrlset(urls));
 }
 
+async function handleAdminCategories({ env, request }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const categories = await fetchCategories(env);
+  return jsonResponse(
+    {
+      items: categories,
+      pageInfo: buildPaginationInfo(1, categories.length, categories.length),
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+async function handleAdminCategoryCreate({
+  env,
+  request,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const payload = adminCategoryCreateSchema.parse(await readJson(request));
+  const category = await createCategory(env, {
+    name: payload.name,
+    parentId: payload.parentId ?? null,
+  });
+  queueCachePurge(
+    ctx,
+    buildCategoryCacheUrls(url.origin, payload.parentId ?? null)
+  );
+  return jsonResponse(category, { status: 201, headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminCategoryUpdate({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const { id } = z
+    .object({ id: z.coerce.number().int().positive() })
+    .parse(params);
+  const payload = adminCategoryUpdateSchema.parse(await readJson(request));
+  if (payload.parentId !== undefined && payload.parentId === id) {
+    return errorResponse(400, "Category cannot be its own parent");
+  }
+  const category = await updateCategory(env, id, {
+    name: payload.name,
+    parentId: payload.parentId,
+  });
+  if (!category) {
+    return errorResponse(404, "Category not found");
+  }
+  queueCachePurge(
+    ctx,
+    buildCategoryCacheUrls(
+      url.origin,
+      payload.parentId ?? category.parentId ?? null
+    )
+  );
+  return jsonResponse(category, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminReviews({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { status, page, pageSize } = adminReviewQuerySchema.parse(getQueryObject(url));
+  const result = await fetchAdminReviews(env, { status, page, pageSize });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminReviewDetail({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { id } = reviewIdParamSchema.parse(params);
+  const review = await fetchAdminReviewDetail(env, id);
+  if (!review) {
+    return errorResponse(404, "Review not found");
+  }
+  return jsonResponse(review, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminComments({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { status, reviewId, page, pageSize } = adminCommentQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchAdminComments(env, { status, reviewId, page, pageSize });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminUsers({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { page, pageSize } = adminUserQuerySchema.parse(getQueryObject(url));
+  const result = await fetchAdminUsers(env, { page, pageSize });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminUserDetail({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { userId } = userIdParamSchema.parse(params);
+  const detail = await fetchAdminUserDetail(env, userId);
+  if (!detail) {
+    return errorResponse(404, "User not found");
+  }
+  return jsonResponse(detail, { headers: { "Cache-Control": "no-store" } });
+}
+
 async function handleAdminReports({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
-  requireRole(user, ["admin", "moderator"]);
+  requireRole(user, "admin");
   const { status, page, pageSize } = reportQuerySchema.parse(getQueryObject(url));
   const result = await fetchReports(env, { status, page, pageSize });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
@@ -667,7 +1147,8 @@ async function handleAdminReports({ env, request, url }: HandlerContext): Promis
 
 async function handleAdminReportPatch({ env, request, params }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
-  requireRole(user, ["admin", "moderator"]);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
   const { id } = z.object({ id: z.string().uuid() }).parse(params);
   const { status } = reportStatusSchema.parse(await readJson(request));
   const report = await updateReportStatus(env, id, status);
@@ -677,33 +1158,173 @@ async function handleAdminReportPatch({ env, request, params }: HandlerContext):
   return jsonResponse(report, { headers: { "Cache-Control": "no-store" } });
 }
 
-async function handleAdminReviewStatus({ env, request, params }: HandlerContext): Promise<Response> {
+async function handleAdminReviewStatus({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
-  requireRole(user, ["admin", "moderator"]);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
   const { id } = reviewIdParamSchema.parse(params);
+  const meta = await fetchReviewMetaById(env, id);
   const { status } = reviewStatusSchema.parse(await readJson(request));
   const review = await updateReviewStatus(env, id, status);
   if (!review) {
     return errorResponse(404, "Review not found");
   }
+  if (meta) {
+    queueCachePurge(
+      ctx,
+      buildReviewCacheUrls({
+        origin: url.origin,
+        slug: review.slug,
+        reviewId: review.id,
+        categoryId: meta.categoryId,
+        authorUsername: meta.authorUsername ?? null,
+      })
+    );
+  }
   return jsonResponse({ id: review.id, status: review.status }, { headers: { "Cache-Control": "no-store" } });
 }
 
-async function handleAdminCommentStatus({ env, request, params }: HandlerContext): Promise<Response> {
+async function handleAdminReviewUpdate({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
-  requireRole(user, ["admin", "moderator"]);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const { id } = reviewIdParamSchema.parse(params);
+  const payload = adminReviewUpdateSchema.parse(await readJson(request));
+  const updated = await updateAdminReview(env, id, {
+    title: payload.title,
+    excerpt: payload.excerpt,
+    contentHtml: payload.contentHtml,
+    photoUrls: payload.photoUrls,
+    categoryId: payload.categoryId,
+    subCategoryId: payload.subCategoryId ?? null,
+  });
+  if (!updated) {
+    return errorResponse(404, "Review not found");
+  }
+  queueCachePurge(
+    ctx,
+    buildReviewCacheUrls({
+      origin: url.origin,
+      slug: updated.slug,
+      reviewId: updated.id,
+      categoryId: updated.categoryId ?? null,
+      authorUsername: updated.author.username,
+    })
+  );
+  return jsonResponse(updated, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminCommentUpdate({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const { id } = commentIdParamSchema.parse(params);
+  const payload = adminCommentUpdateSchema.parse(await readJson(request));
+  const updated = await updateAdminComment(env, id, payload);
+  if (!updated) {
+    return errorResponse(404, "Comment not found");
+  }
+  const meta = await fetchReviewMetaById(env, updated.reviewId);
+  if (meta) {
+    queueCachePurge(
+      ctx,
+      buildReviewCacheUrls({
+        origin: url.origin,
+        slug: meta.slug,
+        reviewId: updated.reviewId,
+        categoryId: meta.categoryId,
+        authorUsername: meta.authorUsername ?? null,
+      })
+    );
+  }
+  return jsonResponse(updated, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminCommentStatus({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
   const { id } = commentIdParamSchema.parse(params);
   const { status } = commentStatusSchema.parse(await readJson(request));
   const comment = await updateCommentStatus(env, id, status);
   if (!comment) {
     return errorResponse(404, "Comment not found");
   }
+  const meta = await fetchReviewMetaById(env, comment.reviewId);
+  if (meta) {
+    queueCachePurge(
+      ctx,
+      buildReviewCacheUrls({
+        origin: url.origin,
+        slug: meta.slug,
+        reviewId: comment.reviewId,
+        categoryId: meta.categoryId,
+        authorUsername: meta.authorUsername ?? null,
+      })
+    );
+  }
   return jsonResponse({ id: comment.id, status: comment.status }, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminUserUpdate({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const { userId } = userIdParamSchema.parse(params);
+  const payload = profileUpdateSchema.parse(await readJson(request));
+  const updatePayload: {
+    username?: string;
+    bio?: string | null;
+    profilePicUrl?: string | null;
+  } = {};
+  if (payload.username !== undefined) {
+    updatePayload.username = payload.username;
+  }
+  if (payload.bio !== undefined) {
+    updatePayload.bio = payload.bio;
+  }
+  if (payload.profilePicUrl !== undefined) {
+    updatePayload.profilePicUrl = payload.profilePicUrl;
+  }
+  const updated = await updateProfileByUserId(env, userId, updatePayload);
+  if (!updated) {
+    return errorResponse(404, "User not found");
+  }
+  const detail = await fetchAdminUserDetail(env, userId);
+  if (!detail) {
+    return errorResponse(404, "User not found");
+  }
+  return jsonResponse(detail, { headers: { "Cache-Control": "no-store" } });
 }
 
 async function handleAdminUserRole({ env, request, params }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
   const { userId } = userIdParamSchema.parse(params);
   const { role } = userRoleSchema.parse(await readJson(request));
   const updated = await updateUserRole(env, userId, role);
@@ -756,6 +1377,12 @@ const routes: Route[] = [
     cacheTtl: (env) => env.CACHE_TTL_REVIEW_COMMENTS_SEC,
   },
   {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/reviews/:id/view" }),
+    handler: handleReviewView,
+    noStore: true,
+  },
+  {
     method: "GET",
     pattern: new URLPattern({ pathname: "/api/reviews" }),
     handler: handleReviewsList,
@@ -805,9 +1432,39 @@ const routes: Route[] = [
   },
   {
     method: "GET",
+    pattern: new URLPattern({ pathname: "/api/users/:username/comments" }),
+    handler: handleUserComments,
+    cacheTtl: (env) => env.CACHE_TTL_USER_REVIEWS_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/users/:username/drafts" }),
+    handler: handleUserDrafts,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/users/:username/saved" }),
+    handler: handleUserSaved,
+    noStore: true,
+  },
+  {
+    method: "GET",
     pattern: new URLPattern({ pathname: "/api/users/:username" }),
     handler: handleUserProfile,
     cacheTtl: (env) => env.CACHE_TTL_USER_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/profile" }),
+    handler: handleProfile,
+    noStore: true,
+  },
+  {
+    method: "PATCH",
+    pattern: new URLPattern({ pathname: "/api/profile" }),
+    handler: handleProfileUpdate,
+    noStore: true,
   },
   {
     method: "GET",
@@ -853,6 +1510,66 @@ const routes: Route[] = [
   },
   {
     method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/categories" }),
+    handler: handleAdminCategories,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/admin/categories" }),
+    handler: handleAdminCategoryCreate,
+    noStore: true,
+  },
+  {
+    method: "PATCH",
+    pattern: new URLPattern({ pathname: "/api/admin/categories/:id" }),
+    handler: handleAdminCategoryUpdate,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/reviews" }),
+    handler: handleAdminReviews,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/reviews/:id" }),
+    handler: handleAdminReviewDetail,
+    noStore: true,
+  },
+  {
+    method: "PATCH",
+    pattern: new URLPattern({ pathname: "/api/admin/reviews/:id" }),
+    handler: handleAdminReviewUpdate,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/comments" }),
+    handler: handleAdminComments,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/users" }),
+    handler: handleAdminUsers,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/users/:userId" }),
+    handler: handleAdminUserDetail,
+    noStore: true,
+  },
+  {
+    method: "PATCH",
+    pattern: new URLPattern({ pathname: "/api/admin/users/:userId" }),
+    handler: handleAdminUserUpdate,
+    noStore: true,
+  },
+  {
+    method: "GET",
     pattern: new URLPattern({ pathname: "/api/admin/reports" }),
     handler: handleAdminReports,
     noStore: true,
@@ -873,6 +1590,12 @@ const routes: Route[] = [
     method: "PATCH",
     pattern: new URLPattern({ pathname: "/api/admin/comments/:id/status" }),
     handler: handleAdminCommentStatus,
+    noStore: true,
+  },
+  {
+    method: "PATCH",
+    pattern: new URLPattern({ pathname: "/api/admin/comments/:id" }),
+    handler: handleAdminCommentUpdate,
     noStore: true,
   },
   {

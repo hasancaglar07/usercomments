@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
-const DEFAULT_SITE_NAME = "iRecommend";
+const DEFAULT_SITE_NAME = "UserComments.net";
 const DEFAULT_DESCRIPTION =
-  "Discover honest reviews and recommendations from real users.";
+  "Read what real people say before you buy. Thousands of user comments and honest experiences on the latest products.";
 const DEFAULT_OG_IMAGE = "/stitch_assets/images/img-029.png";
 
 export function getSiteUrl(): string {
@@ -29,7 +29,7 @@ export function buildMetadata(options: MetadataOptions): Metadata {
   const description = options.description ?? DEFAULT_DESCRIPTION;
   const url = toAbsoluteUrl(options.path);
   const imageUrl = toAbsoluteUrl(options.image ?? DEFAULT_OG_IMAGE);
-  const title = `${options.title} | ${DEFAULT_SITE_NAME}`;
+  const title = `${options.title} | ${DEFAULT_SITE_NAME} | Real User Reviews & Honest Product Comments`;
 
   return {
     title,

@@ -75,11 +75,14 @@ If no new rule is detected → do not update the file.
 \### Task Delivery (ALL TASKS)
 
 \- Read `proje.md` and relevant `stitch_homepage/*/code.html` before any UI work
+\- Süreç: Önce eksikleri tespit edip planla, ardından uygula; böylece ilerleme net takip edilir
 \- Preserve pixel-perfect markup and class names; do not change UI markup unless explicitly requested
 \- Web changes stay in App Router (`apps/web/app`) and shared layout in `apps/web/components/layout`
 \- API lives in `workers/api` and uses Supabase server-side client
 \- Cache-first for read endpoints; rate-limit write endpoints
 \- Keep API response shapes consistent (`{ items, pageInfo }` and `{ items, nextCursor }`)
+\- Admin API endpoints should be admin-only for now to reduce moderation risk
+\- Admin UI: Provide a user-focused, advanced admin design with full content visibility/editing and optional bulk actions, because admins must manage content end-to-end
 \- No deploy configs for Vercel/VDS/nginx/systemd/pm2 in active use
 \- Env separation: `NEXT_PUBLIC_*` only for browser; secrets in worker env
 \- Git history not available (no .git). If initializing repo, use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`
@@ -102,15 +105,26 @@ If no new rule is detected → do not update the file.
 
 \- Start work immediately and proceed unless blocked
 \- Ask before changing API contracts, adding dependencies, or modifying DB schema/migrations
+\- Use Zod for web form validation to prevent invalid submissions from reaching the API
 
 \### Code Style
 
 \- TypeScript everywhere with strict mode enabled
 \- Web: Next.js App Router under `apps/web/app`, components in `apps/web/components`, helpers in `apps/web/src/lib`, types in `apps/web/src/types.ts`, path alias `@/`; Tailwind v4 configured via `apps/web/styles/globals.css` and `postcss.config.mjs` (no tailwind.config file)
+\- Web runtime: keep `export const runtime = 'edge'` on dynamic pages to ensure Cloudflare Edge execution
+\- Web API: `apps/web/src/lib/api.ts` must use `NEXT_PUBLIC_API_BASE_URL` to reach the Worker API (no direct DB calls from the web app)
+\- Auth: use supabase-js client directly for web auth flows to align with Supabase Auth
+\- Storage: keep image files in Backblaze B2 and persist their metadata in the DB for queryable content
 \- API: Cloudflare Workers in `workers/api/src` with route handlers and shared utilities; Zod for validation; use Supabase server-side client
+\- DB: create profiles on signup via a Supabase DB trigger for reliability
 \- Naming: PascalCase for components/types; camelCase for functions/variables; file names match feature (e.g., `reviewsController.ts`)
 \- Types are duplicated in `apps/web/src/types.ts` and `workers/api/src/types.ts`; keep them in sync when API shapes change
 \- API responses: list endpoints return `{ items, pageInfo }`, cursor endpoints return `{ items, nextCursor }`, health returns `{ ok, timestamp }`
+\- Web UI must be JSX/TSX only; avoid `dangerouslySetInnerHTML` or HTML strings to keep rendering safe and predictable
+\- Internal navigation must use `next/link` `Link` to prevent full page reloads
+\- Replace DOM manipulation (`document.querySelector`, `addEventListener`) with React state or refs to keep components declarative
+\- UI copy must be English to ensure consistent language across the app
+\- Use `'use client'` only when interactivity is required to avoid unnecessary client components
 
 \### Critical (NEVER violate)
 
@@ -145,7 +159,8 @@ If no new rule is detected → do not update the file.
 
 \### Likes
 
-\- None noted yet
+\- İletişim: Yanıtları Türkçe ver, çünkü kullanıcı bunu tercih ediyor.
+\- Quality: Prefer advanced, production-grade, fully professional implementations because the user expects a very polished, pro-ready product.
 
 \### Dislikes
 

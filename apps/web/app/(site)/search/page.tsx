@@ -1,5 +1,6 @@
 import { ReviewListCatalog } from "@/components/lists/ReviewList";
 import SearchCategoryFilter from "@/components/search/SearchCategoryFilter";
+import EmptyState from "@/components/ui/EmptyState";
 import type { ReviewCardCatalogData } from "@/components/cards/ReviewCard";
 import type { Metadata } from "next";
 import type { Category, PaginationInfo, Review } from "@/src/types";
@@ -18,6 +19,8 @@ import {
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { homepagePopularCategories } from "@/data/mock/categories";
+
+export const runtime = "edge";
 
 type SearchPageProps = {
   searchParams?: {
@@ -98,9 +101,10 @@ export default async function Page({ searchParams }: SearchPageProps) {
       imageAlt: review.title,
       authorAvatarAlt: `${review.author.username} Avatar`,
       authorAvatarDataAlt: `Avatar of user ${review.author.username}`,
-      authorAvatarUrl: pickFrom(FALLBACK_AVATARS, index),
+      authorAvatarUrl:
+        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
       category: categoryMeta,
-      viewsLabel: formatCompactNumber(review.ratingCount ?? 0),
+      viewsLabel: formatCompactNumber(review.views ?? 0),
       likesLabel: formatCompactNumber(review.votesUp ?? 0),
       showImageOverlay: Boolean(review.photoCount && review.photoCount > 1),
     };
@@ -161,9 +165,14 @@ export default async function Page({ searchParams }: SearchPageProps) {
               />
             </div>
           ) : (
-            <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-              No results found.
-            </p>
+            <div className="mt-6">
+              <EmptyState
+                title="No results found"
+                description="Try a different search term or be the first to share your experience on this topic."
+                ctaLabel="Write review"
+                authenticatedHref="/node/add/review"
+              />
+            </div>
           )
         ) : null}
       </main>

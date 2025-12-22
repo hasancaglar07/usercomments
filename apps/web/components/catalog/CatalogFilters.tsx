@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export type CatalogSortOption = {
   label: string;
@@ -72,34 +73,30 @@ export function CatalogCategoryChips({
   categoryId,
   pills,
 }: CatalogCategoryChipsProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-
-  const handleCategoryClick = (nextCategoryId?: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("page");
-    if (nextCategoryId) {
-      params.set("categoryId", String(nextCategoryId));
-    } else {
-      params.delete("categoryId");
-    }
-    router.push(buildCatalogHref(params));
-  };
 
   return (
     <div className="flex flex-wrap gap-2 pb-2">
       {pills.map((pill) => {
         const isAll = !pill.id && pill.label === "All";
         const isActive = isAll ? !categoryId : pill.id === categoryId;
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("page");
+        if (pill.id) {
+          params.set("categoryId", String(pill.id));
+        } else {
+          params.delete("categoryId");
+        }
+
         return (
-          <button
+          <Link
             key={pill.label}
             className={isActive ? ACTIVE_PILL_CLASS : INACTIVE_PILL_CLASS}
-            type="button"
-            onClick={() => handleCategoryClick(pill.id)}
+            href={buildCatalogHref(params)}
           >
             {pill.label}
-          </button>
+          </Link>
         );
       })}
     </div>

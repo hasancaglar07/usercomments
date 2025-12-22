@@ -36,3 +36,56 @@ export async function fetchSubcategories(
 
   return (data ?? []).map(mapCategoryRow);
 }
+
+export async function createCategory(
+  env: ParsedEnv,
+  payload: { name: string; parentId?: number | null }
+): Promise<Category> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({
+      name: payload.name,
+      parent_id: payload.parentId ?? null,
+    })
+    .select(categorySelect)
+    .single();
+
+  if (error || !data) {
+    throw error;
+  }
+
+  return mapCategoryRow(data as { id: number; name: string; parent_id: number | null });
+}
+
+export async function updateCategory(
+  env: ParsedEnv,
+  id: number,
+  payload: { name?: string; parentId?: number | null }
+): Promise<Category | null> {
+  const supabase = getSupabaseClient(env);
+  const updates: Record<string, unknown> = {};
+  if (payload.name !== undefined) {
+    updates.name = payload.name;
+  }
+  if (payload.parentId !== undefined) {
+    updates.parent_id = payload.parentId;
+  }
+
+  const { data, error } = await supabase
+    .from("categories")
+    .update(updates)
+    .eq("id", id)
+    .select(categorySelect)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapCategoryRow(data as { id: number; name: string; parent_id: number | null });
+}

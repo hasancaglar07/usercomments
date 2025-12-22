@@ -16,14 +16,16 @@ type SearchRow = {
   excerpt: string | null;
   rating_avg?: number | string | null;
   rating_count?: number | string | null;
+  views?: number | string | null;
   votes_up?: number | string | null;
   votes_down?: number | string | null;
   photo_urls?: unknown;
   photo_count?: number | string | null;
+  comment_count?: number | string | null;
   category_id?: number | string | null;
   sub_category_id?: number | string | null;
   created_at: string;
-  profiles?: { username: string | null } | null;
+  profiles?: { username: string | null; profile_pic_url?: string | null } | null;
   total_count?: number | string | null;
 };
 

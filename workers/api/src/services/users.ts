@@ -15,7 +15,7 @@ export async function fetchUserProfileRecord(
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, username, bio, profile_pic_url")
+    .select("user_id, username, bio, profile_pic_url, created_at")
     .eq("username", username)
     .maybeSingle();
 
@@ -27,25 +27,47 @@ export async function fetchUserProfileRecord(
     return null;
   }
 
-  const { count, error: countError } = await supabase
-    .from("reviews")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", data.user_id);
+  const { data: statsData, error: statsError } = await supabase.rpc(
+    "get_user_stats",
+    { target_user_id: data.user_id }
+  );
 
-  if (countError) {
-    throw countError;
+  if (statsError) {
+    throw statsError;
   }
+
+  const statsRow = Array.isArray(statsData) ? statsData[0] : null;
 
   const baseProfile = mapProfileRow(data as {
     user_id: string;
     username: string;
     bio: string | null;
     profile_pic_url: string | null;
+    created_at: string | null;
   });
   const profile: UserProfile = {
     ...baseProfile,
     stats: {
-      reviewCount: count !== null ? String(count) : undefined,
+      reviewCount:
+        statsRow && Number.isFinite(Number(statsRow.review_count))
+          ? Number(statsRow.review_count)
+          : undefined,
+      totalViews:
+        statsRow && Number.isFinite(Number(statsRow.total_views))
+          ? Number(statsRow.total_views)
+          : undefined,
+      reputation:
+        statsRow && Number.isFinite(Number(statsRow.total_votes))
+          ? Number(statsRow.total_votes)
+          : undefined,
+      karma:
+        statsRow && Number.isFinite(Number(statsRow.total_votes))
+          ? Number(statsRow.total_votes)
+          : undefined,
+      totalComments:
+        statsRow && Number.isFinite(Number(statsRow.total_comments))
+          ? Number(statsRow.total_comments)
+          : undefined,
     },
   };
 

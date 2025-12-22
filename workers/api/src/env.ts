@@ -64,7 +64,7 @@ const envSchema = z.object({
   CACHE_TTL_LATEST_SEC: z.coerce.number().int().positive().default(45),
   CACHE_TTL_POPULAR_SEC: z.coerce.number().int().positive().default(45),
   CACHE_TTL_REVIEW_LIST_SEC: z.coerce.number().int().positive().default(60),
-  CACHE_TTL_REVIEW_SEC: z.coerce.number().int().positive().default(90),
+  CACHE_TTL_REVIEW_SEC: z.coerce.number().int().positive().default(30),
   CACHE_TTL_REVIEW_COMMENTS_SEC: z.coerce.number().int().positive().default(30),
   CACHE_TTL_USER_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_USER_REVIEWS_SEC: z.coerce.number().int().positive().default(90),

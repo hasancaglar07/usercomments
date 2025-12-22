@@ -62,11 +62,11 @@ function buildHomepageCard(
     ratingValue: (review.ratingAvg ?? 0).toFixed(1),
     imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
     imageAlt: review.title,
-    avatarUrl: pickFrom(FALLBACK_AVATARS, index),
+    avatarUrl: review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
     avatarAlt: `Profile picture of ${review.author.username}`,
     badge: getHomepageBadge(review),
     likesLabel: formatCompactNumber(review.votesUp ?? 0),
-    commentsLabel: "0",
+    commentsLabel: formatCompactNumber(review.commentCount ?? 0),
     photoCountLabel:
       review.photoCount && review.photoCount > 0
         ? formatCompactNumber(review.photoCount)

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ReviewListCategory } from "@/components/lists/ReviewList";
 export const runtime = "edge";
 import type { Metadata } from "next";
@@ -119,11 +120,11 @@ function buildCategoryCards(
       ratingStars: buildRatingStars(review.ratingAvg),
       imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
       imageAlt: review.title,
-      avatarUrl: pickFrom(FALLBACK_AVATARS, index),
+      avatarUrl: review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
       avatarAlt: `Portrait of ${review.author.username}`,
       tagLabel: subCategoryLabel ?? categoryLabel ?? "General",
       likesLabel: formatCompactNumber(review.votesUp ?? 0),
-      commentsLabel: "0",
+      commentsLabel: formatCompactNumber(review.commentCount ?? 0),
     };
   });
 }
@@ -164,7 +165,8 @@ function buildTopAuthors(
         username,
         displayName: review.author.displayName ?? username,
       },
-      avatarUrl: pickFrom(FALLBACK_AVATARS, authors.length),
+      avatarUrl:
+        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, authors.length),
       avatarAlt: `${username} avatar`,
       reviewsLabel: `${formatCompactNumber(review.ratingCount ?? 0)} reviews`,
     });
@@ -185,7 +187,7 @@ export default async function Page({ params, searchParams }: CategoryPageProps) 
   const categoryId = Number(params.id);
 
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
-  const fallbackCategoryLabel = allowMockFallback ? "Güzellik ve Sağlık" : "Category";
+  const fallbackCategoryLabel = allowMockFallback ? "Beauty & Health" : "Category";
   const fallbackDescription = allowMockFallback
     ? "Discover honest reviews on cosmetics, skincare, and health products from real users. Find the best products for your routine based on thousands of community ratings."
     : "Discover honest reviews and recommendations from real users.";
@@ -268,19 +270,19 @@ export default async function Page({ params, searchParams }: CategoryPageProps) 
       <div className="flex min-h-screen flex-col">
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-6">
           <div className="flex flex-wrap gap-2 pb-4">
-            <a
+            <Link
               className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
               href="/"
             >
               Home
-            </a>
+            </Link>
             <span className="text-[#4c739a] text-sm font-medium">/</span>
-            <a
+            <Link
               className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
               href="/catalog"
             >
               Reviews
-            </a>
+            </Link>
             <span className="text-[#4c739a] text-sm font-medium">/</span>
             <span className="text-[#0d141b] text-sm font-medium">
               {categoryLabel}
@@ -301,7 +303,7 @@ export default async function Page({ params, searchParams }: CategoryPageProps) 
           </div>
           <div className="sticky top-[65px] z-40 bg-background-light py-4 -mx-4 px-4 md:mx-0 md:px-0">
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              <a
+              <Link
                 className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-transform hover:scale-105 ${
                   subCategoryId
                     ? "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary transition-all"
@@ -310,12 +312,12 @@ export default async function Page({ params, searchParams }: CategoryPageProps) 
                 href={buildFilterHref()}
               >
                 <p className="text-sm font-bold">All</p>
-              </a>
+              </Link>
               {subcategoryTags.map((tag) => {
                 const isActive = tag.id === subCategoryId;
                 const meta = getCategoryMeta(tag.name);
                 return (
-                  <a
+                  <Link
                     key={tag.id}
                     className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-all ${
                       isActive
@@ -332,7 +334,7 @@ export default async function Page({ params, searchParams }: CategoryPageProps) 
                       {meta.icon}
                     </span>
                     <p className="text-sm font-medium">{tag.name}</p>
-                  </a>
+                  </Link>
                 );
               })}
             </div>

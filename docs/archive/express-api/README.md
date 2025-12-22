@@ -50,6 +50,13 @@ This adds full-text search support (tsvector + GIN index) and the `search_review
 
 This adds roles/statuses (profiles/reviews/comments) and the reports table for moderation.
 
+## Apply engagement schema
+
+1. Open Supabase SQL Editor.
+2. Paste and run `apps/api/db/engagement.sql`.
+
+This adds view/comment counters, saved reviews, and helper RPCs for profile stats.
+
 ## Example requests
 
 ```bash

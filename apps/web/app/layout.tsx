@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "iRecommend Clone",
-  description: "iRecommend Clone",
+  title: "UserComments.net | Real User Reviews & Honest Product Comments",
+  description: "Read what real people say before you buy. Thousands of user comments and honest experiences on the latest products.",
 };
 
 export default function RootLayout({

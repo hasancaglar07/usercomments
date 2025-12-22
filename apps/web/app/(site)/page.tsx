@@ -1,9 +1,10 @@
 import HomepageFeed from "@/components/homepage/HomepageFeed";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { SidebarHomepage } from "@/components/layout/Sidebar";
 import type { ReviewCardHomepageData } from "@/components/cards/ReviewCard";
 import type { HomepageTopReviewer } from "@/components/layout/Sidebar";
-import type { Category, Review } from "@/src/types";
+import type { Category, Review, StarType } from "@/src/types";
 import {
   FALLBACK_AVATARS,
   FALLBACK_REVIEW_IMAGES,
@@ -24,8 +25,16 @@ import { homepageReviewCards } from "@/data/mock/reviews";
 import { homepageTopReviewers } from "@/data/mock/users";
 import { homepagePopularCategories } from "@/data/mock/categories";
 
+export const runtime = "edge";
+
 const HOMEPAGE_LIMIT = 3;
 const POPULAR_LIMIT = 6;
+const TRENDING_LIMIT = 3;
+const TRENDING_BADGES = [
+  "bg-blue-100 text-blue-800",
+  "bg-pink-100 text-pink-800",
+  "bg-purple-100 text-purple-800",
+];
 
 export function generateMetadata(): Metadata {
   return buildMetadata({
@@ -53,11 +62,11 @@ function buildHomepageCards(
       ratingValue: (review.ratingAvg ?? 0).toFixed(1),
       imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
       imageAlt: review.title,
-      avatarUrl: pickFrom(FALLBACK_AVATARS, index),
+      avatarUrl: review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
       avatarAlt: `Profile picture of ${review.author.username}`,
       badge: getHomepageBadge(review),
       likesLabel: formatCompactNumber(review.votesUp ?? 0),
-      commentsLabel: "0",
+      commentsLabel: formatCompactNumber(review.commentCount ?? 0),
       photoCountLabel:
         review.photoCount && review.photoCount > 0
           ? formatCompactNumber(review.photoCount)
@@ -93,7 +102,8 @@ function buildTopReviewers(
         username,
         displayName: review.author.displayName ?? username,
       },
-      avatarUrl: pickFrom(FALLBACK_AVATARS, reviewers.length),
+      avatarUrl:
+        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, reviewers.length),
       avatarAlt: `Profile picture of ${username}`,
       rankLabel: `#${reviewers.length + 1}`,
       reviewCountLabel: `${formatCompactNumber(review.ratingCount ?? 0)} Reviews`,
@@ -106,12 +116,50 @@ function buildTopReviewers(
   return reviewers.length > 0 ? reviewers : fallback;
 }
 
+type TrendingCard = {
+  review: Review;
+  categoryLabel: string;
+  badgeClassName: string;
+  imageUrl: string;
+  imageAlt: string;
+  excerpt: string;
+  ratingStars: StarType[];
+  ratingCountLabel: string;
+};
+
+function buildTrendingCards(
+  reviews: Review[],
+  categories: Category[]
+): TrendingCard[] {
+  return reviews.slice(0, TRENDING_LIMIT).map((review, index) => {
+    const categoryLabel =
+      getCategoryLabel(categories, review.categoryId) ?? "Community";
+    const excerpt =
+      review.excerpt?.trim() ||
+      "Discover what the community is saying in this review.";
+
+    return {
+      review,
+      categoryLabel,
+      badgeClassName: pickFrom(TRENDING_BADGES, index),
+      imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
+      imageAlt: review.title,
+      excerpt,
+      ratingStars: buildRatingStars(review.ratingAvg),
+      ratingCountLabel: formatCompactNumber(review.ratingCount ?? 0),
+    };
+  });
+}
+
 export default async function Page() {
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
   let recentCards = allowMockFallback ? homepageReviewCards : [];
   let topReviewers = allowMockFallback ? homepageTopReviewers : [];
   let popularCategories = allowMockFallback ? homepagePopularCategories : [];
   let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
+  let trendingCards = allowMockFallback
+    ? buildTrendingCards(homepageReviewCards.map((card) => card.review), categories)
+    : [];
   let nextCursor: string | null = null;
   let errorMessage: string | null = null;
 
@@ -130,6 +178,7 @@ export default async function Page() {
         popularReviews,
         allowMockFallback ? homepageTopReviewers : []
       );
+      trendingCards = buildTrendingCards(popularReviews, categories);
       popularCategories = categories.slice(0, 7);
     } catch (error) {
       console.error("Failed to load homepage API data", error);
@@ -160,129 +209,50 @@ export default async function Page() {
             Trending Now
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="group relative overflow-hidden rounded-xl bg-background-light dark:bg-surface-dark shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-800">
+            {trendingCards.map((card, index) => (
               <div
-                className="aspect-video w-full bg-cover bg-center"
-                data-alt="New smartphone model on a sleek table"
-                style={{
-                  backgroundImage:
-                    'url("/stitch_assets/images/img-029.png")',
-                }}
-              />
-              <div className="p-4">
-                <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 mb-2">
-                  Tech
-                </span>
-                <h3 className="text-lg font-bold text-text-main dark:text-white leading-tight mb-1 group-hover:text-primary transition-colors">
-                  iPhone 15 Pro Review
-                </h3>
-                <p className="text-sm text-text-muted">
-                  Is it worth the upgrade? Detailed camera test inside.
-                </p>
-                <div className="flex items-center mt-3 gap-1">
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
+                key={`${card.review.id}-${index}`}
+                className="group relative overflow-hidden rounded-xl bg-background-light dark:bg-surface-dark shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-800"
+              >
+                <Link href={`/content/${card.review.slug}`}>
+                  <div
+                    className="aspect-video w-full bg-cover bg-center cursor-pointer"
+                    data-alt={card.imageAlt}
+                    style={{ backgroundImage: `url("${card.imageUrl}")` }}
+                  />
+                </Link>
+                <div className="p-4">
+                  <span
+                    className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${card.badgeClassName} mb-2`}
+                  >
+                    {card.categoryLabel}
                   </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star_half
-                  </span>
-                  <span className="text-xs text-gray-500 ml-1">
-                    (452 reviews)
-                  </span>
+                  <h3 className="text-lg font-bold text-text-main dark:text-white leading-tight mb-1 hover:text-primary transition-colors cursor-pointer">
+                    <Link href={`/content/${card.review.slug}`}>
+                      {card.review.title}
+                    </Link>
+                  </h3>
+                  <p className="text-sm text-text-muted">{card.excerpt}</p>
+                  <div className="flex items-center mt-3 gap-1">
+                    {card.ratingStars.map((star, starIndex) => {
+                      const icon = star === "half" ? "star_half" : "star";
+                      const className =
+                        star === "empty"
+                          ? "material-symbols-outlined star-empty text-[18px]"
+                          : "material-symbols-outlined star-filled text-[18px]";
+                      return (
+                        <span key={`${card.review.id}-star-${starIndex}`} className={className}>
+                          {icon}
+                        </span>
+                      );
+                    })}
+                    <span className="text-xs text-gray-500 ml-1">
+                      ({card.ratingCountLabel} reviews)
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="group relative overflow-hidden rounded-xl bg-background-light dark:bg-surface-dark shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-800">
-              <div
-                className="aspect-video w-full bg-cover bg-center"
-                data-alt="Collection of premium skincare bottles"
-                style={{
-                  backgroundImage:
-                    'url("/stitch_assets/images/img-030.png")',
-                }}
-              />
-              <div className="p-4">
-                <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-pink-100 text-pink-800 mb-2">
-                  Beauty
-                </span>
-                <h3 className="text-lg font-bold text-text-main dark:text-white leading-tight mb-1 group-hover:text-primary transition-colors">
-                  Best Winter Skincare 2024
-                </h3>
-                <p className="text-sm text-text-muted">
-                  Curated list of moisturizers for dry skin this season.
-                </p>
-                <div className="flex items-center mt-3 gap-1">
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-empty text-[18px]">
-                    star
-                  </span>
-                  <span className="text-xs text-gray-500 ml-1">
-                    (128 reviews)
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="group relative overflow-hidden rounded-xl bg-background-light dark:bg-surface-dark shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-800">
-              <div
-                className="aspect-video w-full bg-cover bg-center"
-                data-alt="Popcorn bucket in a movie theater"
-                style={{
-                  backgroundImage:
-                    'url("/stitch_assets/images/img-031.png")',
-                }}
-              />
-              <div className="p-4">
-                <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 mb-2">
-                  Movies
-                </span>
-                <h3 className="text-lg font-bold text-text-main dark:text-white leading-tight mb-1 group-hover:text-primary transition-colors">
-                  Top Rated Movies This Week
-                </h3>
-                <p className="text-sm text-text-muted">
-                  Must-watch blockbusters and indie gems.
-                </p>
-                <div className="flex items-center mt-3 gap-1">
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="material-symbols-outlined star-filled text-[18px]">
-                    star
-                  </span>
-                  <span className="text-xs text-gray-500 ml-1">
-                    (890 reviews)
-                  </span>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
         <div className="flex flex-col lg:flex-row gap-8">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   RatingStarsCatalog,
   RatingStarsCategory,
@@ -76,12 +77,12 @@ export function ReviewCardHomepage({
             ) : null}
           </div>
           <h3 className="text-lg font-bold text-text-main dark:text-white hover:text-primary cursor-pointer mb-1">
-            <a
+            <Link
               className="hover:underline decoration-primary"
               href={`/content/${review.slug}`}
             >
               {review.title}
-            </a>
+            </Link>
           </h3>
           <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
           <p className="text-sm text-text-muted line-clamp-2">
@@ -178,12 +179,12 @@ export function ReviewCardCatalog({
             {category.label}
           </div>
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight group-hover:text-primary transition-colors cursor-pointer">
-            <a
+            <Link
               className="hover:underline"
               href={`/content/${review.slug}`}
             >
               {review.title}
-            </a>
+            </Link>
           </h3>
           <RatingStarsCatalog stars={ratingStars} valueText={ratingValue} />
           <p className="text-slate-600 dark:text-slate-400 text-sm mb-4 line-clamp-2">
@@ -191,6 +192,7 @@ export function ReviewCardCatalog({
           </p>
           <div className="mt-auto flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-4">
             <div className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 alt={authorAvatarAlt}
                 className="w-6 h-6 rounded-full"
@@ -281,7 +283,7 @@ export function ReviewCardCategory({
           <RatingStarsCategory stars={ratingStars} />
         </div>
         <h3 className="text-lg font-bold text-[#0d141b] group-hover:text-primary cursor-pointer hover:underline decoration-primary">
-          <a href={`/content/${review.slug}`}>{review.title}</a>
+          <Link href={`/content/${review.slug}`}>{review.title}</Link>
         </h3>
         <p className="text-[#4c739a] text-sm line-clamp-3 leading-relaxed">
           {review.excerpt}
@@ -325,6 +327,19 @@ export type ReviewCardProfileData = {
   photoCountLabel?: string;
 };
 
+export type ReviewCardProfileActions = {
+  onReport?: (target: {
+    reviewId: string;
+    reviewSlug: string;
+    reviewTitle: string;
+  }) => void;
+  onVote?: (reviewId: string) => void;
+  onComment?: (reviewSlug: string) => void;
+  onShare?: (reviewSlug: string, reviewTitle: string) => void;
+};
+
+type ReviewCardProfileProps = ReviewCardProfileData & ReviewCardProfileActions;
+
 export function ReviewCardProfile({
   review,
   dateLabel,
@@ -335,9 +350,18 @@ export function ReviewCardProfile({
   likesLabel,
   commentsLabel,
   photoCountLabel,
-}: ReviewCardProfileData) {
+  onReport,
+  onVote,
+  onComment,
+  onShare,
+}: ReviewCardProfileProps) {
   return (
-    <article className="flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm hover:shadow-md transition-shadow">
+    <article
+      className="flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm hover:shadow-md transition-shadow"
+      data-review-id={review.id}
+      data-review-slug={review.slug}
+      data-review-title={review.title}
+    >
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
           <RatingStarsProfile stars={ratingStars} />
@@ -345,7 +369,18 @@ export function ReviewCardProfile({
             • {dateLabel}
           </span>
         </div>
-        <button className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark">
+        <button
+          className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+          type="button"
+          data-review-report
+          onClick={() =>
+            onReport?.({
+              reviewId: review.id,
+              reviewSlug: review.slug,
+              reviewTitle: review.title,
+            })
+          }
+        >
           <span className="material-symbols-outlined text-[20px]">
             more_vert
           </span>
@@ -363,27 +398,37 @@ export function ReviewCardProfile({
               {tagLabel}
             </span>
           </div>
-          <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-2 hover:text-primary cursor-pointer transition-colors">
-            {review.title}
+          <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-2 hover:text-primary transition-colors">
+            <Link href={`/content/${review.slug}`}>{review.title}</Link>
           </h2>
           <p className="text-text-sub-light dark:text-text-sub-dark text-sm line-clamp-3 mb-4 leading-relaxed">
             {review.excerpt}
           </p>
-          <a
+          <Link
             className="text-primary text-sm font-bold hover:underline mb-4 inline-block"
             href={`/content/${review.slug}`}
           >
             Read full review
-          </a>
+          </Link>
           <div className="mt-auto flex items-center justify-between pt-4 border-t border-border-light dark:border-border-dark">
             <div className="flex gap-4">
-              <button className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium">
+              <button
+                className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium"
+                type="button"
+                data-review-vote
+                onClick={() => onVote?.(review.id)}
+              >
                 <span className="material-symbols-outlined text-[18px]">
                   thumb_up
                 </span>
                 <span>{likesLabel}</span>
               </button>
-              <button className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium">
+              <button
+                className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium"
+                type="button"
+                data-review-comment
+                onClick={() => onComment?.(review.slug)}
+              >
                 <span className="material-symbols-outlined text-[18px]">
                   chat_bubble
                 </span>
@@ -395,7 +440,12 @@ export function ReviewCardProfile({
                 </span>
               ) : null}
             </div>
-            <button className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium">
+            <button
+              className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium"
+              type="button"
+              data-review-share
+              onClick={() => onShare?.(review.slug, review.title)}
+            >
               <span className="material-symbols-outlined text-[18px]">
                 share
               </span>

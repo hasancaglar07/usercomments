@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { PaginationInfo } from "@/src/types";
 
 type PageItem = number | "ellipsis";
@@ -40,15 +41,14 @@ export function PaginationCatalog({ pagination, buildHref }: PaginationProps) {
 
   return (
     <div className="flex items-center justify-center gap-2 pt-8">
-      <a
+      <Link
         aria-disabled={isFirst}
-        className={`size-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 ${
-          isFirst ? disabledClass : ""
-        }`}
-        href={buildHref ? buildHref(prevPage) : undefined}
+        className={`size-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 ${isFirst ? disabledClass : ""
+          }`}
+        href={buildHref ? buildHref(prevPage) : "#"}
       >
         <span className="material-symbols-outlined">chevron_left</span>
-      </a>
+      </Link>
       {items.map((item, index) => {
         if (item === "ellipsis") {
           return (
@@ -68,24 +68,23 @@ export function PaginationCatalog({ pagination, buildHref }: PaginationProps) {
           );
         }
         return (
-          <a
+          <Link
             key={`page-${item}`}
             className="size-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium"
-            href={buildHref ? buildHref(item) : undefined}
+            href={buildHref ? buildHref(item) : "#"}
           >
             {item}
-          </a>
+          </Link>
         );
       })}
-      <a
+      <Link
         aria-disabled={isLast}
-        className={`size-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 ${
-          isLast ? disabledClass : ""
-        }`}
-        href={buildHref ? buildHref(nextPage) : undefined}
+        className={`size-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 ${isLast ? disabledClass : ""
+          }`}
+        href={buildHref ? buildHref(nextPage) : "#"}
       >
         <span className="material-symbols-outlined">chevron_right</span>
-      </a>
+      </Link>
     </div>
   );
 }
@@ -102,15 +101,14 @@ export function PaginationCategory({ pagination, buildHref }: PaginationProps) {
   return (
     <div className="flex justify-center mt-6">
       <nav className="flex items-center gap-1">
-        <a
+        <Link
           aria-disabled={isFirst}
-          className={`size-10 flex items-center justify-center rounded-lg border border-[#e7edf3] text-[#0d141b] hover:bg-[#e7edf3] ${
-            isFirst ? disabledClass : ""
-          }`}
-          href={buildHref ? buildHref(prevPage) : undefined}
+          className={`size-10 flex items-center justify-center rounded-lg border border-[#e7edf3] text-[#0d141b] hover:bg-[#e7edf3] ${isFirst ? disabledClass : ""
+            }`}
+          href={buildHref ? buildHref(prevPage) : "#"}
         >
           <span className="material-symbols-outlined">chevron_left</span>
-        </a>
+        </Link>
         {items.map((item, index) => {
           if (item === "ellipsis") {
             return (
@@ -133,24 +131,23 @@ export function PaginationCategory({ pagination, buildHref }: PaginationProps) {
             );
           }
           return (
-            <a
+            <Link
               key={`page-${item}`}
               className="size-10 flex items-center justify-center rounded-lg border border-[#e7edf3] text-[#0d141b] hover:bg-[#e7edf3] font-medium"
-              href={buildHref ? buildHref(item) : undefined}
+              href={buildHref ? buildHref(item) : "#"}
             >
               {item}
-            </a>
+            </Link>
           );
         })}
-        <a
+        <Link
           aria-disabled={isLast}
-          className={`size-10 flex items-center justify-center rounded-lg border border-[#e7edf3] text-[#0d141b] hover:bg-[#e7edf3] ${
-            isLast ? disabledClass : ""
-          }`}
-          href={buildHref ? buildHref(nextPage) : undefined}
+          className={`size-10 flex items-center justify-center rounded-lg border border-[#e7edf3] text-[#0d141b] hover:bg-[#e7edf3] ${isLast ? disabledClass : ""
+            }`}
+          href={buildHref ? buildHref(nextPage) : "#"}
         >
           <span className="material-symbols-outlined">chevron_right</span>
-        </a>
+        </Link>
       </nav>
     </div>
   );
@@ -169,7 +166,7 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
         aria-label="Pagination"
         className="isolate inline-flex -space-x-px rounded-md shadow-sm"
       >
-        <a
+        <Link
           className="relative inline-flex items-center rounded-l-md px-2 py-2 text-text-sub-light dark:text-text-sub-dark ring-1 ring-inset ring-border-light dark:ring-border-dark hover:bg-background-light dark:hover:bg-surface-dark focus:z-20 focus:outline-offset-0 bg-surface-light dark:bg-surface-dark"
           href={resolveHref(prevPage)}
         >
@@ -177,7 +174,7 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
           <span className="material-symbols-outlined text-[20px]">
             chevron_left
           </span>
-        </a>
+        </Link>
         {items.map((item, index) => {
           if (item === "ellipsis") {
             return (
@@ -191,14 +188,14 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
           }
           if (item === pagination.page) {
             return (
-              <a
+              <Link
                 key={`page-${item}`}
                 aria-current="page"
                 className="relative z-10 inline-flex items-center bg-primary px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 href={resolveHref(item)}
               >
                 {item}
-              </a>
+              </Link>
             );
           }
           const isHidden =
@@ -209,12 +206,12 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
             ? `hidden ${baseClass} md:inline-flex`
             : `inline-flex ${baseClass}`;
           return (
-            <a key={`page-${item}`} className={className} href={resolveHref(item)}>
+            <Link key={`page-${item}`} className={className} href={resolveHref(item)}>
               {item}
-            </a>
+            </Link>
           );
         })}
-        <a
+        <Link
           className="relative inline-flex items-center rounded-r-md px-2 py-2 text-text-sub-light dark:text-text-sub-dark ring-1 ring-inset ring-border-light dark:ring-border-dark hover:bg-background-light dark:hover:bg-surface-dark focus:z-20 focus:outline-offset-0 bg-surface-light dark:bg-surface-dark"
           href={resolveHref(nextPage)}
         >
@@ -222,7 +219,7 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
           <span className="material-symbols-outlined text-[20px]">
             chevron_right
           </span>
-        </a>
+        </Link>
       </nav>
     </div>
   );

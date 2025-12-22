@@ -1,3 +1,9 @@
+import Link from "next/link";
+import AuthCtaButton from "@/components/auth/AuthCtaButton";
+import {
+  UserProfileAchievementsTrigger,
+  UserProfileShareLink,
+} from "@/components/user/UserProfileActionsClient";
 import type { Category, Review, UserProfile } from "@/src/types";
 
 export type HomepageTopReviewer = {
@@ -28,18 +34,19 @@ export function SidebarHomepage({
         </h3>
         <div className="flex flex-col gap-4">
           {topReviewers.map((reviewer) => (
-            <div
+            <Link
               key={`${reviewer.profile.username}-${reviewer.rankLabel}`}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between group cursor-pointer"
+              href={`/users/${encodeURIComponent(reviewer.profile.username.toLowerCase())}`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className="w-10 h-10 rounded-full bg-cover bg-center"
+                  className="w-10 h-10 rounded-full bg-cover bg-center shrink-0"
                   data-alt={reviewer.avatarAlt}
                   style={{ backgroundImage: `url(${reviewer.avatarUrl})` }}
                 />
                 <div>
-                  <p className="text-sm font-bold text-text-main dark:text-white">
+                  <p className="text-sm font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
                     {reviewer.profile.displayName ?? reviewer.profile.username}
                   </p>
                   <p className="text-xs text-text-muted">
@@ -50,7 +57,7 @@ export function SidebarHomepage({
               <span className="text-xs font-bold text-primary">
                 {reviewer.rankLabel}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
         <button className="w-full mt-4 py-2 text-xs font-bold text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition-colors">
@@ -68,9 +75,9 @@ export function SidebarHomepage({
           Share your experiences and help millions of people make better
           choices.
         </p>
-        <button className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-sm">
+        <AuthCtaButton className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-sm">
           Start Writing Now
-        </button>
+        </AuthCtaButton>
       </div>
       <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
         <h3 className="text-lg font-bold text-text-main dark:text-white mb-4">
@@ -78,13 +85,13 @@ export function SidebarHomepage({
         </h3>
         <div className="flex flex-wrap gap-2">
           {popularCategories.map((category) => (
-            <a
+            <Link
               key={category.id}
               className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               href={`/catalog/reviews/${category.id}`}
             >
               {category.name}
-            </a>
+            </Link>
           ))}
         </div>
       </div>
@@ -93,6 +100,7 @@ export function SidebarHomepage({
 }
 
 export type CatalogPopularTopic = {
+  slug: string;
   rankLabel: string;
   title: string;
   metaLabel: string;
@@ -127,20 +135,22 @@ export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProp
           </span>
         </div>
         <ul className="space-y-4">
-          {popularTopics.map((topic) => (
-            <li
-              key={topic.rankLabel}
-              className="flex gap-3 items-start group cursor-pointer"
-            >
-              <div className="text-2xl font-black text-slate-200 dark:text-slate-700 leading-none group-hover:text-primary transition-colors">
-                {topic.rankLabel}
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">
-                  {topic.title}
-                </h4>
-                <p className="text-xs text-slate-500 mt-1">{topic.metaLabel}</p>
-              </div>
+          {popularTopics.map((topic, index) => (
+            <li key={`${topic.rankLabel}-${index}`}>
+              <Link
+                className="flex gap-3 items-start group cursor-pointer"
+                href={`/content/${topic.slug}`}
+              >
+                <div className="text-2xl font-black text-slate-200 dark:text-slate-700 leading-none group-hover:text-primary transition-colors">
+                  {topic.rankLabel}
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">
+                    {topic.title}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1">{topic.metaLabel}</p>
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
@@ -153,10 +163,14 @@ export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProp
           {topAuthors.map((author) => (
             <div
               key={author.profile.username}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between group"
             >
-              <div className="flex items-center gap-3">
+              <Link
+                className="flex items-center gap-3 cursor-pointer"
+                href={`/users/${encodeURIComponent(author.profile.username.toLowerCase())}`}
+              >
                 <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     alt={author.avatarAlt}
                     className="size-10 rounded-full border-2 border-white dark:border-slate-800 shadow-sm"
@@ -168,15 +182,15 @@ export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProp
                   </div>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">
                     {author.profile.displayName ?? author.profile.username}
                   </p>
                   <p className="text-xs text-slate-500">
                     {author.reviewsLabel} • {author.karmaLabel}
                   </p>
                 </div>
-              </div>
-              <button className="text-primary hover:bg-blue-50 dark:hover:bg-slate-800 p-1 rounded transition-colors">
+              </Link>
+              <button className="text-primary hover:bg-blue-50 dark:hover:bg-slate-800 p-1 rounded transition-colors shrink-0">
                 <span className="material-symbols-outlined text-[20px]">
                   person_add
                 </span>
@@ -199,9 +213,13 @@ export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProp
           <p className="text-blue-100 text-sm mb-4">
             Share your experiences and help millions make better choices.
           </p>
-          <button className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-50 transition-colors w-full">
+          <AuthCtaButton
+            className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-50 transition-colors w-full"
+            authenticatedHref="/node/add/review"
+            guestHref="/user/register"
+          >
             Sign Up Free
-          </button>
+          </AuthCtaButton>
         </div>
       </div>
     </div>
@@ -248,11 +266,12 @@ export function SidebarCategory({
         </h3>
         <div className="flex flex-col gap-4">
           {bestItems.map((item) => (
-            <div
+            <Link
               key={item.rankLabel}
               className="flex gap-3 items-center group cursor-pointer"
+              href={`/content/${item.review.slug}`}
             >
-              <span className="text-xl font-bold text-gray-300 w-6 text-center group-hover:text-primary">
+              <span className="text-xl font-bold text-gray-300 w-6 text-center group-hover:text-primary transition-colors">
                 {item.rankLabel}
               </span>
               <div
@@ -260,8 +279,8 @@ export function SidebarCategory({
                 data-alt={item.imageAlt}
                 style={{ backgroundImage: `url(${item.imageUrl})` }}
               />
-              <div className="flex flex-col">
-                <p className="text-sm font-bold text-[#0d141b] leading-tight group-hover:text-primary">
+              <div className="flex flex-col min-w-0">
+                <p className="text-sm font-bold text-[#0d141b] leading-tight group-hover:text-primary transition-colors truncate">
                   {item.review.title}
                 </p>
                 <div className="flex text-primary text-[14px]">
@@ -276,7 +295,7 @@ export function SidebarCategory({
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
         <button className="w-full mt-5 py-2 text-sm font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors">
@@ -291,24 +310,27 @@ export function SidebarCategory({
           {topAuthors.map((author) => (
             <div
               key={author.profile.username}
-              className="flex items-center justify-between"
+              className="flex items-center justify-between group"
             >
-              <div className="flex items-center gap-3">
+              <Link
+                className="flex items-center gap-3 cursor-pointer"
+                href={`/users/${encodeURIComponent(author.profile.username.toLowerCase())}`}
+              >
                 <div
-                  className="size-10 rounded-full bg-cover bg-center"
+                  className="size-10 rounded-full bg-cover bg-center shrink-0 border border-[#e7edf3]"
                   data-alt={author.avatarAlt}
                   style={{ backgroundImage: `url(${author.avatarUrl})` }}
                 />
                 <div className="flex flex-col">
-                  <p className="text-sm font-bold text-[#0d141b]">
+                  <p className="text-sm font-bold text-[#0d141b] group-hover:text-primary transition-colors">
                     {author.profile.displayName ?? author.profile.username}
                   </p>
                   <p className="text-xs text-[#4c739a]">
                     {author.reviewsLabel}
                   </p>
                 </div>
-              </div>
-              <button className="size-8 rounded-full bg-[#e7edf3] flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+              </Link>
+              <button className="size-8 rounded-full bg-[#e7edf3] flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors shrink-0">
                 <span className="material-symbols-outlined text-lg">
                   person_add
                 </span>
@@ -328,13 +350,13 @@ export function SidebarCategory({
                 ? `/catalog/reviews/${baseCategoryId}?subCategoryId=${tag.id}`
                 : `/catalog/reviews/${tag.id}`;
             return (
-              <a
+              <Link
                 key={tag.id}
                 className="text-xs font-medium text-[#4c739a] bg-[#f6f7f8] px-3 py-1.5 rounded-md hover:bg-[#e7edf3] transition-colors"
                 href={href}
               >
                 {tag.name}
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -357,6 +379,10 @@ export type SidebarProfileProps = {
 };
 
 export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps) {
+  const bio =
+    profile.bio && profile.bio.trim().length > 0
+      ? profile.bio
+      : "This user has not added a bio yet.";
   return (
     <aside className="w-full lg:w-1/3 flex flex-col gap-6 order-2 lg:order-1">
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
@@ -364,15 +390,16 @@ export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps)
           About Me
         </h3>
         <p className="text-text-sub-light dark:text-text-sub-dark text-sm leading-relaxed mb-4">
-          {profile.bio}
+          {bio}
         </p>
         <div className="flex flex-wrap gap-2">
-          <a
+          <UserProfileShareLink
             className="flex items-center justify-center w-8 h-8 rounded-full bg-background-light dark:bg-background-dark text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors"
             href={`/users/${profile.username}`}
+            aria-label="Copy profile link"
           >
             <span className="material-symbols-outlined text-[18px]">link</span>
-          </a>
+          </UserProfileShareLink>
           <div className="flex items-center text-xs text-text-sub-light dark:text-text-sub-dark gap-1 ml-auto">
             <span className="material-symbols-outlined text-[16px]">
               location_on
@@ -384,9 +411,9 @@ export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps)
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
         <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-4 flex items-center justify-between">
           Achievements
-          <span className="text-xs font-normal text-primary cursor-pointer hover:underline">
+          <UserProfileAchievementsTrigger className="text-xs font-normal text-primary cursor-pointer hover:underline">
             View All
-          </span>
+          </UserProfileAchievementsTrigger>
         </h3>
         <div className="grid grid-cols-4 gap-2">
           <div
@@ -418,7 +445,7 @@ export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps)
         </h3>
         <div className="flex flex-col gap-4">
           {popularReviews.map((item) => (
-            <a
+            <Link
               key={item.review.id}
               className="flex gap-3 items-center group/item"
               href={`/content/${item.review.slug}`}
@@ -441,7 +468,7 @@ export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps)
                   <span>{item.viewsLabel}</span>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
