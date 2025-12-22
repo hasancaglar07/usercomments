@@ -3,8 +3,6 @@ import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import { AuthProvider } from "../../components/auth/AuthProvider";
 
-export const runtime = "edge";
-
 export default function SiteLayout({
   children,
 }: Readonly<{
