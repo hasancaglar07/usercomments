@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.dev.vars
+*.log
+.DS_Store
+.vercel
+docs/archive/**/.env*
