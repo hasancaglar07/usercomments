@@ -1,0 +1,357 @@
+import { ReviewListCategory } from "@/components/lists/ReviewList";
+import type { Metadata } from "next";
+import { SidebarCategory } from "@/components/layout/Sidebar";
+import type {
+  CategoryBestItem,
+  CategoryTopAuthor,
+} from "@/components/layout/Sidebar";
+import type { ReviewCardCategoryData } from "@/components/cards/ReviewCard";
+import type { Category, Review } from "@/src/types";
+import {
+  FALLBACK_AVATARS,
+  FALLBACK_REVIEW_IMAGES,
+  buildRatingStars,
+  formatCompactNumber,
+  formatNumber,
+  formatRelativeTime,
+  getCategoryMeta,
+  getCategoryLabel,
+  pickFrom,
+} from "@/src/lib/review-utils";
+import {
+  getCategories,
+  getCategoryPage,
+  getSubcategories,
+} from "@/src/lib/api";
+import { buildMetadata } from "@/src/lib/seo";
+import { allowMockFallback } from "@/src/lib/runtime";
+import {
+  categoryReviewCards,
+  categoryPagination,
+  categoryBestItems,
+} from "@/data/mock/reviews";
+import { categoryTopAuthors } from "@/data/mock/users";
+import { categoryPopularTags } from "@/data/mock/categories";
+
+const DEFAULT_PAGE_SIZE = 10;
+
+const SORT_OPTIONS = new Set(["latest", "popular", "rating"]);
+
+export async function generateMetadata({
+  params,
+}: CategoryPageProps): Promise<Metadata> {
+  const categoryId = Number(params.id);
+  let categoryLabel: string | undefined;
+
+  if (process.env.NEXT_PUBLIC_API_BASE_URL && Number.isFinite(categoryId)) {
+    try {
+      const categories = await getCategories();
+      categoryLabel = getCategoryLabel(categories, categoryId);
+    } catch {
+      categoryLabel = undefined;
+    }
+  }
+
+  const title = categoryLabel ? `${categoryLabel} Reviews` : "Category Reviews";
+
+  return buildMetadata({
+    title,
+    description: categoryLabel
+      ? `Explore ${categoryLabel} reviews and recommendations.`
+      : "Explore reviews and recommendations by category.",
+    path: `/catalog/reviews/${params.id}`,
+    type: "website",
+  });
+}
+
+type CategoryPageProps = {
+  params: {
+    id: string;
+  };
+  searchParams?: {
+    page?: string;
+    pageSize?: string;
+    sort?: string;
+    subCategoryId?: string;
+  };
+};
+
+function parseNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+}
+
+function parseOptionalNumber(value?: string): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return Math.floor(parsed);
+}
+
+function parseSort(value?: string): "latest" | "popular" | "rating" {
+  const normalized = value?.toLowerCase();
+  if (normalized && SORT_OPTIONS.has(normalized)) {
+    return normalized as "latest" | "popular" | "rating";
+  }
+  return "latest";
+}
+
+function buildCategoryCards(
+  reviews: Review[],
+  categories: Category[],
+  subcategories: Category[]
+): ReviewCardCategoryData[] {
+  return reviews.map((review, index) => {
+    const subCategoryLabel = getCategoryLabel(subcategories, review.subCategoryId);
+    const categoryLabel = getCategoryLabel(categories, review.categoryId);
+
+    return {
+      review,
+      dateLabel: formatRelativeTime(review.createdAt),
+      ratingStars: buildRatingStars(review.ratingAvg),
+      imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
+      imageAlt: review.title,
+      avatarUrl: pickFrom(FALLBACK_AVATARS, index),
+      avatarAlt: `Portrait of ${review.author.username}`,
+      tagLabel: subCategoryLabel ?? categoryLabel ?? "General",
+      likesLabel: formatCompactNumber(review.votesUp ?? 0),
+      commentsLabel: "0",
+    };
+  });
+}
+
+function buildBestItems(reviews: Review[]): CategoryBestItem[] {
+  const sorted = [...reviews].sort((a, b) => {
+    const left = a.ratingAvg ?? 0;
+    const right = b.ratingAvg ?? 0;
+    return right - left;
+  });
+
+  return sorted.slice(0, 3).map((review, index) => ({
+    review,
+    rankLabel: String(index + 1),
+    imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
+    imageAlt: review.title,
+    ratingLabel: (review.ratingAvg ?? 0).toFixed(1),
+    ratingCountLabel: `(${formatNumber(review.ratingCount ?? 0)})`,
+  }));
+}
+
+function buildTopAuthors(
+  reviews: Review[],
+  fallback: CategoryTopAuthor[]
+): CategoryTopAuthor[] {
+  const authors: CategoryTopAuthor[] = [];
+  const seen = new Set<string>();
+
+  for (const review of reviews) {
+    const username = review.author.username;
+    if (!username || seen.has(username)) {
+      continue;
+    }
+    seen.add(username);
+
+    authors.push({
+      profile: {
+        username,
+        displayName: review.author.displayName ?? username,
+      },
+      avatarUrl: pickFrom(FALLBACK_AVATARS, authors.length),
+      avatarAlt: `${username} avatar`,
+      reviewsLabel: `${formatCompactNumber(review.ratingCount ?? 0)} reviews`,
+    });
+
+    if (authors.length >= 2) {
+      break;
+    }
+  }
+
+  return authors.length > 0 ? authors : fallback;
+}
+
+export default async function Page({ params, searchParams }: CategoryPageProps) {
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
+  const subCategoryId = parseOptionalNumber(searchParams?.subCategoryId);
+  const categoryId = Number(params.id);
+
+  const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
+  const fallbackCategoryLabel = allowMockFallback ? "Güzellik ve Sağlık" : "Category";
+  const fallbackDescription = allowMockFallback
+    ? "Discover honest reviews on cosmetics, skincare, and health products from real users. Find the best products for your routine based on thousands of community ratings."
+    : "Discover honest reviews and recommendations from real users.";
+  let categoryLabel = fallbackCategoryLabel;
+  let categoryDescription = fallbackDescription;
+  let cards = allowMockFallback ? categoryReviewCards : [];
+  let pagination = allowMockFallback
+    ? categoryPagination
+    : { page, pageSize, totalPages: 0, totalItems: 0 };
+  let bestItems = allowMockFallback ? categoryBestItems : [];
+  let topAuthors = allowMockFallback ? categoryTopAuthors : [];
+  let popularTags = allowMockFallback ? categoryPopularTags : [];
+  let subcategoryTags = allowMockFallback ? categoryPopularTags : [];
+  let errorMessage: string | null = null;
+
+  if (apiConfigured && Number.isFinite(categoryId)) {
+    try {
+      const [categoryResult, categories, subcategories] = await Promise.all([
+        getCategoryPage(categoryId, page, pageSize, sort, subCategoryId),
+        getCategories(),
+        getSubcategories(categoryId),
+      ]);
+
+      cards = buildCategoryCards(categoryResult.items, categories, subcategories);
+      pagination = categoryResult.pageInfo;
+      bestItems = buildBestItems(categoryResult.items);
+      topAuthors = buildTopAuthors(
+        categoryResult.items,
+        allowMockFallback ? categoryTopAuthors : []
+      );
+      const label = getCategoryLabel(categories, categoryId);
+      if (label) {
+        categoryLabel = label;
+        categoryDescription = `Discover honest reviews and recommendations for ${label}.`;
+      }
+      subcategoryTags = subcategories;
+      popularTags =
+        subcategories.length > 0 ? subcategories : categories.slice(0, 6);
+    } catch (error) {
+      console.error("Failed to load category API data", error);
+      if (!allowMockFallback) {
+        errorMessage = "Unable to load category data. Please try again later.";
+      }
+    }
+  } else if (!allowMockFallback) {
+    errorMessage = "API base URL is not configured.";
+  }
+
+  const baseParams = new URLSearchParams();
+  if (pageSize !== DEFAULT_PAGE_SIZE) {
+    baseParams.set("pageSize", String(pageSize));
+  }
+  if (sort !== "latest") {
+    baseParams.set("sort", sort);
+  }
+  if (subCategoryId) {
+    baseParams.set("subCategoryId", String(subCategoryId));
+  }
+  const buildHref = (targetPage: number) => {
+    const params = new URLSearchParams(baseParams);
+    params.set("page", String(targetPage));
+    return `/catalog/reviews/${categoryId}?${params.toString()}`;
+  };
+  const buildFilterHref = (targetSubCategoryId?: number) => {
+    const params = new URLSearchParams(baseParams);
+    params.set("page", "1");
+    if (targetSubCategoryId) {
+      params.set("subCategoryId", String(targetSubCategoryId));
+    } else {
+      params.delete("subCategoryId");
+    }
+    return `/catalog/reviews/${categoryId}?${params.toString()}`;
+  };
+
+  return (
+    <div
+      className="bg-background-light dark:bg-background-dark text-[#0d141b] font-display antialiased overflow-x-hidden"
+      data-page="category-page"
+    >
+      <div className="flex min-h-screen flex-col">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-6">
+          <div className="flex flex-wrap gap-2 pb-4">
+            <a
+              className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
+              href="/"
+            >
+              Home
+            </a>
+            <span className="text-[#4c739a] text-sm font-medium">/</span>
+            <a
+              className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
+              href="/catalog"
+            >
+              Reviews
+            </a>
+            <span className="text-[#4c739a] text-sm font-medium">/</span>
+            <span className="text-[#0d141b] text-sm font-medium">
+              {categoryLabel}
+            </span>
+          </div>
+          {errorMessage ? (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+              {errorMessage}
+            </div>
+          ) : null}
+          <div className="flex flex-col gap-3 pb-6 border-b border-[#e7edf3]">
+            <h1 className="text-[#0d141b] text-4xl font-black leading-tight tracking-[-0.033em]">
+              {categoryLabel}
+            </h1>
+            <p className="text-[#4c739a] text-lg font-normal max-w-3xl">
+              {categoryDescription}
+            </p>
+          </div>
+          <div className="sticky top-[65px] z-40 bg-background-light py-4 -mx-4 px-4 md:mx-0 md:px-0">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              <a
+                className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-transform hover:scale-105 ${
+                  subCategoryId
+                    ? "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary transition-all"
+                    : "bg-[#0d141b] text-white"
+                }`}
+                href={buildFilterHref()}
+              >
+                <p className="text-sm font-bold">All</p>
+              </a>
+              {subcategoryTags.map((tag) => {
+                const isActive = tag.id === subCategoryId;
+                const meta = getCategoryMeta(tag.name);
+                return (
+                  <a
+                    key={tag.id}
+                    className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-all ${
+                      isActive
+                        ? "bg-[#0d141b] text-white"
+                        : "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary group"
+                    }`}
+                    href={buildFilterHref(tag.id)}
+                  >
+                    <span
+                      className={`material-symbols-outlined text-[18px] ${
+                        isActive ? "text-white" : "group-hover:text-primary"
+                      }`}
+                    >
+                      {meta.icon}
+                    </span>
+                    <p className="text-sm font-medium">{tag.name}</p>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-4">
+            <ReviewListCategory
+              cards={cards}
+              pagination={pagination}
+              buildHref={buildHref}
+              sort={sort}
+            />
+            <SidebarCategory
+              bestItems={bestItems}
+              topAuthors={topAuthors}
+              popularTags={popularTags}
+              baseCategoryId={categoryId}
+            />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

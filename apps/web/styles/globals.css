@@ -1,0 +1,318 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/container-queries";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Plus Jakarta Sans", "Noto Sans", sans-serif;
+  --color-primary: #137fec;
+  --color-primary-dark: #0f65bd;
+  --color-primary-hover: #116ecf;
+  --color-secondary: #ff9800;
+  --color-accent: #ff8c00;
+  --color-accent-orange: #ff7b00;
+  --color-background-light: #ffffff;
+  --color-background-dark: #101922;
+  --color-surface-light: #f4f6f8;
+  --color-surface-dark: #1e293b;
+  --color-card-light: #ffffff;
+  --color-card-dark: #1c2633;
+  --color-text-main: #0d141b;
+  --color-text-muted: #4c739a;
+  --color-text-main-light: #0d141b;
+  --color-text-secondary-light: #4c739a;
+  --color-text-main-dark: #e0e6ed;
+  --color-text-secondary-dark: #94a3b8;
+  --color-text-sub-light: #4c739a;
+  --color-text-sub-dark: #94a3b8;
+  --color-border-light: #e7edf3;
+  --color-border-dark: #2d3b4a;
+  --radius: 0.25rem;
+}
+
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIuaomQNQcsA88c7O9yZ4KMCoOg4Koz4yOqhMva.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIuaomQNQcsA88c7O9yZ4KMCoOg4Koz4yGqhMva.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIuaomQNQcsA88c7O9yZ4KMCoOg4Koz4yCqhMva.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: italic;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIuaomQNQcsA88c7O9yZ4KMCoOg4Koz4y6qhA.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko70yyygA.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko50yyygA.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko40yyygA.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* fallback */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: swap;
+  src: url(/stitch_assets/fonts/kJEPBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzBwG-RpA6RzaxHMPdY40KH8nGzv3fzfVJO1Q.woff2) format('woff2');
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", "Noto Sans", sans-serif;
+}
+
+[data-page="homepage"] {
+  --color-primary: #137fec;
+  --color-primary-dark: #0f65bd;
+  --color-secondary: #ff9800;
+  --color-background-light: #ffffff;
+  --color-background-dark: #101922;
+  --color-surface-light: #f4f6f8;
+  --color-surface-dark: #1e293b;
+  --color-text-main: #0d141b;
+  --color-text-muted: #4c739a;
+  --radius: 0.375rem;
+}
+
+[data-page="catalog-page"] {
+  --color-primary: #137fec;
+  --color-secondary: #f97316;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --color-card-light: #ffffff;
+  --color-card-dark: #1c2633;
+  --radius: 0.25rem;
+}
+
+[data-page="category-page"] {
+  --color-primary: #137fec;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.25rem;
+}
+
+[data-page="individual-review"] {
+  --color-primary: #137fec;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.25rem;
+}
+
+[data-page="user-profile"] {
+  --color-primary: #137fec;
+  --color-primary-dark: #0b5ed7;
+  --color-secondary: #ff6b00;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #1e2936;
+  --color-text-main-light: #0d141b;
+  --color-text-main-dark: #e2e8f0;
+  --color-text-sub-light: #4c739a;
+  --color-text-sub-dark: #94a3b8;
+  --color-border-light: #e7edf3;
+  --color-border-dark: #334155;
+  --radius: 0.25rem;
+}
+
+[data-page="login-page"] {
+  --color-primary: #137fec;
+  --color-accent: #f97316;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.25rem;
+}
+
+[data-page="add-review"] {
+  --color-primary: #137fec;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.25rem;
+}
+
+[data-page="forgot-password"] {
+  --color-primary: #137fec;
+  --color-primary-dark: #0b5ed7;
+  --color-accent: #ff8c00;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.25rem;
+}
+
+[data-page="contact"] {
+  --color-primary: #137fec;
+  --color-primary-hover: #116ecf;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #1a2733;
+  --color-text-main-light: #0d141b;
+  --color-text-secondary-light: #4c739a;
+  --color-text-main-dark: #e0e6ed;
+  --color-text-secondary-dark: #94a3b8;
+  --color-border-light: #e7edf3;
+  --color-border-dark: #2d3b4a;
+  --radius: 0.25rem;
+}
+
+[data-page="privacy-policy"] {
+  --color-primary: #137fec;
+  --color-accent-orange: #ff7b00;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.25rem;
+}
+
+[data-page="terms-of-use"] {
+  --color-primary: #137fec;
+  --color-primary-dark: #0b5bb0;
+  --color-accent: #ff6b00;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #101922;
+  --radius: 0.375rem;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.star-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  color: #ff9800;
+}
+
+.star-empty {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  color: #d1d5db;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1;
+}
+
+.material-symbols-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}

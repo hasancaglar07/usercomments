@@ -1,0 +1,21 @@
+[Unit]
+Description=Review Web (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=review
+Group=review
+WorkingDirectory=/srv/review/apps/web
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/review/web.env
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=review-web
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Review API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=review
+Group=review
+WorkingDirectory=/srv/review/apps/api
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/review/api.env
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=review-api
+
+[Install]
+WantedBy=multi-user.target

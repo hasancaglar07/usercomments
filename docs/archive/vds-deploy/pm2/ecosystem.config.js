@@ -1,0 +1,40 @@
+module.exports = {
+  apps: [
+    {
+      name: "review-web",
+      cwd: "/srv/review/apps/web",
+      script: "npm",
+      args: "run start",
+      env_file: "/etc/review/web.env",
+      env: {
+        NODE_ENV: "production",
+      },
+      instances: 1,
+      autorestart: true,
+      max_restarts: 10,
+      exp_backoff_restart_delay: 100,
+      out_file: "/var/log/review/web.out.log",
+      error_file: "/var/log/review/web.err.log",
+      merge_logs: true,
+      log_date_format: "YYYY-MM-DD HH:mm Z",
+    },
+    {
+      name: "review-api",
+      cwd: "/srv/review/apps/api",
+      script: "npm",
+      args: "run start",
+      env_file: "/etc/review/api.env",
+      env: {
+        NODE_ENV: "production",
+      },
+      instances: 1,
+      autorestart: true,
+      max_restarts: 10,
+      exp_backoff_restart_delay: 100,
+      out_file: "/var/log/review/api.out.log",
+      error_file: "/var/log/review/api.err.log",
+      merge_logs: true,
+      log_date_format: "YYYY-MM-DD HH:mm Z",
+    },
+  ],
+};

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Individual Review Page - iRecommend Clone</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#137fec",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+            },
+            fontFamily: {
+              "display": ["Plus Jakarta Sans", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: "Plus Jakarta Sans", "Noto Sans", sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+<!-- Header -->
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-10 py-3 shadow-sm">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-slate-900 dark:text-white">
+<div class="size-8 text-primary">
+<span class="material-symbols-outlined text-4xl">reviews</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-xl font-bold leading-tight tracking-[-0.015em]">iRecommend</h2>
+</div>
+<label class="flex flex-col min-w-40 !h-10 max-w-64 hidden md:flex">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+<div class="text-slate-500 flex border-none bg-slate-100 dark:bg-slate-800 items-center justify-center pl-4 rounded-l-lg border-r-0">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 dark:text-white focus:outline-0 focus:ring-0 border-none bg-slate-100 dark:bg-slate-800 focus:border-none h-full placeholder:text-slate-500 px-4 rounded-l-none border-l-0 pl-2 text-sm font-normal leading-normal" placeholder="Search products..." value=""/>
+</div>
+</label>
+</div>
+<div class="flex flex-1 justify-end gap-8">
+<div class="hidden md:flex items-center gap-9">
+<a class="text-slate-900 dark:text-white text-sm font-medium hover:text-primary transition-colors" href="#">Categories</a>
+<a class="text-slate-900 dark:text-white text-sm font-medium hover:text-primary transition-colors" href="#">Write a Review</a>
+<a class="text-slate-900 dark:text-white text-sm font-medium hover:text-primary transition-colors" href="#">Community</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="md:hidden text-slate-700 dark:text-slate-300">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-slate-200 dark:border-slate-700 cursor-pointer" data-alt="User profile avatar image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBiu0Sq_pEpgbOiN6HtTf8vGjZKBEa2o9K96O1xfnAhMlbjvaLTvQRla6PYaQhgkN-DQwn-WzvlDmPY-pBMd1mK8ohBoLqLUu8ge4WDqqpJmRAQ-OQIwWNYqC-E9DUdN8pZMVzwJkS9S4aJpnbtmkmSQXSoAItnzb9bJXSBv5-9tTEn4ZXyK7xAML_24a5zX2rgNVEoYFyjVn127Oamk4O1p3i8G3ZUmStRJsyAWNwlYMuJ3ckoD0LW9vkemgWTZGtJ2jk4lEq7c36m");'></div>
+</div>
+</div>
+</header>
+<div class="w-full flex justify-center py-6 px-4 md:px-10 lg:px-20">
+<div class="w-full max-w-[1280px] flex flex-col gap-6">
+<!-- Breadcrumbs -->
+<nav class="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400">
+<a class="hover:text-primary transition-colors" href="#">Home</a>
+<span>/</span>
+<a class="hover:text-primary transition-colors" href="#">Electronics</a>
+<span>/</span>
+<a class="hover:text-primary transition-colors" href="#">Smartphones</a>
+<span>/</span>
+<span class="text-slate-900 dark:text-white font-medium">Apple iPhone 15</span>
+</nav>
+<div class="flex flex-col lg:flex-row gap-8 items-start">
+<!-- Main Content Area (Left Column) -->
+<main class="flex-1 w-full min-w-0 flex flex-col gap-6">
+<!-- Review Card Container -->
+<article class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+<!-- Review Header -->
+<div class="p-6 md:p-8 border-b border-slate-100 dark:border-slate-700">
+<div class="flex flex-col gap-4">
+<h1 class="text-slate-900 dark:text-white text-3xl md:text-4xl font-extrabold leading-tight tracking-tight">
+                                    Is the iPhone 15 worth the upgrade? My honest 3-month experience.
+                                </h1>
+<div class="flex flex-wrap items-center gap-4 text-sm">
+<div class="flex items-center text-yellow-400">
+<span class="material-symbols-outlined filled text-[20px]">star</span>
+<span class="material-symbols-outlined filled text-[20px]">star</span>
+<span class="material-symbols-outlined filled text-[20px]">star</span>
+<span class="material-symbols-outlined filled text-[20px]">star</span>
+<span class="material-symbols-outlined text-[20px]">star_half</span>
+<span class="ml-2 text-slate-700 dark:text-slate-300 font-bold text-base">4.5</span>
+</div>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+<span class="text-slate-500">Oct 12, 2023</span>
+<span class="w-1 h-1 rounded-full bg-slate-300"></span>
+<div class="flex items-center gap-1 text-slate-500">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+<span>12.5k views</span>
+</div>
+</div>
+<!-- Author Bio Mini -->
+<div class="flex items-center gap-4 mt-2 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-100 dark:border-slate-700">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Reviewer profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDd1kGzTShu1qweRX-sKah3_4BySeI8vLBD5nmPP2hvS7lVYsoBvkY1Ul6yk6nLiZConk7d29LTqUvRj8cvbrxfFlxHgwLDgZ4QIPZAXwaFcpXHOa8hN76VJzLLrbprPR7wuV0xRh-n9Xxmt6qYgLW2cyF3VhM-_wiHajPJqfb8jQT4h60pJ9QgrmhZ4Yd9JAcb6WtEY0dGpNnhYu5zObH08DHrQ4uYXjfGpKFrRE-W6DoFTSo2ewtpfflhDMo63ku-_FPp3tb1-uMZ");'></div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="text-slate-900 dark:text-white font-bold text-lg">TechGuru99</span>
+<span class="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full border border-primary/20">Expert Reviewer</span>
+</div>
+<span class="text-slate-500 dark:text-slate-400 text-sm">Reputation: 1,540 | 142 Reviews</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Pros & Cons -->
+<div class="grid grid-cols-1 md:grid-cols-2 border-b border-slate-100 dark:border-slate-700">
+<div class="p-6 md:p-8 bg-green-50/50 dark:bg-green-900/10 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-700">
+<h3 class="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold mb-3">
+<span class="material-symbols-outlined">add_circle</span> Pros
+                                </h3>
+<ul class="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300 text-sm md:text-base marker:text-green-500">
+<li>Exceptional camera performance in low light</li>
+<li>Significantly lighter titanium build</li>
+<li>USB-C port finally adds convenience</li>
+<li>Dynamic Island is surprisingly useful</li>
+</ul>
+</div>
+<div class="p-6 md:p-8 bg-red-50/50 dark:bg-red-900/10">
+<h3 class="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold mb-3">
+<span class="material-symbols-outlined">do_not_disturb_on</span> Cons
+                                </h3>
+<ul class="list-disc list-inside space-y-2 text-slate-700 dark:text-slate-300 text-sm md:text-base marker:text-red-500">
+<li>Still stuck with a 60Hz screen refresh rate</li>
+<li>Charging speeds haven't improved much</li>
+<li>No telephoto lens on the base model</li>
+</ul>
+</div>
+</div>
+<!-- Photo Gallery -->
+<div class="p-6 md:p-8 pb-0">
+<h3 class="text-slate-900 dark:text-white font-bold text-lg mb-4">Gallery</h3>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<div class="aspect-square rounded-lg bg-cover bg-center cursor-pointer hover:opacity-90 transition-opacity" data-alt="iPhone 15 back view blue color" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCBwTJSQv6CjN2kTKHcRLRNb66Q3zK2CCXtwr9DEyOj67_HEJ2kHXKJu8gHXlJJv9dGoRwipQGkSb0Fp07pKZu-JJkB4H3AOP46avklKg3Mrpd4MHVdRKpVEzr7rb3MBmkJk_aMPrKXPucKeRxzeSVv8U-ruyhHCsGs3dFIjeBYyKO0Lcm7kMoxNgZheYBcL_K8GFxjyoQnhIY7iSx0nuGWZ8RGW4rW9ROMV0L_OFZ5FIfplE7ceVxyG1f_niqviILCIJgZWjDqLyUN");'></div>
+<div class="aspect-square rounded-lg bg-cover bg-center cursor-pointer hover:opacity-90 transition-opacity" data-alt="iPhone 15 screen display closeup" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCumoA7OT8PxjIW_uXxvgrsrMfF4S49zreGXTPR_fapvLF_RgF7OFVduatK76h5ix8C_pdOxyOPiio7RqcL5msMkJecxr60LERoIx4PO5xptCh4WGntQlAoIv0nWVdxVxrmPbTAdHfSTkXZuALCEfzoVsq9RwrkmpoERMLRS00QUBMelpqP51AAvIhcXhn7hh8XD9WOFuAyE9qxvmEq6jykEPRN61Ej-BZXfk0AkjoY8r8kNwYhjEIQp-pmid6y9g2ojL9iWKt9Zq4U");'></div>
+<div class="aspect-square rounded-lg bg-cover bg-center cursor-pointer hover:opacity-90 transition-opacity" data-alt="Camera lens detail shot" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAqx8MW6K57EEv30m0YGt9UZvKTCWB3UkIGt3JjrZ_v4mz2oe3stR92FILOPEui2Fhi9C9ETvpujwDiz8wywGhn6wdCrd4M5ZA0S99_Y4Kz8Ixmpo9gSMz6GZZjDJ2LBlYajF3cR1OpvA2UOQI7pNTwDw_Vbi8Zi43c6lMGGKpLfNpjfsJkZqAi5sNwwFfnfWYjvW53uH0A7_5eJTG7PaizZBhwNE5tTUJx-PuWYYp0Za30K3_bEc_AkKeHLWBT0Ti-Ml6GeZksg9e2");'></div>
+<div class="relative aspect-square rounded-lg bg-cover bg-center cursor-pointer hover:opacity-90 transition-opacity group overflow-hidden" data-alt="iPhone holding in hand" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB4cPg26L759PfJOTZjQu94UdwanX_KSrifLa52G4SWyVPD8Ii14ATUVbnKoHJWtDfWdV-JCmKJUhdZTo8lfE0SC33LDfcOfUGIwOcNEMAzxClmxX2SAoBarPjZLKCmAz4B8Be5vL-SMuwN2TU57pPkEJyXTuPc3W3nIH_y4CgiD9ofPngT18SWCu0YcuCM_b57K8ZXtHLL6sa8zN9zAjygaD-tag9qLpSnFoPZYL6jcFpC0qWqF_ME-hn2iOsCqxvDLA7xlyrIWr0B");'>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="text-white text-sm font-medium">+3 more</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Review Body -->
+<div class="p-6 md:p-8 prose dark:prose-invert prose-slate max-w-none">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white mb-3">Design &amp; Build Quality</h3>
+<p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                                The first thing you notice when picking up the iPhone 15 is the contoured edges. Unlike the sharp edges of the iPhone 12 through 14, this feels much softer in the hand. The color-infused back glass has a matte finish that does a fantastic job of hiding fingerprints, which has always been a pet peeve of mine with glossy phones.
+                            </p>
+<h3 class="text-xl font-bold text-slate-900 dark:text-white mb-3">Camera Performance</h3>
+<p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                                Apple finally bumped the main sensor to 48MP, and it shows. The default 24MP photos are crisp, with excellent dynamic range. I took this phone on a weekend trip to the mountains, and the landscape shots were breathtaking. The new "2x optical-quality zoom" (which is really just a crop of the sensor) is genuinely usable for portraits.
+                            </p>
+<h3 class="text-xl font-bold text-slate-900 dark:text-white mb-3">Battery Life &amp; Charging</h3>
+<p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                                Here is where things get a bit mixed. While the battery easily lasts a full day of moderate use (about 6-7 hours of screen-on time for me), the charging speeds are still disappointing compared to Android competitors. It takes over 30 minutes to get to 50%, which feels sluggish in 2024. However, the convenience of USB-C cannot be overstated—I can finally travel with just one cable for my Mac, iPad, and iPhone.
+                            </p>
+<div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 my-6">
+<p class="text-blue-800 dark:text-blue-200 font-medium text-center">
+                                    "If you are coming from an iPhone 11 or 12, this is a massive leap forward. If you have a 13 or 14, you might want to wait."
+                                </p>
+</div>
+<p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                                Overall, the iPhone 15 is the most well-rounded base model iPhone Apple has released in years. It borrows just enough "Pro" features (Dynamic Island, 48MP camera) to feel fresh, without the Pro price tag.
+                            </p>
+</div>
+<!-- Engagement Bar -->
+<div class="p-4 md:p-6 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-all group">
+<span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">thumb_up</span>
+<span class="font-medium">Helpful (342)</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[20px]">share</span>
+<span class="font-medium">Share</span>
+</button>
+</div>
+<div class="text-slate-500 dark:text-slate-400 text-sm font-medium">
+                                Posted in <a class="text-primary hover:underline" href="#">Smartphones</a>
+</div>
+</div>
+</article>
+<!-- Comments Section -->
+<section class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+                            Comments <span class="text-slate-400 font-normal text-lg">(24)</span>
+</h3>
+<!-- Comment Input -->
+<div class="flex gap-4 mb-8">
+<div class="shrink-0 bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Current user avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-9k5dBhmhso0tvVEb1sXocMCz5giLcAajpmIF1V1ul_Fs5ZseB3AJuzQUYjt4q8-ozJxC5s6-zy0N514knxitnu42wqCJzyQ7zVCmC1feAFg5u9SuZ15eOh4qyy1ycBbNft7PKJW1Ae0iPJGRqruI-2S0vqWXs5YSXtnzUSrLrWaUCv31E2CDPJcs6Juebbb258kmkad5HK_TSjkp4F-BR3I-gYF30KX3Em3lhJy05O95zOT4y-VwjOmy0OqaBcc8_nCFKokrAfAU");'></div>
+<div class="flex-1">
+<textarea class="w-full p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:border-transparent min-h-[100px] text-slate-900 dark:text-white placeholder:text-slate-400" placeholder="Join the discussion..."></textarea>
+<div class="flex justify-end mt-2">
+<button class="bg-primary hover:bg-blue-600 text-white px-5 py-2 rounded-lg font-medium transition-colors">Post Comment</button>
+</div>
+</div>
+</div>
+<!-- Comment List -->
+<div class="flex flex-col gap-6">
+<!-- Comment 1 -->
+<div class="flex gap-4">
+<div class="shrink-0 bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Commenter avatar 1" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCpXfm1bxA7HInWqkF0g2BWB68SaVerCuWReRItx1_B61f6Im9Q34K42yMcSZ1t0BIfCf6_G8PCVeOE7p9o5GKWorpEoyi0QbLG_KDWqcAwIyu7wgcwYfljH0mPaa2m9H85oGiFAj1CdIQAIAqV7EIRynCxORCWWG0f4cjdMKMtWoH3AyLAUP0lZwgPAJoR3b2Igff60i-xkKhk7ING6VXdvEhO7G8AtxfB2HtHQs71uZ63GK6CDl2StAckgScmTsLxihG5c6a2I-zW");'></div>
+<div class="flex-1">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-2">
+<span class="font-bold text-slate-900 dark:text-white">AlexM</span>
+<span class="text-xs text-slate-400">2 hours ago</span>
+</div>
+</div>
+<p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                                        Great review! I was on the fence about the 60Hz screen, but you're right, for most people coming from older phones it won't matter much.
+                                    </p>
+<div class="flex items-center gap-4 mt-2">
+<button class="text-slate-400 hover:text-primary text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span> 12
+                                        </button>
+<button class="text-slate-400 hover:text-primary text-xs font-medium">Reply</button>
+</div>
+</div>
+</div>
+<!-- Comment 2 -->
+<div class="flex gap-4">
+<div class="shrink-0 bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Commenter avatar 2" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBOr8i-q1UsbYDkRfCRRyc8HCzD7XWUh_Pv3S8uffqoOxPJcLsSxUdhzEGKtGVPIJF1f9Bqbf4T4Et1dhnMjxJAGba3Rq7Agnl_WjClwFuSzWkJryH_v1It4OSFH1tYAC1GXATpNylpApcptCtWojhW-_QDPf4JobiN48uG4tuH5b8-8j3ujuZtzRFPSMuQFdqptC2seD_I5SiuS1vTR064XjU3Nc37Yh9lnzzm0UIEDMN0qllQygOVI0CzcRtjFDaTrptngeoK3dQ0");'></div>
+<div class="flex-1">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-2">
+<span class="font-bold text-slate-900 dark:text-white">SarahJ_Tech</span>
+<span class="text-xs text-slate-400">5 hours ago</span>
+</div>
+</div>
+<p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                                        I disagree about the charging speed. It's actually quite slow compared to my OnePlus. Apple really needs to step up their game there.
+                                    </p>
+<div class="flex items-center gap-4 mt-2">
+<button class="text-slate-400 hover:text-primary text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span> 5
+                                        </button>
+<button class="text-slate-400 hover:text-primary text-xs font-medium">Reply</button>
+</div>
+<!-- Nested Reply -->
+<div class="flex gap-4 mt-4 ml-4 pl-4 border-l-2 border-slate-100 dark:border-slate-700">
+<div class="shrink-0 bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8" data-alt="Author avatar small" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAEV5cEKBYLsbbBOZ02wPZBrSwX99s7bHG7wswqpDfK3JohfPJ-JYGYoKuEYMY--V1YB_5wBlrTL_gsnoCUqHyXbZAfqoVGi8y64NnqsB3FJP6EB-aOExBPHkb74ewVMyi20S40ob7zHlLm053-Xz2QlN8CIEZjUnK5JMzAI28DuiannShkBtrcRFjJDcLQG9sRmw2wP9K-FB7IKicNCIB_P2i6iRHQZXOqKFhTRekZRhtC1u35pu3D2vJVFiR9D3UHrr_39Cf9_uIH");'></div>
+<div class="flex-1">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-bold text-slate-900 dark:text-white text-sm">TechGuru99</span>
+<span class="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded">Author</span>
+</div>
+<p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                                                Fair point, Sarah! OnePlus definitely wins on charging. It's a trade-off for the ecosystem integration I suppose.
+                                            </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Right Sidebar -->
+<aside class="w-full lg:w-80 shrink-0 flex flex-col gap-6">
+<!-- Product Info Card -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+<h4 class="font-bold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Product Details</h4>
+<div class="flex flex-col items-center mb-4">
+<div class="w-32 h-32 bg-contain bg-center bg-no-repeat mb-3" data-alt="iPhone 15 product official image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB0pBfGGklBc21ZKmkLtb0udlS3qI7ZevGBhVCwW2dCCpp4L0-dO-Mgk8wXebuUC4sGSchliehk-4ZMH3dbC_6yZe6-QZM6U7KvgwRcp6yE9uwlV7mNw2Ic4Jd3Cxm3YrJe8rXac9e7fx-nZwlu2SUvSmjgozonARo5tuSZdue1rsEjr6eOe-AAzj6S6qTsgdeUKVW2pvWcwEWFJ7o7a8sE062dw9G1MgyrpCmnwphd36h03FxMS-QarUI_ADQbyO7CmJWD3uPEYqzn");'></div>
+<h3 class="text-center font-bold text-slate-900 dark:text-white">Apple iPhone 15</h3>
+<p class="text-center text-sm text-slate-500 mb-2">128GB - Blue</p>
+<div class="flex items-center gap-1 text-yellow-400 text-sm mb-3">
+<span class="material-symbols-outlined filled text-[18px]">star</span>
+<span class="text-slate-700 dark:text-slate-300 font-bold ml-1">4.7</span>
+<span class="text-slate-400 font-normal">(2,103 reviews)</span>
+</div>
+<button class="w-full bg-primary hover:bg-blue-600 text-white font-medium py-2 rounded-lg transition-colors shadow-sm shadow-blue-200 dark:shadow-none">
+                                View Product Specs
+                            </button>
+</div>
+</div>
+<!-- Related Reviews -->
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sticky top-24">
+<h4 class="font-bold text-slate-900 dark:text-white mb-4 flex items-center justify-between">
+<span>More Reviews</span>
+<a class="text-xs text-primary font-medium hover:underline" href="#">View All</a>
+</h4>
+<div class="flex flex-col gap-4">
+<!-- Sidebar Item 1 -->
+<a class="flex gap-3 group" href="#">
+<div class="w-16 h-16 shrink-0 rounded-lg bg-cover bg-center" data-alt="Review thumbnail showing pink iPhone" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBpGEOJJcW1-x2xdNkzgC__H8Qrh4J0OcOhWEVk6Wslh2bUU7nbYOzoQYAmYwuFBxQLDaBE-9f72fC_Oy2Cvq8eS3cTJWmmmdbspAm5x60KI4dyD0BS-MeuF5qB03JXPndbRX5JeVFHXlPITGRO-ws9Pw1xkc25vgWTWjz7jrArAN4FTr4aQlwwY_suLXeDTuPxqActNN2Xu8kpyRUdvH-NT8DlHAjJfMFqkm3dvEZK6xRp-oTKNkusqC7rEWqmfmMuLFfoJHpUw2Tt");'></div>
+<div class="flex flex-col">
+<h5 class="text-sm font-medium text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-2">Why I switched to Pink: iPhone 15 color review</h5>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined filled text-[14px] text-yellow-400">star</span>
+<span class="text-xs text-slate-500">5.0</span>
+</div>
+</div>
+</a>
+<!-- Sidebar Item 2 -->
+<a class="flex gap-3 group" href="#">
+<div class="w-16 h-16 shrink-0 rounded-lg bg-cover bg-center" data-alt="Review thumbnail showing black iPhone" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD2NjvQbdWzb8dL-LBgnhgdEQhLFQsfcxOmlQLbTsL3S33Zv5LJOLbe5r9itXGIvVmw2__MsLzIr1xb1EFsl5TrvBwoZ9u3NelGkxLeVODBK91XEawOoh2xDNC4fWpoXulteKipJxN7P-8W75mnhcRcfA-oKgcV3H5j7xdnPN3b1g3pkP8KMUqS_mPf0-ty3JeQno4AUvrL7Sfltl7-I-RQYx0ew_dydennLhuOlWyYOl7-2UYw52krE0i_XNs9lIk16DiWhMc2ssVB");'></div>
+<div class="flex flex-col">
+<h5 class="text-sm font-medium text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-2">1 Month Later: Is the battery really that bad?</h5>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined filled text-[14px] text-yellow-400">star</span>
+<span class="text-xs text-slate-500">3.5</span>
+</div>
+</div>
+</a>
+<!-- Sidebar Item 3 -->
+<a class="flex gap-3 group" href="#">
+<div class="w-16 h-16 shrink-0 rounded-lg bg-cover bg-center" data-alt="Review thumbnail showing android phone" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBBXuDkYGyxjr-VPlOqrbeEYxJ9fuBf-Yv4B8SJDQtbgoUSm1BO7lFeGAFZzfBXy992c2vimv6ZIIvVO1Ss_G_A-7j3hiog-QhaN0uedy2X9t_OHqCjinSXXBh-KuBv9soBfdg_RJulP5pDtcxDVXJGCo-vzEakA5RGP9lMCsl_8x0JyLwqIZv7X3gpPBcdxFreKQdP7WORUAOGSL4wbl8_sgyuYaQ49u5wI2uPulYBUZS8TcAHWG_TrKALxFB2cEggczZ72BUmF273");'></div>
+<div class="flex flex-col">
+<h5 class="text-sm font-medium text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-2">Samsung S24 vs iPhone 15: The ultimate showdown</h5>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined filled text-[14px] text-yellow-400">star</span>
+<span class="text-xs text-slate-500">4.0</span>
+</div>
+</div>
+</a>
+</div>
+<div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700">
+<h4 class="font-bold text-slate-900 dark:text-white mb-3 text-sm">Popular in Electronics</h4>
+<div class="flex flex-wrap gap-2">
+<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2 py-1 rounded cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">AirPods Pro</span>
+<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2 py-1 rounded cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Sony WH-1000XM5</span>
+<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs px-2 py-1 rounded cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">iPad Air</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 mt-12 py-12 px-10">
+<div class="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-2 text-slate-900 dark:text-white">
+<span class="material-symbols-outlined text-3xl text-primary">reviews</span>
+<span class="text-lg font-bold">iRecommend</span>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-sm">
+                    Your trusted source for honest reviews on products, services, and experiences. Join our community today.
+                </p>
+</div>
+<div class="flex flex-col gap-2">
+<h5 class="font-bold text-slate-900 dark:text-white mb-2">About</h5>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">About Us</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Careers</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Press</a>
+</div>
+<div class="flex flex-col gap-2">
+<h5 class="font-bold text-slate-900 dark:text-white mb-2">Community</h5>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Guidelines</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Top Reviewers</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Help Center</a>
+</div>
+<div class="flex flex-col gap-2">
+<h5 class="font-bold text-slate-900 dark:text-white mb-2">Legal</h5>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Privacy Policy</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Terms of Service</a>
+<a class="text-slate-500 dark:text-slate-400 text-sm hover:text-primary" href="#">Cookie Policy</a>
+</div>
+</div>
+<div class="max-w-[1280px] mx-auto mt-12 pt-8 border-t border-slate-100 dark:border-slate-800 text-center text-slate-400 text-sm">
+            © 2024 iRecommend Clone. All rights reserved.
+        </div>
+</footer>
+</body></html>
