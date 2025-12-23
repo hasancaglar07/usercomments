@@ -42,27 +42,19 @@ function resolveCategoryId(
     return undefined;
   }
 
-  const exactMap = new Map<string, number>();
+  const exactMap = new Map<string, number | null>();
   categories.forEach((category) => {
     if (!exactMap.has(category.name)) {
       exactMap.set(category.name, category.id);
+    } else {
+      exactMap.set(category.name, null);
     }
   });
 
   for (const candidate of normalizedCandidates) {
     const exact = exactMap.get(candidate);
-    if (exact) {
+    if (typeof exact === "number") {
       return exact;
-    }
-  }
-
-  for (const candidate of normalizedCandidates) {
-    const partial = categories.find(
-      (category) =>
-        category.name.includes(candidate) || candidate.includes(category.name)
-    );
-    if (partial) {
-      return partial.id;
     }
   }
 
