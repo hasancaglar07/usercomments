@@ -2775,7 +2775,7 @@ export function t(
   params?: Record<string, string | number>
 ): string {
   const table = TRANSLATIONS[lang] ?? TRANSLATIONS[DEFAULT_LANGUAGE];
-  const fallback = TRANSLATIONS[DEFAULT_LANGUAGE][key];
-  const value = table[key] ?? fallback;
+  const fallback = (TRANSLATIONS[DEFAULT_LANGUAGE] as Record<string, string>)[key];
+  const value = (table as Record<string, string>)[key] ?? fallback;
   return interpolate(value, params);
 }
