@@ -15,8 +15,8 @@ const HEADER_CATEGORY_ENTRIES = [
   { key: "health", labelKey: "header.nav.health", pillKey: "catalog.categoryPill.health" },
   { key: "auto", labelKey: "header.nav.auto", pillKey: "catalog.categoryPill.automotive" },
   { key: "books", labelKey: "header.nav.books", pillKey: "catalog.categoryPill.books" },
-  { key: "kids", labelKey: "header.nav.kids" },
-  { key: "finance", labelKey: "header.nav.finance" },
+  { key: "kids", labelKey: "header.nav.kids", pillKey: undefined },
+  { key: "finance", labelKey: "header.nav.finance", pillKey: undefined },
   { key: "movies", labelKey: "header.nav.movies", pillKey: "catalog.categoryPill.movies" },
 ] as const;
 
