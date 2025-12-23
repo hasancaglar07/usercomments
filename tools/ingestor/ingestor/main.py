@@ -5,6 +5,7 @@ import argparse
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin, urlparse
+from bs4 import BeautifulSoup
 
 from .config import Config
 from .http_client import HttpClient
@@ -29,7 +30,7 @@ from .db.upsert import (
 )
 from .db.user_pool import ProfilePool
 from .llm.groq_client import GroqClient
-from .llm.translate_and_seo import translate_category, translate_product, translate_review
+from .llm.translate_and_seo import translate_category, translate_product, translate_review, extract_review_details_ai
 from .media.r2_upload import R2Uploader
 from .media.image_fetch import fetch_image
 from .media.image_process import process_image
@@ -93,7 +94,7 @@ async def _process_images_async(
             config.image_crop_right_pct, 
             config.image_max_width, 
             config.image_webp_quality,
-            "userreview.net"
+            "UserReview.net"
         )
         if not processed:
             return None
@@ -187,7 +188,7 @@ async def _ensure_category_ids_async(
             "name": prod_name,
             "source_url": prod_url,
             "description": f"Product: {prod_name}",
-            "status": "pending",
+            "status": "published",
         }
         prod_id = await asyncio.to_thread(upsert_product, supabase, prod_payload)
         
@@ -265,18 +266,62 @@ async def _process_review_item_async(
         source_url = item["source_url"]
         logger.info("Starting processing: %s", source_url)
         await asyncio.to_thread(mark_processing, supabase, source_url)
-
         try:
             html = await _fetch_html_async(http, source_url, logger)
             detail = parse_review_detail(html, source_url, config.source_base_url, logger)
             
-            # Content quality validation
-            if not detail.content_html or len(detail.content_html) < 500:
-                logger.warning("Skipping %s: Content too short (%d chars, need 500+)", 
-                              source_url, len(detail.content_html or ""))
-                await asyncio.to_thread(mark_failed, supabase, source_url, 999, "Content too short")
-                return False
+            # Deep Dive: If we land on a product overview page (short content), 
+            # try to jump into a real deep review.
+            if len(detail.content_html) < 500:
+                logger.info("Content looks like a summary/teaser (%d chars). Searching for deep review link.", len(detail.content_html))
+                deep_links = discover_review_links(html, config.source_base_url, logger)
+                # Prioritize links with -n suffix
+                real_reviews = [l for l in deep_links if "-n" in l and l != source_url]
+                if real_reviews:
+                    target_url = real_reviews[0]
+                    logger.info("Deep dive: jumping to full review -> %s", target_url)
+                    html = await _fetch_html_async(http, target_url, logger)
+                    detail = parse_review_detail(html, target_url, config.source_base_url, logger)
+                    # We continue using this detail, but keep original source_url 
+                    # for database tracking unless we want to update it.
+            
+            # Content quality validation & AI Fallback
+            needs_ai = not detail.content_html or len(detail.content_html) < 100 or not detail.category_name
+            
+            if needs_ai:
+                logger.warning("Content too short, missing, or missing category. Attempting deep AI extraction for %s", source_url)
+                soup_text = BeautifulSoup(html, "lxml").get_text(separator="\n", strip=True)
+                ai_data = await extract_review_details_ai(groq, soup_text, logger)
                 
+                if ai_data.get("content_html") and len(ai_data["content_html"]) >= 100:
+                    logger.info("Deep AI extraction successful for %s", source_url)
+                    detail.content_html = ai_data["content_html"]
+                    if not detail.title and ai_data.get("title"):
+                        detail.title = ai_data["title"]
+                    if not detail.rating and ai_data.get("rating"):
+                        detail.rating = ai_data["rating"]
+                    
+                    # Always take AI pros/cons if they look better or if original is empty
+                    if ai_data.get("pros"):
+                        detail.pros = ai_data["pros"]
+                    if ai_data.get("cons"):
+                        detail.cons = ai_data["cons"]
+                    
+                    if not detail.product_name and ai_data.get("product_name"):
+                        detail.product_name = ai_data["product_name"]
+                    
+                    # Category/Subcategory Fallback
+                    if not detail.category_name and ai_data.get("category_name"):
+                        detail.category_name = ai_data["category_name"]
+                        logger.info("AI inferred category: %s", detail.category_name)
+                    if not detail.subcategory_name and ai_data.get("subcategory_name"):
+                        detail.subcategory_name = ai_data["subcategory_name"]
+                else:
+                    if not detail.content_html or len(detail.content_html) < 100:
+                        logger.warning("Skipping %s: Content remains too short (<100) after AI fallback", source_url)
+                        await asyncio.to_thread(mark_failed, supabase, source_url, 999, "Content too short")
+                        return False
+
             if not detail.image_urls:
                 logger.warning("Skipping %s: No review images found", source_url)
                 await asyncio.to_thread(mark_failed, supabase, source_url, 999, "No review images")
@@ -290,25 +335,29 @@ async def _process_review_item_async(
             logger.info("Quality check passed: %d chars, %d images, product image OK", 
                        len(detail.content_html), len(detail.image_urls))
 
-            category_ids = await _ensure_category_ids_async(
-                http,
-                supabase,
-                category_map,
-                detail,
-                config.source_base_url,
-                groq,
-                config,
-                uploader,
-                logger,
-                dry_run,
-            )
-            author_id = profile_pool.pick()
-            if not author_id:
-                raise ValueError("No author available")
+            try:
+                category_ids = await _ensure_category_ids_async(
+                    http,
+                    supabase,
+                    category_map,
+                    detail,
+                    config.source_base_url,
+                    groq,
+                    config,
+                    uploader,
+                    logger,
+                    dry_run,
+                )
+                cat_id = category_ids.get("category_id")
+                if not cat_id:
+                    raise ValueError(f"Category ID missing for {detail.category_name}")
+            except Exception as e:
+                logger.error("Failed to ensure categories/product: %s", e)
+                retries = int(item.get("retries") or 0) + 1
+                await asyncio.to_thread(mark_failed, supabase, source_url, retries, f"Metadata error: {e}")
+                return False
 
-            cat_id = category_ids.get("category_id")
-            if not cat_id:
-                 raise ValueError(f"Category ID missing for {detail.category_name}")
+            author_id = profile_pool.pick()
 
             full_title = detail.title or ""
             if detail.product_name and detail.product_name.lower() not in full_title.lower():
@@ -352,7 +401,16 @@ async def _process_review_item_async(
             # Translate (allow partial failure)
             translation_error = None
             try:
-                translations = await translate_review(groq, detail.title, detail.content_html, detail.category_name, config.langs, logger)
+                translations = await translate_review(
+                    groq, 
+                    detail.title, 
+                    detail.content_html, 
+                    detail.category_name, 
+                    config.langs, 
+                    logger,
+                    pros_ru=detail.pros,
+                    cons_ru=detail.cons
+                )
             except Exception as te:
                 translation_error = str(te)
                 logger.warning("Translation failed for %s: %s - will save without translations", source_url, te)
@@ -360,15 +418,30 @@ async def _process_review_item_async(
             
             translation_payloads = []
             for lang, data in translations.items():
-                slug = slugify(data["slug"], max_length=80, fallback=detail.title)
-                
-                # SEO Rich Content
+                base_slug = slugify(data["slug"], max_length=80, fallback=detail.title)
                 rich_content = data["content_html"]
+
+                # Inject Pros/Cons in a format the frontend parser understands
+                # It expects a section starting with "Pros:" or "Cons:" followed by lines starting with Dash/Bullet
+                # and sections separated by double newlines.
+                pros_cons_text = ""
+                if data.get("pros"):
+                    pros_list = "\n".join([f"- {p}" for p in data["pros"]])
+                    pros_cons_text += f"<p>Pros:<br>{pros_list}</p>"
+                if data.get("cons"):
+                    cons_list = "\n".join([f"- {c}" for c in data["cons"]])
+                    if pros_cons_text: pros_cons_text += "<br><br>"
+                    pros_cons_text += f"<p>Cons:<br>{cons_list}</p>"
+                
+                if pros_cons_text:
+                    rich_content = f'<div class="pros-cons-block">{pros_cons_text}</div>' + rich_content
+
                 if data.get("summary"):
-                    rich_content = f'<div class="editor-summary"><h3>Summary</h3><p>{data["summary"]}</p></div>' + rich_content
+                    rich_content = f'<div class="editor-summary-card"><h3>Editor\'s Summary</h3><p>{data["summary"]}</p></div>' + rich_content
+                
                 if data.get("faq"):
                     faq_items = "".join([f'<li><strong>{f["question"]}</strong><p>{f["answer"]}</p></li>' for f in data["faq"]])
-                    rich_content += f'<div class="faq-section"><h3>FAQ</h3><ul>{faq_items}</ul></div>'
+                    rich_content += f'<div class="faq-card"><h3>Featured FAQ</h3><ul>{faq_items}</ul></div>'
                 
                 translation_payloads.append({
                     "lang": lang,
@@ -376,7 +449,7 @@ async def _process_review_item_async(
                     "content_html": clean_html(rich_content),
                     "meta_title": data["meta_title"],
                     "meta_description": data["meta_description"],
-                    "slug": slug,
+                    "slug": base_slug,
                 })
 
             if review_id and not dry_run:
@@ -390,6 +463,7 @@ async def _process_review_item_async(
 
         except Exception as exc:
             logger.error("Failed processing %s: %s", source_url, exc)
+            # If it's a conflict error we already tried to resolve but maybe failed again
             retries = int(item.get("retries") or 0) + 1
             await asyncio.to_thread(mark_failed, supabase, source_url, retries, str(exc))
             return False
@@ -479,20 +553,42 @@ async def run_once_async(config: Config, dry_run: bool) -> None:
             if sub_payload:
                 cat_map.update(upsert_categories(supabase, sub_payload, logger))
 
-            # 3. Reviews
+            # 3. Reviews Discovery (Nested)
             cat_urls = [x.get("source_url") for x in categories + subcategories if x.get("source_url")]
-            # Reuse logic from original: manually iterate pages
-            review_urls = []
+            all_review_urls = set()
+            product_urls = set()
+
+            # First pass: Get links from category pages
             for c_url in cat_urls:
                 for page_url in build_page_urls(c_url, config.category_pages_to_scan):
                     try:
                         p_html = http.get(page_url).text
-                        links = discover_review_links(p_html, config.source_base_url, logger)
-                        review_urls.extend(links)
+                        found_links = discover_review_links(p_html, config.source_base_url, logger)
+                        for link in found_links:
+                            if "-n" in link:
+                                all_review_urls.add(link)
+                            else:
+                                product_urls.add(link)
                     except Exception as e:
                         logger.warning("Page scan failed %s: %s", page_url, e)
 
-            unique_reviews = list(dict.fromkeys(review_urls))
+            # Second pass: Visit product pages to find deep review links
+            logger.info("Deep discovery: Scanning %d product pages for reviews...", len(product_urls))
+            # Limit to a reasonable number to avoid infinite scan
+            for p_idx, p_url in enumerate(list(product_urls)[:50]): 
+                try:
+                    p_html = http.get(p_url).text
+                    deep_links = discover_review_links(p_html, config.source_base_url, logger)
+                    for d_link in deep_links:
+                        if "-n" in d_link:
+                            all_review_urls.add(d_link)
+                    if p_idx % 10 == 0:
+                        logger.info("Deep scan progress: %d/%d", p_idx, len(product_urls))
+                except Exception as e:
+                    logger.warning("Deep scan failed for %s: %s", p_url, e)
+
+            unique_reviews = sorted(list(all_review_urls))
+            logger.info("Discovery complete. Total unique deep reviews found: %d", len(unique_reviews))
             
             # 4. Upsert sources
             items = []
@@ -500,7 +596,8 @@ async def run_once_async(config: Config, dry_run: bool) -> None:
                  slug = urlparse(url).path.rstrip("/").split("/")[-1]
                  items.append({"source_url": url, "source_slug": slug})
             
-            upsert_source_map(supabase, items, logger)
+            if items:
+                upsert_source_map(supabase, items, logger)
             return len(unique_reviews)
 
         # Run discovery in thread to avoid blocking main loop

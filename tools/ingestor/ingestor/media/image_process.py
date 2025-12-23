@@ -16,6 +16,11 @@ def process_image(
     with Image.open(BytesIO(image_bytes)) as img:
         img = img.convert("RGB")
         width, height = img.size
+        
+        # Filter out tiny images (avatars/icons usually < 200px)
+        if width < 250 and height < 250:
+            return None
+
         new_width = int(width * (1 - crop_right_pct))
         if new_width < 1:
             new_width = width
@@ -28,17 +33,41 @@ def process_image(
         
         # Add watermark
         if watermark_text:
-            draw = ImageDraw.Draw(img)
-            # Try to load a font, fallback to default
+            # Change to UserReview.net if it was the default lowercase
+            if watermark_text == "userreview.net":
+                watermark_text = "UserReview.net"
+                
+            img = img.convert("RGBA")
+            overlay = Image.new("RGBA", img.size, (255, 255, 255, 0))
+            draw = ImageDraw.Draw(overlay)
+            
+            # Dynamic font size based on width (roughly 1/12th of width)
+            font_size = max(20, int(img.width / 12))
             try:
-                font = ImageFont.truetype("arial.ttf", 24)
+                # Common on Windows
+                font = ImageFont.truetype("arial.ttf", font_size)
             except Exception:
+                # Fallback to default if arial is not found
                 font = ImageFont.load_default()
             
+            # Center coordinates
             w, h = img.size
-            # Simple text watermark at bottom-right
-            margin = 10
-            draw.text((w - 150 - margin, h - 30 - margin), watermark_text, fill=(255, 255, 255, 128), font=font)
+            try:
+                # Modern Pillow (v9.2.0+)
+                bbox = draw.textbbox((0, 0), watermark_text, font=font)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            except AttributeError:
+                # Compatibility for older Pillow
+                tw, th = draw.textsize(watermark_text, font=font)
+                
+            x = (w - tw) // 2
+            y = (h - th) // 2
+            
+            # Semi-transparent white (alpha level 60-80 is subtle but readable)
+            draw.text((x, y), watermark_text, fill=(255, 255, 255, 70), font=font)
+            
+            img = Image.alpha_composite(img, overlay)
+            img = img.convert("RGB")
 
         output = BytesIO()
         img.save(output, format="WEBP", quality=webp_quality, method=6)

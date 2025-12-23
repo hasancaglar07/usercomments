@@ -37,6 +37,16 @@ type DbProductTranslationLookupRow = DbProductTranslationRow & {
   product_id: string;
 };
 
+type DbProductStatsLookupRow = {
+  product_id: string;
+  review_count?: number | string | null;
+  rating_avg?: number | string | null;
+  rating_count?: number | string | null;
+  recommend_up?: number | string | null;
+  recommend_down?: number | string | null;
+  photo_count?: number | string | null;
+};
+
 type DbProductRow = {
   id: string;
   slug: string;
@@ -73,7 +83,6 @@ const productListSelectBase = `
   updated_at,
   brands(id, slug, name, status),
   product_images(id, url, sort_order),
-  product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count),
   product_categories(category_id)
 `;
 
@@ -211,10 +220,20 @@ export async function fetchProducts(
   translations.forEach((translation) => {
     translationMap.set(translation.product_id, translation);
   });
+  let statsMap = new Map<string, DbProductStatsLookupRow>();
+  if (productIds.length > 0) {
+    try {
+      const statsRows = await fetchProductStatsForList(env, productIds);
+      statsMap = new Map(statsRows.map((row) => [row.product_id, row]));
+    } catch (error) {
+      console.error("Failed to load product stats:", error);
+    }
+  }
 
   return {
     items: productRows.map((row) => {
       const translation = translationMap.get(row.id);
+      const stats = statsMap.get(row.id);
       const merged = translation
         ? {
             ...row,
@@ -228,8 +247,12 @@ export async function fetchProducts(
                 meta_description: translation.meta_description ?? null,
               },
             ],
+            product_stats: stats ?? undefined,
           }
-        : row;
+        : {
+            ...row,
+            product_stats: stats ?? undefined,
+          };
       return mapProductRow(merged as DbProductRow, { lang });
     }),
     pageInfo: buildPaginationInfo(page, pageSize, count ?? productRows.length),
@@ -253,6 +276,38 @@ async function fetchProductTranslationsForList(
   }
 
   return (data ?? []) as DbProductTranslationLookupRow[];
+}
+
+async function fetchProductStatsForList(
+  env: ParsedEnv,
+  productIds: string[]
+): Promise<DbProductStatsLookupRow[]> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("product_stats")
+    .select(
+      "product_id, review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count"
+    )
+    .in("product_id", productIds);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as DbProductStatsLookupRow[];
+}
+
+async function fetchProductStatsForId(
+  env: ParsedEnv,
+  productId: string
+): Promise<DbProductStatsLookupRow | null> {
+  try {
+    const rows = await fetchProductStatsForList(env, [productId]);
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error("Failed to load product stats:", error);
+    return null;
+  }
 }
 
 export async function fetchAdminProducts(
@@ -562,7 +617,7 @@ export async function fetchProductBySlug(
     meta_title,
     meta_description,
     products(
-      ${productListSelect},
+      ${productListSelectBase},
       product_translations(lang, slug)
     )
   `;
@@ -642,7 +697,7 @@ export async function fetchProductBySlug(
   if (!translation) {
     const { data: productBySlug, error: productError } = await supabase
       .from("products")
-      .select(productListSelect)
+      .select(productListSelectBase)
       .eq("slug", slug)
       .maybeSingle();
 
@@ -651,7 +706,7 @@ export async function fetchProductBySlug(
     }
 
     if (!productBySlug) {
-      return null;
+      return fetchProductByReviewSlug(env, slug, lang);
     }
 
     const productRow = productBySlug as DbProductRow;
@@ -661,32 +716,42 @@ export async function fetchProductBySlug(
       return null;
     }
 
-    const existingTranslations = Array.isArray(productRow.product_translations)
-      ? productRow.product_translations
-      : [];
-
+    const translationRows = await fetchProductTranslations(env, productRow.id);
+    const translations =
+      translationRows.length > 0
+        ? translationRows.map((translation) => ({
+            lang: translation.lang,
+            slug: translation.slug,
+            name: translation.name,
+            description: translation.description ?? null,
+            meta_title: translation.metaTitle ?? null,
+            meta_description: translation.metaDescription ?? null,
+          }))
+        : [
+            {
+              lang: DEFAULT_LANGUAGE,
+              slug: productRow.slug,
+              name: productRow.name,
+              description: productRow.description ?? null,
+              meta_title: null,
+              meta_description: null,
+            },
+          ];
+    const stats = await fetchProductStatsForId(env, productRow.id);
     const mergedProduct: DbProductRow = {
       ...productRow,
-      product_translations:
-        existingTranslations.length > 0
-          ? existingTranslations
-          : [
-              {
-                lang: DEFAULT_LANGUAGE,
-                slug: productRow.slug,
-                name: productRow.name,
-                description: productRow.description ?? null,
-                meta_title: null,
-                meta_description: null,
-              },
-            ],
+      product_translations: translations,
+      product_stats: stats ?? undefined,
     };
 
     return mapProductRow(mergedProduct, { lang, includeTranslations: true });
   }
 
   if (!translation?.products) {
-    return null;
+    if (translation?.product_id) {
+      return fetchProductByIdPublic(env, translation.product_id, lang);
+    }
+    return fetchProductByReviewSlug(env, slug, lang);
   }
 
   const productRow = translation.products;
@@ -703,6 +768,7 @@ export async function fetchProductBySlug(
     )
     : [];
 
+  const stats = await fetchProductStatsForId(env, productRow.id);
   const mergedProduct: DbProductRow = {
     ...productRow,
     product_translations: [
@@ -722,12 +788,126 @@ export async function fetchProductBySlug(
           name: "",
         })),
     ],
+    product_stats: stats ?? undefined,
   };
 
   return mapProductRow(mergedProduct as DbProductRow, {
     lang: translation.lang,
     includeTranslations: true,
   });
+}
+
+async function fetchProductByIdPublic(
+  env: ParsedEnv,
+  productId: string,
+  lang: SupportedLanguage
+): Promise<Product | null> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("products")
+    .select(productListSelectBase)
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const productRow = data as DbProductRow;
+  const status = productRow.status ?? "published";
+
+  if (status === "deleted") {
+    return null;
+  }
+
+  const translationRows = await fetchProductTranslations(env, productId);
+  const translations =
+    translationRows.length > 0
+      ? translationRows.map((translation) => ({
+          lang: translation.lang,
+          slug: translation.slug,
+          name: translation.name,
+          description: translation.description ?? null,
+          meta_title: translation.metaTitle ?? null,
+          meta_description: translation.metaDescription ?? null,
+        }))
+      : [
+          {
+            lang: DEFAULT_LANGUAGE,
+            slug: productRow.slug,
+            name: productRow.name,
+            description: productRow.description ?? null,
+            meta_title: null,
+            meta_description: null,
+          },
+        ];
+  const stats = await fetchProductStatsForId(env, productRow.id);
+  const mergedProduct = {
+    ...productRow,
+    product_translations: translations,
+    product_stats: stats ?? undefined,
+  };
+
+  return mapProductRow(mergedProduct as DbProductRow, {
+    lang,
+    includeTranslations: true,
+  });
+}
+
+async function fetchProductByReviewSlug(
+  env: ParsedEnv,
+  slug: string,
+  lang: SupportedLanguage
+): Promise<Product | null> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("review_translations")
+    .select("review_id, reviews(product_id)")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    const { data: reviewRow, error: reviewError } = await supabase
+      .from("reviews")
+      .select("product_id")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (reviewError) {
+      throw reviewError;
+    }
+
+    if (!reviewRow?.product_id) {
+      return null;
+    }
+
+    return fetchProductByIdPublic(env, reviewRow.product_id, lang);
+  }
+
+  const reviewRelation = data as {
+    reviews?:
+      | { product_id?: string | null }
+      | { product_id?: string | null }[]
+      | null;
+  };
+  const reviewRow = Array.isArray(reviewRelation.reviews)
+    ? reviewRelation.reviews[0]
+    : reviewRelation.reviews;
+  const productId = reviewRow?.product_id;
+
+  if (!productId) {
+    return null;
+  }
+
+  return fetchProductByIdPublic(env, productId, lang);
 }
 
 export async function fetchProductTranslations(
@@ -869,7 +1049,7 @@ export async function searchProducts(
         slug,
         name,
         products(
-          ${productListSelect}
+          ${productListSelectBase}
         )
       `
     )

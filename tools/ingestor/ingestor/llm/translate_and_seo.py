@@ -8,10 +8,12 @@ from .groq_client import GroqClient
 from .json_parse import parse_json_strict
 from .prompts import (
     SYSTEM_PROMPT,
+    EXTRACTION_SYSTEM_PROMPT,
     build_repair_prompt,
     build_translation_prompt,
     build_category_translation_prompt,
     build_product_translation_prompt,
+    build_extraction_prompt,
 )
 
 
@@ -84,12 +86,14 @@ async def translate_review(
     category_name_ru: Optional[str],
     langs: List[str],
     logger: logging.Logger,
+    pros_ru: Optional[List[str]] = None,
+    cons_ru: Optional[List[str]] = None,
 ) -> Dict[str, dict]:
     results: Dict[str, dict] = {}
 
     async def _do_one(lang):
         try:
-            prompt = build_translation_prompt(lang, title_ru, content_html_ru, category_name_ru)
+            prompt = build_translation_prompt(lang, title_ru, content_html_ru, category_name_ru, pros_ru, cons_ru)
             raw = await asyncio.to_thread(client.chat_json, SYSTEM_PROMPT, prompt)
             parsed = await _parse_or_repair(client, raw, logger)
             normalized = _normalize_payload(parsed, lang, fallback_title=title_ru)
@@ -176,3 +180,16 @@ async def translate_product(
         if res:
             results[lang] = res
     return results
+async def extract_review_details_ai(
+    client: GroqClient,
+    html_text: str,
+    logger: logging.Logger,
+) -> dict:
+    try:
+        prompt = build_extraction_prompt(html_text)
+        raw = await asyncio.to_thread(client.chat_json, EXTRACTION_SYSTEM_PROMPT, prompt)
+        parsed = await _parse_or_repair(client, raw, logger)
+        return parsed
+    except Exception as e:
+        logger.error("AI Extraction failed: %s", e)
+        return {}

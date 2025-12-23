@@ -70,6 +70,20 @@ REVIEW_PUBLISHED_SELECTORS = [
     "span.date",
 ]
 
+REVIEW_PROS_SELECTORS = [
+    "div.plus",
+    "div.upros",
+    ".pros",
+    ".positive",
+]
+
+REVIEW_CONS_SELECTORS = [
+    "div.minus",
+    "div.ucons",
+    ".cons",
+    ".negative",
+]
+
 BREADCRUMB_SELECTORS = [
     ".IrecUiBreadcrumbs a",
     ".breadcrumb-item a",
@@ -84,24 +98,18 @@ BREADCRUMB_SELECTORS = [
 REVIEW_IMAGE_SELECTORS = [
     "a.photo.pswp_item",
     "a.pswp_item",
-    "a.photo[href*='/sites/default/files/']",
-    "a[href*='/imagecache/copyright1/']",
-    "div[itemprop='reviewBody'] img",
-    "div.reviewText img",
-    "div.review-body img",
-    ".description a[href*='.jpg']",
-    ".description a[href*='.jpeg']",
-    ".description a[href*='.png']",
-    ".content img[src*='cdn-irec']",
+    "a.photo",
+    "img",
+    "a[href*='/sites/default/files/']",
 ]
 
 PRODUCT_IMAGE_SELECTORS = [
+    "div.mainpic img",
+    "div.mainpic a.photo img",
     ".ProductTizer .photo img",
     "div.product-image img",
     "img[itemprop='image']",
     ".main-product-image img",
-    "div.mainpic img",
-    "div.mainpic a.photo img",
 ]
 
 

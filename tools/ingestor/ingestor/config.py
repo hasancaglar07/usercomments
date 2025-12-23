@@ -55,9 +55,9 @@ class Config:
         langs = [lang.strip() for lang in langs_raw.split(",") if lang.strip()]
 
         source_base_url = os.getenv("SOURCE_BASE_URL", "https://irecommend.ru").rstrip("/")
-        max_new_reviews_per_loop = env_int("MAX_NEW_REVIEWS_PER_LOOP", 3)
-        if max_new_reviews_per_loop > 3:
-            max_new_reviews_per_loop = 3
+        max_new_reviews_per_loop = env_int("MAX_NEW_REVIEWS_PER_LOOP", 20)
+        if max_new_reviews_per_loop > 20:
+            max_new_reviews_per_loop = 20
 
         return Config(
             source_base_url=source_base_url,

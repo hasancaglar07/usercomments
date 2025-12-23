@@ -1,6 +1,5 @@
 import logging
 import re
-from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin, urlparse
@@ -19,31 +18,40 @@ from .selectors import (
     REVIEW_RATING_SELECTORS,
     REVIEW_TITLE_SELECTORS,
     PRODUCT_IMAGE_SELECTORS,
+    REVIEW_PROS_SELECTORS,
+    REVIEW_CONS_SELECTORS,
 )
 
 
-@dataclass
-class ReviewDetail:
+from pydantic import BaseModel, Field, validator
+
+class ReviewDetail(BaseModel):
     source_url: str
     source_slug: str
     title: str
     content_html: str
-    rating: Optional[float]
-    rating_count: Optional[int]
-    like_up: Optional[int]
-    like_down: Optional[int]
-    published_at: Optional[str]
-    category_url: Optional[str]
-    subcategory_url: Optional[str]
-    category_name: Optional[str]
-    subcategory_name: Optional[str]
-    product_name: Optional[str]
-    excerpt: str
+    rating: Optional[float] = None
+    rating_count: Optional[int] = 0
+    like_up: Optional[int] = 0
+    like_down: Optional[int] = 0
+    published_at: Optional[str] = None
+    category_url: Optional[str] = None
+    subcategory_url: Optional[str] = None
+    category_name: Optional[str] = None
+    subcategory_name: Optional[str] = None
+    product_name: Optional[str] = None
+    excerpt: str = ""
 
-    product_image_url: Optional[str]
-    image_urls: List[str]
-    pros: List[str] = None
-    cons: List[str] = None
+    product_image_url: Optional[str] = None
+    image_urls: List[str] = Field(default_factory=list)
+    pros: List[str] = Field(default_factory=list)
+    cons: List[str] = Field(default_factory=list)
+
+    @validator("content_html")
+    def content_not_empty(cls, v):
+        if not v or len(v.strip()) < 50:
+            raise ValueError("Content is too short or empty")
+        return v
 
 
 
@@ -187,8 +195,26 @@ def _extract_content_html(soup: BeautifulSoup) -> str:
 
 def _extract_image_urls(soup: BeautifulSoup, base_url: str) -> List[str]:
     urls = []
+    
+    # Try to find the main review container first to avoid picking up avatars from comments
+    content_node = None
+    for selector in REVIEW_CONTENT_SELECTORS:
+        content_node = soup.select_one(selector)
+        if content_node:
+            break
+            
+    search_node = content_node or soup
+    
+    # Blacklist patterns for URLs we definitely don't want (avatars, icons, etc)
+    # Be careful not to block '/user-images/' which is where IRecommend stores review photos!
+    blacklist = {
+        "avatar", "profile", "icon", "social", "logo", "pixel", "counter", 
+        "1x1", "placeholder", "default", "anonymous", "gravatar", "facebook", 
+        "twitter", "instagram", "vk.com", "yandex", "google", "mail.ru"
+    }
+
     for selector in REVIEW_IMAGE_SELECTORS:
-        for node in soup.select(selector):
+        for node in search_node.select(selector):
             if node.name == "a":
                 src = node.get("href")
             else:
@@ -196,15 +222,51 @@ def _extract_image_urls(soup: BeautifulSoup, base_url: str) -> List[str]:
             
             if not src:
                 continue
+            
+            # Skip data URIs/placeholders
+            if src.startswith("data:"):
+                continue
+
+            src_lower = src.lower()
+            if any(token in src_lower for token in blacklist):
+                # Extra check: if it contains 'user-images', it's likely a real review photo
+                if "user-images" not in src_lower:
+                    continue
+                
             if src.startswith("//"):
                 src = f"https:{src}"
             elif not src.startswith("http"):
                 src = urljoin(base_url, src)
+            
+            # IRecommend specific: main photos usually contain '/sites/default/files/' 
+            if "irecommend.ru" in base_url:
+                # If it's a known user-images path, it's definitely a good one
+                if "user-images" in src_lower or "/sites/default/files/" in src:
+                    pass
+                else:
+                    # Generic CDN path, check more strictly
+                    if "avatar" in src_lower or "profile" in src_lower:
+                        continue
+
             urls.append(src)
-        if urls:
-            break
+            
     return list(dict.fromkeys(urls))
 
+
+
+def _extract_list(soup: BeautifulSoup, selectors: List[str], exclude_prefix: Optional[str] = None) -> List[str]:
+    for selector in selectors:
+        node = soup.select_one(selector)
+        if not node:
+            continue
+        # IRecommend often has a title like 'Достоинства' or 'Недостатки'
+        text = node.get_text("\n", strip=True)
+        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        if exclude_prefix and lines and lines[0].lower().startswith(exclude_prefix.lower()):
+            lines = lines[1:]
+        if lines:
+            return lines
+    return []
 
 
 def parse_review_detail(html: str, source_url: str, base_url: str, logger: logging.Logger) -> ReviewDetail:
@@ -241,6 +303,8 @@ def parse_review_detail(html: str, source_url: str, base_url: str, logger: loggi
     excerpt_soup = BeautifulSoup(content_html or "", "lxml")
     excerpt = normalize_whitespace(excerpt_soup.get_text())[:300]
 
+    pros = _extract_list(soup, REVIEW_PROS_SELECTORS, exclude_prefix="Достоинства")
+    cons = _extract_list(soup, REVIEW_CONS_SELECTORS, exclude_prefix="Недостатки")
 
     return ReviewDetail(
         source_url=source_url,
@@ -260,8 +324,8 @@ def parse_review_detail(html: str, source_url: str, base_url: str, logger: loggi
         excerpt=excerpt,
         product_image_url=product_image_url,
         image_urls=image_urls,
-        pros=[],
-        cons=[],
+        pros=pros,
+        cons=cons,
     )
 
 

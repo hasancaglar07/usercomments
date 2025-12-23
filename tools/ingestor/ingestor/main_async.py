@@ -177,7 +177,7 @@ async def _ensure_category_ids_async(
             "name": prod_name,
             "source_url": prod_url,
             "description": f"Product: {prod_name}",
-            "status": "pending",
+            "status": "published",
         }
         prod_id = await asyncio.to_thread(upsert_product, supabase, prod_payload)
         

@@ -96,25 +96,29 @@ def upsert_review_translations(
             "meta_description": translation["meta_description"],
             "excerpt": translation.get("meta_description", "")[:200], # Fallback excerpt
         }
-        try:
-            supabase.upsert(
-                "review_translations",
-                [payload],
-                on_conflict="review_id,lang",
-            )
-        except RuntimeError as exc:
-            msg = str(exc)
-            if "review_translations_lang_slug_key" in msg or "duplicate key value" in msg:
-                suffix = short_hash(payload["slug"] + review_id)
-                payload["slug"] = f"{payload['slug']}-{suffix}"
+        
+        # Suffix slug with review identifier to ensure uniqueness across the board
+        original_slug = payload["slug"]
+        for attempt in range(10):
+            try:
                 supabase.upsert(
                     "review_translations",
                     [payload],
                     on_conflict="review_id,lang",
                 )
-                logger.warning("Slug conflict resolved for %s", payload["lang"])
-            else:
-                raise
+                break
+            except Exception as exc:
+                msg = str(exc).lower()
+                if "duplicate" in msg or "slug" in msg or "23505" in msg:
+                    # Append a unique hash based on review_id, lang, and attempt
+                    # Adding a larger chunk of review_id to ensure global uniqueness
+                    entropy = f"{review_id}-{translation['lang']}-{attempt}-{original_slug}"
+                    suffix = short_hash(entropy)
+                    payload["slug"] = f"{original_slug}-{suffix}"
+                    logger.warning("Slug conflict for %s (attempt %d/10), retrying with %s", 
+                                   translation["lang"], attempt + 1, payload["slug"])
+                else:
+                    raise
 
 def upsert_category_translations(
     supabase: SupabaseClient,
@@ -129,25 +133,26 @@ def upsert_category_translations(
             "name": translation["name"],
             "slug": translation["slug"],
         }
-        try:
-            supabase.upsert(
-                "category_translations",
-                [payload],
-                on_conflict="category_id,lang",
-            )
-        except RuntimeError as exc:
-            msg = str(exc)
-            if "category_translations_lang_slug_key" in msg or "duplicate key value" in msg:
-                suffix = short_hash(payload["slug"] + str(category_id))
-                payload["slug"] = f"{payload['slug']}-{suffix}"
+        original_slug = payload["slug"]
+        for attempt in range(10):
+            try:
                 supabase.upsert(
                     "category_translations",
                     [payload],
                     on_conflict="category_id,lang",
                 )
-                logger.warning("Category slug conflict resolved for %s", payload["lang"])
-            else:
-                raise
+                break
+            except Exception as exc:
+                msg = str(exc).lower()
+                if "duplicate" in msg or "slug" in msg or "23505" in msg:
+                    # Append unique hash for category lang unique slug
+                    entropy = f"cat-{category_id}-{translation['lang']}-{attempt}-{original_slug}"
+                    suffix = short_hash(entropy)
+                    payload["slug"] = f"{original_slug}-{suffix}"
+                    logger.warning("Category slug conflict for %s (attempt %d/10), retrying with %s", 
+                                   translation["lang"], attempt + 1, payload["slug"])
+                else:
+                    raise
 
 def upsert_product(
     supabase: SupabaseClient,
@@ -170,7 +175,7 @@ def upsert_product(
         "slug": base_slug,
         "name": name,
         "description": payload.get("description"),
-        "status": payload.get("status", "pending"),
+        "status": payload.get("status", "published"),
     }
     supabase.upsert("products", [product_payload], on_conflict="slug")
     
@@ -194,17 +199,22 @@ def upsert_product_translations(
             "meta_title": translation.get("meta_title"),
             "meta_description": translation.get("meta_description"),
         }
-        try:
-            supabase.upsert("product_translations", [payload], on_conflict="product_id,lang")
-        except RuntimeError as exc:
-            msg = str(exc)
-            if "product_translations_slug_key" in msg or "duplicate key value" in msg:
-                suffix = short_hash(payload["slug"] + str(product_id))
-                payload["slug"] = f"{payload['slug']}-{suffix}"
+        original_slug = payload["slug"]
+        for attempt in range(10):
+            try:
                 supabase.upsert("product_translations", [payload], on_conflict="product_id,lang")
-                logger.warning("Product slug conflict resolved for %s", payload["lang"])
-            else:
-                raise
+                break
+            except Exception as exc:
+                msg = str(exc).lower()
+                if "duplicate" in msg or "slug" in msg or "23505" in msg:
+                    # Append unique hash for product lang unique slug
+                    entropy = f"prod-{product_id}-{translation['lang']}-{attempt}-{original_slug}"
+                    suffix = short_hash(entropy)
+                    payload["slug"] = f"{original_slug}-{suffix}"
+                    logger.warning("Product slug conflict for %s (attempt %d/10), retrying with %s", 
+                                   translation["lang"], attempt + 1, payload["slug"])
+                else:
+                    raise
 
 def upsert_product_image(
     supabase: SupabaseClient,
@@ -212,15 +222,20 @@ def upsert_product_image(
     image_url: str,
     logger: logging.Logger,
 ) -> None:
+    # Check if already exists
+    rows = supabase.select("product_images", columns="id", filters=[("eq", "product_id", product_id), ("eq", "url", image_url)])
+    if rows:
+        return
+        
     payload = {
         "product_id": product_id,
         "url": image_url,
         "sort_order": 0,
     }
     try:
-        supabase.upsert("product_images", [payload], on_conflict="product_id,url")
+        supabase.insert("product_images", [payload])
     except Exception as e:
-        logger.error("Failed to upsert product image for %s: %s", product_id, e)
+        logger.error("Failed to insert product image for %s: %s", product_id, e)
 
 def link_product_to_category(
     supabase: SupabaseClient,
