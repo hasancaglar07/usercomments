@@ -1,10 +1,8 @@
-export const runtime = "edge";
 import { getSiteUrl } from "@/src/lib/seo";
+import { SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
+import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 
-const SITEMAP_PAGE_SIZE = 5000;
-const REVALIDATE_SECONDS = 300;
-
-export const revalidate = 300;
+export const revalidate = 1800;
 
 function buildSitemapIndex(urls: string[]): string {
   const entries = urls
@@ -18,34 +16,40 @@ export async function GET() {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const sitemapUrls: string[] = [];
 
-  if (apiBaseUrl) {
-    try {
-      const response = await fetch(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?part=1&pageSize=${SITEMAP_PAGE_SIZE}`,
-        { next: { revalidate: REVALIDATE_SECONDS } }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const totalPages =
-          typeof data?.pageInfo?.totalPages === "number"
-            ? data.pageInfo.totalPages
-            : Number(data?.pageInfo?.totalPages ?? 0);
-        for (let part = 1; part <= totalPages; part += 1) {
-          sitemapUrls.push(`${siteUrl}/sitemap-reviews-${part}.xml`);
+  for (const lang of SUPPORTED_LANGUAGES) {
+    let totalPages = 1;
+    if (apiBaseUrl) {
+      try {
+        const response = await fetch(
+          `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`,
+          { next: { revalidate: SITEMAP_CACHE_SECONDS } }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const rawTotal = data?.pageInfo?.totalPages ?? 1;
+          const parsed =
+            typeof rawTotal === "number" ? rawTotal : Number(rawTotal ?? 1);
+          totalPages = Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
         }
+      } catch {
+        // ignore API errors for sitemap index
       }
-    } catch {
-      // ignore API errors for sitemap index
+    }
+
+    sitemapUrls.push(`${siteUrl}/sitemap-${lang}.xml`);
+    if (totalPages > 1) {
+      for (let part = 2; part <= totalPages; part += 1) {
+        sitemapUrls.push(`${siteUrl}/sitemap-${lang}-${part}.xml`);
+      }
     }
   }
-
-  sitemapUrls.push(`${siteUrl}/sitemap-categories.xml`);
 
   const body = buildSitemapIndex(sitemapUrls);
 
   return new Response(body, {
     headers: {
       "Content-Type": "application/xml",
+      "Cache-Control": `public, max-age=0, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=600`,
     },
   });
 }

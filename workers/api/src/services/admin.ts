@@ -64,7 +64,6 @@ type DbAdminComment = {
   text: string | null;
   status: string | null;
   created_at: string;
-  updated_at?: string | null;
   profiles?:
     | {
         username: string | null;
@@ -135,7 +134,6 @@ const adminCommentSelect = `
   text,
   status,
   created_at,
-  updated_at,
   profiles(username, profile_pic_url),
   reviews(id, slug, title, status)
 `;
@@ -258,7 +256,6 @@ function mapAdminCommentRow(row: DbAdminComment): AdminComment {
     text: row.text ?? "",
     status: normalizeCommentStatus(row.status),
     createdAt: row.created_at,
-    updatedAt: row.updated_at ?? undefined,
     author: {
       username: profile?.username ?? "unknown",
       displayName: profile?.username ?? undefined,

@@ -1,9 +1,8 @@
-export const runtime = "edge";
 import { getSiteUrl } from "@/src/lib/seo";
+import { DEFAULT_LANGUAGE, localizePath } from "@/src/lib/i18n";
+import { SITEMAP_CACHE_SECONDS } from "@/src/lib/sitemap";
 
-const REVALIDATE_SECONDS = 300;
-
-export const revalidate = 300;
+export const revalidate = 1800;
 
 function escapeXml(value: string): string {
   return value
@@ -23,26 +22,29 @@ function buildUrlset(urls: string[]): string {
 
 export async function GET() {
   const siteUrl = getSiteUrl();
+  const lang = DEFAULT_LANGUAGE;
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const urls: string[] = [
-    `${siteUrl}/`,
-    `${siteUrl}/catalog`,
-    `${siteUrl}/contact`,
-    `${siteUrl}/privacy-policy`,
-    `${siteUrl}/terms-of-use`,
+    `${siteUrl}${localizePath("/", lang)}`,
+    `${siteUrl}${localizePath("/catalog", lang)}`,
+    `${siteUrl}${localizePath("/contact", lang)}`,
+    `${siteUrl}${localizePath("/privacy-policy", lang)}`,
+    `${siteUrl}${localizePath("/terms-of-use", lang)}`,
   ];
 
   if (apiBaseUrl) {
     try {
       const response = await fetch(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/categories`,
-        { next: { revalidate: REVALIDATE_SECONDS } }
+        `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/categories?lang=${lang}`,
+        { next: { revalidate: SITEMAP_CACHE_SECONDS } }
       );
       if (response.ok) {
         const data = await response.json();
         const categories = data.items ?? [];
         for (const category of categories) {
-          urls.push(`${siteUrl}/catalog/reviews/${category.id}`);
+          urls.push(
+            `${siteUrl}${localizePath(`/catalog/reviews/${category.id}`, lang)}`
+          );
         }
       }
     } catch {
@@ -53,6 +55,7 @@ export async function GET() {
   return new Response(buildUrlset(urls), {
     headers: {
       "Content-Type": "application/xml",
+      "Cache-Control": `public, max-age=0, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=600`,
     },
   });
 }

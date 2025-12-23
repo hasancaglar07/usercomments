@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import { incrementReviewView } from "@/src/lib/api";
 import { createComment, voteReview } from "@/src/lib/api-client";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 const commentSchema = z.string().trim().min(1, "Please write a comment.");
 
@@ -41,6 +42,10 @@ type ReviewHelpfulButtonProps = {
 
 export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonProps) {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const [isVoting, setIsVoting] = useState(false);
 
   const requireAuth = useCallback(async () => {
@@ -49,12 +54,13 @@ export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonPr
       const next =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
-          : "/catalog";
-      router.push(`/user/login?next=${encodeURIComponent(next)}`);
+          : localizePath("/catalog", lang);
+      const loginPath = localizePath("/user/login", lang);
+      router.push(`${loginPath}?next=${encodeURIComponent(next)}`);
       return false;
     }
     return true;
-  }, [router]);
+  }, [lang, router]);
 
   const handleVote = async () => {
     if (isVoting || !(await requireAuth())) {
@@ -98,6 +104,10 @@ type ReviewCommentFormProps = {
 
 export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProps) {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const [commentText, setCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -107,12 +117,13 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
       const next =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
-          : "/catalog";
-      router.push(`/user/login?next=${encodeURIComponent(next)}`);
+          : localizePath("/catalog", lang);
+      const loginPath = localizePath("/user/login", lang);
+      router.push(`${loginPath}?next=${encodeURIComponent(next)}`);
       return false;
     }
     return true;
-  }, [router]);
+  }, [lang, router]);
 
   const handleSubmit = async () => {
     const parsed = commentSchema.safeParse(commentText);

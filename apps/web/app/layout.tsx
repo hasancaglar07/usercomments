@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { isRtlLanguage, normalizeLanguage } from "@/src/lib/i18n";
 
 export const metadata: Metadata = {
   title: "UserComments.net | Real User Reviews & Honest Product Comments",
@@ -8,13 +10,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headerList = await headers();
+  const lang = normalizeLanguage(headerList.get("x-lang"));
+  const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
+
   return (
-    <html lang="en" className="light">
+    <html lang={lang} dir={dir} className="light">
       <body>{children}</body>
     </html>
   );

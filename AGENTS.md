@@ -77,6 +77,7 @@ If no new rule is detected → do not update the file.
 \- Read `proje.md` and relevant `stitch_homepage/*/code.html` before any UI work
 \- Read `docs/deploy-cloudflare.md` and `docs/geliştirme.md` before starting tasks to align delivery with deployment/dev constraints
 \- Süreç: Önce eksikleri tespit edip planla, ardından uygula; böylece ilerleme net takip edilir
+\- Süreç: En hızlı, en stabil ve en düzgün sonuç için önce düşün, araştır, planla; ardından uygula
 \- Preserve pixel-perfect markup and class names; do not change UI markup unless explicitly requested
 \- Web changes stay in App Router (`apps/web/app`) and shared layout in `apps/web/components/layout`
 \- API lives in `workers/api` and uses Supabase server-side client
@@ -112,7 +113,7 @@ If no new rule is detected → do not update the file.
 
 \- TypeScript everywhere with strict mode enabled
 \- Web: Next.js App Router under `apps/web/app`, components in `apps/web/components`, helpers in `apps/web/src/lib`, types in `apps/web/src/types.ts`, path alias `@/`; Tailwind v4 configured via `apps/web/styles/globals.css` and `postcss.config.mjs` (no tailwind.config file)
-\- Web runtime: keep `export const runtime = 'edge'` on dynamic pages to ensure Cloudflare Edge execution
+\- Web runtime: OpenNext adapter does not support `export const runtime = 'edge'`; remove it to ensure builds succeed
 \- Web API: `apps/web/src/lib/api.ts` must use `NEXT_PUBLIC_API_BASE_URL` to reach the Worker API (no direct DB calls from the web app)
 \- Auth: use supabase-js client directly for web auth flows to align with Supabase Auth
 \- Storage: keep image files in Backblaze B2 and persist their metadata in the DB for queryable content
@@ -126,6 +127,8 @@ If no new rule is detected → do not update the file.
 \- Replace DOM manipulation (`document.querySelector`, `addEventListener`) with React state or refs to keep components declarative
 \- UI copy must be English to ensure consistent language across the app
 \- Use `'use client'` only when interactivity is required to avoid unnecessary client components
+\- Default language is `en`, and missing translations must redirect to `/en` for SEO consistency
+\- i18n SEO: each locale must serve locale-specific content and sitemaps so search engines index the correct language
 
 \### Critical (NEVER violate)
 
@@ -162,6 +165,7 @@ If no new rule is detected → do not update the file.
 
 \- İletişim: Yanıtları Türkçe ver, çünkü kullanıcı bunu tercih ediyor.
 \- Quality: Prefer advanced, production-grade, fully professional implementations because the user expects a very polished, pro-ready product.
+\- SEO: SEO kritik; mümkün olduğunca SSR/SSG ve sitemap doğruluğunu koru.
 
 \### Dislikes
 

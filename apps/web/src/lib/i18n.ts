@@ -1,0 +1,39 @@
+export const SUPPORTED_LANGUAGES = ["tr", "en", "es", "de", "ar"] as const;
+
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+
+export const DEFAULT_LANGUAGE: SupportedLanguage = "en";
+
+export function isSupportedLanguage(value?: string | null): value is SupportedLanguage {
+  return (
+    typeof value === "string" &&
+    (SUPPORTED_LANGUAGES as readonly string[]).includes(value)
+  );
+}
+
+export function normalizeLanguage(value?: string | null): SupportedLanguage {
+  return isSupportedLanguage(value) ? value : DEFAULT_LANGUAGE;
+}
+
+export function isRtlLanguage(lang: string): boolean {
+  return lang === "ar";
+}
+
+export function localizePath(path: string, lang: string): string {
+  if (!path.startsWith("/")) {
+    return path;
+  }
+
+  const [pathnameWithQuery, hash] = path.split("#");
+  const [pathname, query] = pathnameWithQuery.split("?");
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.length > 0 && isSupportedLanguage(segments[0])) {
+    return path;
+  }
+
+  const normalizedPath = pathname === "/" ? "" : pathname;
+  const localized = `/${lang}${normalizedPath}`;
+  const withQuery = query ? `${localized}?${query}` : localized;
+  return hash ? `${withQuery}#${hash}` : withQuery;
+}

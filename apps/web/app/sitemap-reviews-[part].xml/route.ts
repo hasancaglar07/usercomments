@@ -1,11 +1,9 @@
-export const runtime = "edge";
 import { getSiteUrl } from "@/src/lib/seo";
 import type { NextRequest } from "next/server";
+import { DEFAULT_LANGUAGE, localizePath } from "@/src/lib/i18n";
+import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 
-const SITEMAP_PAGE_SIZE = 5000;
-const REVALIDATE_SECONDS = 300;
-
-export const revalidate = 300;
+export const revalidate = 1800;
 
 function escapeXml(value: string): string {
   return value
@@ -28,40 +26,47 @@ function buildUrlset(urls: Array<{ loc: string; lastmod?: string }>): string {
 
 export async function GET(
   _request: NextRequest,
-  context: { params?: Promise<{ part?: string } | undefined> }
+  props: { params: Promise<{ part?: string }> }
 ) {
   const siteUrl = getSiteUrl();
+  const lang = DEFAULT_LANGUAGE;
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-  const rawParams = context.params ? await context.params : undefined;
-  const partValue = typeof rawParams?.part === "string" ? rawParams.part : "";
-  const part = Number(partValue);
+  const params = await props.params;
+  const part = Number(params?.part ?? 0);
 
   if (!apiBaseUrl || !Number.isFinite(part) || part <= 0) {
     return new Response(buildUrlset([]), {
-      headers: { "Content-Type": "application/xml" },
+      headers: {
+        "Content-Type": "application/xml",
+        "Cache-Control": `public, max-age=0, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=600`,
+      },
     });
   }
 
   const response = await fetch(
-    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?part=${part}&pageSize=${SITEMAP_PAGE_SIZE}`,
-    { next: { revalidate: REVALIDATE_SECONDS } }
+    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?lang=${lang}&part=${part}&pageSize=${SITEMAP_PAGE_SIZE}`,
+    { next: { revalidate: SITEMAP_CACHE_SECONDS } }
   );
 
   if (!response.ok) {
     return new Response(buildUrlset([]), {
-      headers: { "Content-Type": "application/xml" },
+      headers: {
+        "Content-Type": "application/xml",
+        "Cache-Control": `public, max-age=0, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=600`,
+      },
     });
   }
 
   const data = await response.json();
   const urls = (data.items ?? []).map((item: { slug: string; updatedAt?: string | null; createdAt?: string }) => ({
-    loc: `${siteUrl}/content/${item.slug}`,
+    loc: `${siteUrl}${localizePath(`/content/${item.slug}`, lang)}`,
     lastmod: item.updatedAt ?? item.createdAt,
   }));
 
   return new Response(buildUrlset(urls), {
     headers: {
       "Content-Type": "application/xml",
+      "Cache-Control": `public, max-age=0, s-maxage=${SITEMAP_CACHE_SECONDS}, stale-while-revalidate=600`,
     },
   });
 }

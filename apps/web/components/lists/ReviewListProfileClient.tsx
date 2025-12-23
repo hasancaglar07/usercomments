@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   ReviewCardProfile,
@@ -21,6 +22,7 @@ import {
 import { getUserComments } from "@/src/lib/api";
 import { getProfile, getUserDrafts, getUserSaved } from "@/src/lib/api-client";
 import { ensureAuthLoaded, getAccessToken, getCurrentUser } from "@/src/lib/auth";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 type ProfileTab = "reviews" | "drafts" | "comments" | "saved";
 
@@ -45,10 +47,12 @@ const DEFAULT_PAGE_SIZE = 10;
 
 function buildProfileCards(
   reviews: Review[],
-  categories: Category[]
+  categories: Category[],
+  lang: string
 ): ReviewCardProfileData[] {
   return reviews.map((review, index) => ({
     review,
+    href: localizePath(`/content/${review.slug}`, lang),
     dateLabel: formatRelativeTime(review.createdAt),
     ratingStars: buildRatingStars(review.ratingAvg),
     imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
@@ -70,6 +74,10 @@ export default function ReviewListProfileClient({
   pageSize,
   categories,
 }: ReviewListProfileClientProps) {
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const [cards, setCards] = useState<ReviewCardProfileData[]>(initialCards);
   const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
   const [loading, setLoading] = useState(false);
@@ -209,7 +217,7 @@ export default function ReviewListProfileClient({
           if (!isMounted) {
             return;
           }
-          setCards(buildProfileCards(result.items, categories));
+          setCards(buildProfileCards(result.items, categories, lang));
           setPagination(result.pageInfo);
         } catch (error) {
           if (!isMounted) {
@@ -230,11 +238,11 @@ export default function ReviewListProfileClient({
       if (activeTab === "comments" && initialCards.length === 0) {
         setLoading(true);
         try {
-          const result = await getUserComments(username, page, pageSize);
+          const result = await getUserComments(username, page, pageSize, lang);
           if (!isMounted) {
             return;
           }
-          setCards(buildProfileCards(result.items, categories));
+          setCards(buildProfileCards(result.items, categories, lang));
           setPagination(result.pageInfo);
         } catch (error) {
           if (!isMounted) {
@@ -270,6 +278,7 @@ export default function ReviewListProfileClient({
     page,
     pageSize,
     username,
+    lang,
   ]);
 
   const activeTabClass =

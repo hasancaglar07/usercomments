@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signUpWithPassword } from "@/src/lib/auth";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 export default function RegisterForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const params = useParams();
+    const lang = normalizeLanguage(typeof params?.lang === "string" ? params.lang : undefined);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +31,9 @@ export default function RegisterForm() {
                 return;
             }
             const next = searchParams.get("next");
-            router.push(next && next.startsWith("/") ? next : "/");
+            router.push(
+                next && next.startsWith("/") ? next : localizePath("/", lang)
+            );
         } catch (error) {
             const message =
                 error && typeof error === "object" && "message" in error
@@ -188,12 +193,12 @@ export default function RegisterForm() {
             <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 text-center">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                     Already have an account?
-                    <Link
-                        className="font-bold text-primary hover:text-blue-600 dark:hover:text-blue-400 ml-1 transition-colors"
-                        href="/user/login"
-                    >
-                        Log In
-                    </Link>
+                        <Link
+                            className="font-bold text-primary hover:text-blue-600 dark:hover:text-blue-400 ml-1 transition-colors"
+                            href={localizePath("/user/login", lang)}
+                        >
+                            Log In
+                        </Link>
                 </p>
             </div>
         </div>

@@ -15,7 +15,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   getProfile,
@@ -26,6 +26,7 @@ import {
 } from "@/src/lib/api-client";
 import { ensureAuthLoaded, getAccessToken, getCurrentUser } from "@/src/lib/auth";
 import { FALLBACK_PROFILE_IMAGES } from "@/src/lib/review-utils";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 type UserProfileActionsClientProps = {
   username: string;
@@ -122,6 +123,10 @@ export default function UserProfileActionsClient({
   children,
 }: UserProfileActionsClientProps) {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const [toast, setToast] = useState<ToastState>(null);
   const toastTimerRef = useRef<number | null>(null);
   const [messageOpen, setMessageOpen] = useState(false);
@@ -201,20 +206,21 @@ export default function UserProfileActionsClient({
       const next =
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}`
-          : "/catalog";
-      router.push(`/user/login?next=${encodeURIComponent(next)}`);
+          : localizePath("/catalog", lang);
+      const loginPath = localizePath("/user/login", lang);
+      router.push(`${loginPath}?next=${encodeURIComponent(next)}`);
       return false;
     }
     return true;
-  }, [router]);
+  }, [lang, router]);
 
   const buildProfileUrl = useCallback(() => {
-    const path = `/users/${encodeURIComponent(username)}`;
+    const path = localizePath(`/users/${encodeURIComponent(username)}`, lang);
     if (typeof window === "undefined") {
       return path;
     }
     return new URL(path, window.location.origin).toString();
-  }, [username]);
+  }, [lang, username]);
 
   const shareLink = useCallback(
     async (url: string, title: string) => {
@@ -445,22 +451,28 @@ export default function UserProfileActionsClient({
 
   const handleReviewShare = useCallback(
     async (reviewSlug: string, reviewTitle: string) => {
-      const path = `/content/${encodeURIComponent(reviewSlug)}`;
+      const path = localizePath(
+        `/content/${encodeURIComponent(reviewSlug)}`,
+        lang
+      );
       const url =
         typeof window !== "undefined"
           ? new URL(path, window.location.origin).toString()
           : path;
       await shareLink(url, reviewTitle);
     },
-    [shareLink]
+    [lang, shareLink]
   );
 
   const handleReviewComment = useCallback(
     (reviewSlug: string) => {
-      const path = `/content/${encodeURIComponent(reviewSlug)}`;
+      const path = localizePath(
+        `/content/${encodeURIComponent(reviewSlug)}`,
+        lang
+      );
       router.push(path);
     },
-    [router]
+    [lang, router]
   );
 
   const handleReviewVote = useCallback(
@@ -678,7 +690,9 @@ export default function UserProfileActionsClient({
         updated.username &&
         updated.username.toLowerCase() !== username.toLowerCase()
       ) {
-        router.push(`/users/${encodeURIComponent(updated.username)}`);
+        router.push(
+          localizePath(`/users/${encodeURIComponent(updated.username)}`, lang)
+        );
       } else {
         router.refresh();
       }
@@ -984,7 +998,7 @@ export default function UserProfileActionsClient({
                   <div className="flex items-center justify-between pt-2">
                     <Link
                       className="text-xs font-semibold text-primary hover:underline"
-                      href="/user/settings"
+                      href={localizePath("/user/settings", lang)}
                     >
                       Open full settings
                     </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   ReviewCardHomepage,
   type ReviewCardHomepageData,
@@ -16,6 +17,7 @@ import {
   pickFrom,
 } from "@/src/lib/review-utils";
 import { getLatestReviews } from "@/src/lib/api";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 type FilterKey = "all" | "photos" | "verified";
 
@@ -49,13 +51,15 @@ function getHomepageBadge(review: Review): "verified" | null {
 function buildHomepageCard(
   review: Review,
   categories: Category[],
-  index: number
+  index: number,
+  lang: string
 ): ReviewCardHomepageData {
   const categoryName = getCategoryLabel(categories, review.categoryId);
   const relative = formatRelativeTime(review.createdAt);
 
   return {
     review,
+    href: localizePath(`/content/${review.slug}`, lang),
     authorMeta: categoryName ? `Reviewer • ${categoryName}` : "Community Reviewer",
     postedLabel: relative ? `Posted ${relative}` : "Posted recently",
     ratingStars: buildRatingStars(review.ratingAvg),
@@ -91,6 +95,10 @@ export default function HomepageFeed({
   const [filter, setFilter] = useState<FilterKey>("all");
   const [isLoading, setIsLoading] = useState(false);
   const seenIds = useRef(new Set(initialCards.map((card) => card.review.id)));
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
 
   const visibleCards = useMemo(() => {
     if (filter === "photos") {
@@ -108,11 +116,11 @@ export default function HomepageFeed({
     }
     setIsLoading(true);
     try {
-      const result = await getLatestReviews(pageSize, nextCursor);
+      const result = await getLatestReviews(pageSize, nextCursor, lang);
       const startIndex = cards.length;
       const nextCards = result.items
         .map((review, index) =>
-          buildHomepageCard(review, categories, startIndex + index)
+          buildHomepageCard(review, categories, startIndex + index, lang)
         )
         .filter((card) => {
           const id = card.review.id;

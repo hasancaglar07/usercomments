@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import {
+  DEFAULT_LANGUAGE,
+  SUPPORTED_LANGUAGES,
+  localizePath,
+  type SupportedLanguage,
+} from "@/src/lib/i18n";
 
 const DEFAULT_SITE_NAME = "UserComments.net";
 const DEFAULT_DESCRIPTION =
@@ -21,13 +27,49 @@ type MetadataOptions = {
   title: string;
   description?: string;
   path: string;
+  lang: SupportedLanguage;
   type?: "website" | "article";
   image?: string;
+  languagePaths?: Partial<Record<SupportedLanguage, string>>;
 };
+
+function buildAlternates({
+  lang,
+  path,
+  languagePaths,
+}: {
+  lang: SupportedLanguage;
+  path: string;
+  languagePaths?: Partial<Record<SupportedLanguage, string>>;
+}): Metadata["alternates"] {
+  const defaultPath = localizePath(
+    languagePaths?.[DEFAULT_LANGUAGE] ?? path,
+    DEFAULT_LANGUAGE
+  );
+  const canonicalPath = localizePath(languagePaths?.[lang] ?? path, lang);
+  const languages = Object.fromEntries(
+    SUPPORTED_LANGUAGES.map((supportedLang) => {
+      const customPath = languagePaths?.[supportedLang] ?? path;
+      const localizedPath = localizePath(customPath, supportedLang);
+      return [supportedLang, toAbsoluteUrl(localizedPath)];
+    })
+  );
+  languages["x-default"] = toAbsoluteUrl(defaultPath);
+
+  return {
+    canonical: toAbsoluteUrl(canonicalPath),
+    languages,
+  };
+}
 
 export function buildMetadata(options: MetadataOptions): Metadata {
   const description = options.description ?? DEFAULT_DESCRIPTION;
-  const url = toAbsoluteUrl(options.path);
+  const alternates = buildAlternates({
+    lang: options.lang,
+    path: options.path,
+    languagePaths: options.languagePaths,
+  });
+  const url = (alternates?.canonical as string) ?? toAbsoluteUrl(options.path);
   const imageUrl = toAbsoluteUrl(options.image ?? DEFAULT_OG_IMAGE);
   const title = `${options.title} | ${DEFAULT_SITE_NAME} | Real User Reviews & Honest Product Comments`;
 
@@ -36,6 +78,7 @@ export function buildMetadata(options: MetadataOptions): Metadata {
     description,
     alternates: {
       canonical: url,
+      languages: alternates?.languages,
     },
     openGraph: {
       title,

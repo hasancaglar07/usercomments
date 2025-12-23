@@ -3,11 +3,25 @@
 import Link from "next/link";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { localizePath } from "@/src/lib/i18n";
 
-export default function Header() {
+type HeaderProps = {
+  lang: string;
+};
+
+export default function Header({ lang }: HeaderProps) {
   const { user, loading, isAuthenticated } = useAuth();
 
   const username = user?.user_metadata?.username || user?.email?.split("@")[0] || "Account";
+  const homeHref = localizePath("/", lang);
+  const searchAction = localizePath("/search", lang);
+  const catalogHref = localizePath("/catalog", lang);
+  const loginHref = localizePath("/user/login", lang);
+  const addReviewHref = localizePath("/node/add/review", lang);
+  const profileHref = localizePath(
+    `/users/${encodeURIComponent(username.toLowerCase())}`,
+    lang
+  );
 
   return (
     <header className="bg-background-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
@@ -15,7 +29,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 gap-4">
           <Link
             className="flex items-center gap-2 flex-shrink-0 cursor-pointer"
-            href="/"
+            href={homeHref}
           >
             <span className="material-symbols-outlined text-primary text-3xl">
               forum
@@ -25,7 +39,7 @@ export default function Header() {
             </h1>
           </Link>
           <div className="hidden md:flex flex-1 max-w-2xl mx-4">
-            <form className="relative w-full group" action="/search" method="get">
+            <form className="relative w-full group" action={searchAction} method="get">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="material-symbols-outlined text-gray-400">
                   search
@@ -43,7 +57,7 @@ export default function Header() {
             <AuthCtaButton
               as="a"
               className="hidden sm:flex items-center justify-center h-10 px-4 bg-primary hover:bg-primary-dark text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
-              authenticatedHref="/node/add/review"
+              authenticatedHref={addReviewHref}
             >
               <span className="material-symbols-outlined text-[18px] mr-1">
                 add
@@ -56,7 +70,7 @@ export default function Header() {
             ) : isAuthenticated ? (
               <Link
                 className="flex items-center justify-center h-10 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-text-main dark:text-white text-sm font-bold rounded-lg transition-colors gap-2"
-                href={`/users/${encodeURIComponent(username.toLowerCase())}`}
+                href={profileHref}
               >
                 <span className="material-symbols-outlined text-[20px]">account_circle</span>
                 <span className="truncate max-w-[100px]">{username}</span>
@@ -64,7 +78,7 @@ export default function Header() {
             ) : (
               <Link
                 className="flex items-center justify-center h-10 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-text-main dark:text-white text-sm font-bold rounded-lg transition-colors"
-                href="/user/login"
+                href={loginHref}
               >
                 <span className="truncate">Sign In</span>
               </Link>
@@ -74,55 +88,55 @@ export default function Header() {
         <nav className="hidden md:flex gap-8 py-3 overflow-x-auto hide-scrollbar border-t border-gray-100 dark:border-gray-800">
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Beauty
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Tech
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Travel
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Health
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Auto
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Books
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Kids
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Finance
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href="/catalog"
+            href={catalogHref}
           >
             Movies
           </Link>

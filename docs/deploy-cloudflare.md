@@ -1,7 +1,7 @@
 # Cloudflare Deployment (Pages + Workers)
 
 ## Overview
-- Web: Cloudflare Pages (Next.js App Router via OpenNext/next-on-pages).
+- Web: Cloudflare Pages (Next.js App Router via OpenNext adapter).
 - API: Cloudflare Workers (`workers/api`).
 - DB/Auth: Supabase (service role key stays server-side only).
 - Images: Backblaze B2 (S3-compatible) with presigned uploads.
@@ -71,11 +71,18 @@ npm run deploy
 ```bash
 cd apps/web
 npm install
-npx @cloudflare/next-on-pages@latest
+npx opennextjs-cloudflare build
 ```
 
 Pages build output directory:
-- `.vercel/output/static`
+- `.open-next/assets`
+
+Worker entry (used by OpenNext/Wrangler):
+- `.open-next/worker.js`
+
+### OpenNext notes
+- `@opennextjs/cloudflare` does not support `export const runtime = "edge";` yet; remove it from pages before deploying.
+- If you plan to use `opennextjs-cloudflare preview/deploy/upload`, ensure Wrangler is `>= 3.99.0`.
 
 ### Pages environment variables
 Set these in Cloudflare Pages:

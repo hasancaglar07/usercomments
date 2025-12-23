@@ -1,8 +1,9 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 export type CatalogSortOption = {
   label: string;
@@ -29,14 +30,17 @@ const ACTIVE_PILL_CLASS =
 const INACTIVE_PILL_CLASS =
   "px-4 py-2 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-primary dark:hover:border-primary transition-all text-sm font-medium";
 
-function buildCatalogHref(params: URLSearchParams) {
+function buildCatalogHref(params: URLSearchParams, lang: string) {
   const query = params.toString();
-  return query ? `/catalog?${query}` : "/catalog";
+  const path = query ? `/catalog?${query}` : "/catalog";
+  return localizePath(path, lang);
 }
 
 export function CatalogSortSelect({ sort, options }: CatalogSortSelectProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const lang = normalizeLanguage(typeof params?.lang === "string" ? params.lang : undefined);
   const selected =
     options.find((option) => option.value === sort)?.value ?? "latest";
 
@@ -49,7 +53,7 @@ export function CatalogSortSelect({ sort, options }: CatalogSortSelectProps) {
     } else {
       params.delete("sort");
     }
-    router.push(buildCatalogHref(params));
+    router.push(buildCatalogHref(params, lang));
   };
 
   return (
@@ -74,6 +78,8 @@ export function CatalogCategoryChips({
   pills,
 }: CatalogCategoryChipsProps) {
   const searchParams = useSearchParams();
+  const params = useParams();
+  const lang = normalizeLanguage(typeof params?.lang === "string" ? params.lang : undefined);
 
   return (
     <div className="flex flex-wrap gap-2 pb-2">
@@ -93,7 +99,7 @@ export function CatalogCategoryChips({
           <Link
             key={pill.label}
             className={isActive ? ACTIVE_PILL_CLASS : INACTIVE_PILL_CLASS}
-            href={buildCatalogHref(params)}
+            href={buildCatalogHref(params, lang)}
           >
             {pill.label}
           </Link>

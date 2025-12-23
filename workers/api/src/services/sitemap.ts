@@ -2,6 +2,7 @@ import type { ParsedEnv } from "../env";
 import { getSupabaseClient } from "../supabase";
 import { buildPaginationInfo } from "../utils/pagination";
 import type { PaginationInfo } from "../types";
+import type { SupportedLanguage } from "../utils/i18n";
 
 export type SitemapReviewItem = {
   slug: string;
@@ -22,7 +23,8 @@ export type SitemapResult<T> = {
 export async function fetchSitemapReviews(
   env: ParsedEnv,
   page: number,
-  pageSize: number
+  pageSize: number,
+  lang: SupportedLanguage
 ): Promise<SitemapResult<SitemapReviewItem>> {
   const supabase = getSupabaseClient(env);
   const from = (page - 1) * pageSize;
@@ -30,7 +32,10 @@ export async function fetchSitemapReviews(
 
   const { data, error, count } = await supabase
     .from("reviews")
-    .select("slug, created_at, updated_at", { count: "exact" })
+    .select("created_at, updated_at, review_translations!inner(lang, slug)", {
+      count: "exact",
+    })
+    .eq("review_translations.lang", lang)
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .range(from, to);
@@ -39,11 +44,22 @@ export async function fetchSitemapReviews(
     throw error;
   }
 
-  const items = (data ?? []).map((row) => ({
-    slug: row.slug,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at ?? null,
-  }));
+  const items = (data ?? [])
+    .map((row) => {
+      const translations = Array.isArray(row.review_translations)
+        ? row.review_translations
+        : [];
+      const translation = translations[0];
+      if (!translation?.slug) {
+        return null;
+      }
+      return {
+        slug: translation.slug,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at ?? null,
+      };
+    })
+    .filter((item): item is SitemapReviewItem => Boolean(item));
 
   return {
     items,
@@ -51,11 +67,15 @@ export async function fetchSitemapReviews(
   };
 }
 
-export async function fetchSitemapReviewCount(env: ParsedEnv): Promise<number> {
+export async function fetchSitemapReviewCount(
+  env: ParsedEnv,
+  lang: SupportedLanguage
+): Promise<number> {
   const supabase = getSupabaseClient(env);
   const { count, error } = await supabase
     .from("reviews")
-    .select("id", { count: "exact", head: true })
+    .select("id, review_translations!inner(lang)", { count: "exact", head: true })
+    .eq("review_translations.lang", lang)
     .eq("status", "published");
 
   if (error) {
@@ -66,7 +86,8 @@ export async function fetchSitemapReviewCount(env: ParsedEnv): Promise<number> {
 }
 
 export async function fetchSitemapCategories(
-  env: ParsedEnv
+  env: ParsedEnv,
+  lang: SupportedLanguage
 ): Promise<SitemapResult<SitemapCategoryItem>> {
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase

@@ -5,6 +5,7 @@ import type {
   Review,
   UserProfile,
 } from "@/src/types";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "@/src/lib/i18n";
 
 export type CursorResult<T> = {
   items: T[];
@@ -94,9 +95,16 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
   }
 }
 
-export async function getPopularReviews(limit = 3): Promise<Review[]> {
+export async function getPopularReviews(
+  limit = 3,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<Review[]> {
+  const searchParams = new URLSearchParams({
+    limit: String(limit),
+    lang,
+  });
   return fetchJson<PaginatedResult<Review>>(
-    `/api/reviews/popular?limit=${limit}`,
+    `/api/reviews/popular?${searchParams}`,
     {
       cache: "force-cache",
       next: { revalidate: 45 },
@@ -106,9 +114,10 @@ export async function getPopularReviews(limit = 3): Promise<Review[]> {
 
 export async function getLatestReviews(
   limit = 3,
-  cursor?: string | null
+  cursor?: string | null,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<CursorResult<Review>> {
-  const searchParams = new URLSearchParams({ limit: String(limit) });
+  const searchParams = new URLSearchParams({ limit: String(limit), lang });
   if (cursor) {
     searchParams.set("cursor", cursor);
   }
@@ -122,12 +131,14 @@ export async function getCatalogPage(
   page: number,
   pageSize: number,
   sort: "latest" | "popular" | "rating" = "latest",
-  categoryId?: number
+  categoryId?: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<PaginatedResult<Review>> {
   const searchParams = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
     sort,
+    lang,
   });
   if (categoryId) {
     searchParams.set("categoryId", String(categoryId));
@@ -143,13 +154,15 @@ export async function getCategoryPage(
   page: number,
   pageSize: number,
   sort: "latest" | "popular" | "rating" = "latest",
-  subCategoryId?: number
+  subCategoryId?: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<PaginatedResult<Review>> {
   const searchParams = new URLSearchParams({
     categoryId: String(id),
     page: String(page),
     pageSize: String(pageSize),
     sort,
+    lang,
   });
   if (subCategoryId) {
     searchParams.set("subCategoryId", String(subCategoryId));
@@ -170,11 +183,13 @@ export async function getUserProfile(username: string): Promise<UserProfile> {
 export async function getUserReviews(
   username: string,
   page: number,
-  pageSize: number
+  pageSize: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<PaginatedResult<Review>> {
   const searchParams = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
+    lang,
   });
   return fetchJson<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/reviews?${searchParams}`,
@@ -188,11 +203,13 @@ export async function getUserReviews(
 export async function getUserComments(
   username: string,
   page: number,
-  pageSize: number
+  pageSize: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<PaginatedResult<Review>> {
   const searchParams = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
+    lang,
   });
   return fetchJson<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/comments?${searchParams}`,
@@ -203,8 +220,14 @@ export async function getUserComments(
   );
 }
 
-export async function getReviewBySlug(slug: string): Promise<Review> {
-  return fetchJson<Review>(`/api/reviews/slug/${encodeURIComponent(slug)}`);
+export async function getReviewBySlug(
+  slug: string,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<Review> {
+  const searchParams = new URLSearchParams({ lang });
+  return fetchJson<Review>(
+    `/api/reviews/slug/${encodeURIComponent(slug)}?${searchParams}`
+  );
 }
 
 export async function incrementReviewView(
@@ -234,12 +257,14 @@ export async function searchReviews(
   query: string,
   page = 1,
   pageSize = 10,
-  categoryId?: number
+  categoryId?: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<PaginatedResult<Review>> {
   const searchParams = new URLSearchParams({
     q: query,
     page: String(page),
     pageSize: String(pageSize),
+    lang,
   });
   if (categoryId) {
     searchParams.set("categoryId", String(categoryId));
@@ -250,16 +275,26 @@ export async function searchReviews(
   });
 }
 
-export async function getCategories(): Promise<Category[]> {
-  return fetchJson<PaginatedResult<Category>>("/api/categories", {
-    cache: "force-cache",
-    next: { revalidate: 3600 },
-  }).then((result) => result.items);
+export async function getCategories(
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<Category[]> {
+  const searchParams = new URLSearchParams({ lang });
+  return fetchJson<PaginatedResult<Category>>(
+    `/api/categories?${searchParams}`,
+    {
+      cache: "force-cache",
+      next: { revalidate: 3600 },
+    }
+  ).then((result) => result.items);
 }
 
-export async function getSubcategories(id: number): Promise<Category[]> {
+export async function getSubcategories(
+  id: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<Category[]> {
+  const searchParams = new URLSearchParams({ lang });
   return fetchJson<PaginatedResult<Category>>(
-    `/api/categories/${id}/subcategories`,
+    `/api/categories/${id}/subcategories?${searchParams}`,
     {
       cache: "force-cache",
       next: { revalidate: 3600 },

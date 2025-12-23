@@ -1,9 +1,16 @@
 export type Review = {
   id: string;
+  translationLang?: string;
   slug: string;
   title: string;
   excerpt: string;
   contentHtml?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  translations?: {
+    lang: string;
+    slug: string;
+  }[];
   ratingAvg?: number;
   ratingCount?: number;
   views?: number;

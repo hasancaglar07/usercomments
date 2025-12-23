@@ -11,6 +11,7 @@ type HomepageBadge = "verified" | "expert" | null;
 
 export type ReviewCardHomepageData = {
   review: Review;
+  href: string;
   authorMeta: string;
   postedLabel: string;
   ratingStars: StarType[];
@@ -27,6 +28,7 @@ export type ReviewCardHomepageData = {
 
 export function ReviewCardHomepage({
   review,
+  href,
   authorMeta,
   postedLabel,
   ratingStars,
@@ -79,7 +81,7 @@ export function ReviewCardHomepage({
           <h3 className="text-lg font-bold text-text-main dark:text-white hover:text-primary cursor-pointer mb-1">
             <Link
               className="hover:underline decoration-primary"
-              href={`/content/${review.slug}`}
+              href={href}
             >
               {review.title}
             </Link>
@@ -122,6 +124,7 @@ export type CatalogCategoryMeta = {
 
 export type ReviewCardCatalogData = {
   review: Review;
+  href: string;
   dateLabel: string;
   ratingStars: StarType[];
   ratingValue: string;
@@ -139,6 +142,7 @@ export type ReviewCardCatalogData = {
 
 export function ReviewCardCatalog({
   review,
+  href,
   dateLabel,
   ratingStars,
   ratingValue,
@@ -181,7 +185,7 @@ export function ReviewCardCatalog({
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight group-hover:text-primary transition-colors cursor-pointer">
             <Link
               className="hover:underline"
-              href={`/content/${review.slug}`}
+              href={href}
             >
               {review.title}
             </Link>
@@ -231,6 +235,7 @@ export function ReviewCardCatalog({
 
 export type ReviewCardCategoryData = {
   review: Review;
+  href: string;
   dateLabel: string;
   ratingStars: StarType[];
   imageUrl: string;
@@ -245,6 +250,7 @@ export type ReviewCardCategoryData = {
 
 export function ReviewCardCategory({
   review,
+  href,
   dateLabel,
   ratingStars,
   imageUrl,
@@ -283,7 +289,7 @@ export function ReviewCardCategory({
           <RatingStarsCategory stars={ratingStars} />
         </div>
         <h3 className="text-lg font-bold text-[#0d141b] group-hover:text-primary cursor-pointer hover:underline decoration-primary">
-          <Link href={`/content/${review.slug}`}>{review.title}</Link>
+          <Link href={href}>{review.title}</Link>
         </h3>
         <p className="text-[#4c739a] text-sm line-clamp-3 leading-relaxed">
           {review.excerpt}
@@ -317,6 +323,7 @@ export function ReviewCardCategory({
 
 export type ReviewCardProfileData = {
   review: Review;
+  href: string;
   dateLabel: string;
   ratingStars: StarType[];
   imageUrl: string;
@@ -342,6 +349,7 @@ type ReviewCardProfileProps = ReviewCardProfileData & ReviewCardProfileActions;
 
 export function ReviewCardProfile({
   review,
+  href,
   dateLabel,
   ratingStars,
   imageUrl,
@@ -399,14 +407,14 @@ export function ReviewCardProfile({
             </span>
           </div>
           <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-2 hover:text-primary transition-colors">
-            <Link href={`/content/${review.slug}`}>{review.title}</Link>
+            <Link href={href}>{review.title}</Link>
           </h2>
           <p className="text-text-sub-light dark:text-text-sub-dark text-sm line-clamp-3 mb-4 leading-relaxed">
             {review.excerpt}
           </p>
           <Link
             className="text-primary text-sm font-bold hover:underline mb-4 inline-block"
-            href={`/content/${review.slug}`}
+            href={href}
           >
             Read full review
           </Link>

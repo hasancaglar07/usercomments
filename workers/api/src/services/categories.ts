@@ -1,11 +1,36 @@
 import type { ParsedEnv } from "../env";
 import { getSupabaseClient } from "../supabase";
 import type { Category } from "../types";
+import type { SupportedLanguage } from "../utils/i18n";
 import { mapCategoryRow } from "./mappers";
 
-const categorySelect = "id, name, parent_id";
+type DbCategoryRow = {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  category_translations?: { lang: string; name: string }[] | null;
+};
 
-export async function fetchCategories(env: ParsedEnv): Promise<Category[]> {
+const categorySelect = "id, name, parent_id, category_translations(lang, name)";
+
+function mapCategoryWithTranslations(
+  row: DbCategoryRow,
+  lang: SupportedLanguage
+): Category {
+  const translation = Array.isArray(row.category_translations)
+    ? row.category_translations.find((item) => item.lang === lang)
+    : null;
+  return {
+    id: row.id,
+    name: translation?.name ?? row.name,
+    parentId: row.parent_id,
+  };
+}
+
+export async function fetchCategories(
+  env: ParsedEnv,
+  lang: SupportedLanguage
+): Promise<Category[]> {
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("categories")
@@ -16,12 +41,13 @@ export async function fetchCategories(env: ParsedEnv): Promise<Category[]> {
     throw error;
   }
 
-  return (data ?? []).map(mapCategoryRow);
+  return (data ?? []).map((row) => mapCategoryWithTranslations(row as DbCategoryRow, lang));
 }
 
 export async function fetchSubcategories(
   env: ParsedEnv,
-  parentId: number
+  parentId: number,
+  lang: SupportedLanguage
 ): Promise<Category[]> {
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
@@ -34,7 +60,7 @@ export async function fetchSubcategories(
     throw error;
   }
 
-  return (data ?? []).map(mapCategoryRow);
+  return (data ?? []).map((row) => mapCategoryWithTranslations(row as DbCategoryRow, lang));
 }
 
 export async function createCategory(

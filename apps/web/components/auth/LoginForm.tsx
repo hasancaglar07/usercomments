@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signInWithPassword } from "@/src/lib/auth";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 export default function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const params = useParams();
+    const lang = normalizeLanguage(typeof params?.lang === "string" ? params.lang : undefined);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +27,9 @@ export default function LoginForm() {
         try {
             await signInWithPassword(email, password);
             const next = searchParams.get("next");
-            router.push(next && next.startsWith("/") ? next : "/");
+            router.push(
+                next && next.startsWith("/") ? next : localizePath("/", lang)
+            );
         } catch (error) {
             const message =
                 error && typeof error === "object" && "message" in error
@@ -165,7 +170,7 @@ export default function LoginForm() {
                     </label>
                     <Link
                         className="text-sm font-medium text-primary hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        href="/forgot-password"
+                        href={localizePath("/forgot-password", lang)}
                     >
                         Forgot password?
                     </Link>
@@ -192,7 +197,7 @@ export default function LoginForm() {
                     Don&apos;t have an account?
                     <Link
                         className="font-bold text-primary hover:text-blue-600 dark:hover:text-blue-400 ml-1 transition-colors"
-                        href="/user/register"
+                        href={localizePath("/user/register", lang)}
                     >
                         Sign Up
                     </Link>

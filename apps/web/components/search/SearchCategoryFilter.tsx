@@ -1,17 +1,19 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { Category } from "@/src/types";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 type SearchCategoryFilterProps = {
   categories: Category[];
   selectedId?: number;
 };
 
-function buildSearchHref(params: URLSearchParams) {
+function buildSearchHref(params: URLSearchParams, lang: string) {
   const query = params.toString();
-  return query ? `/search?${query}` : "/search";
+  const path = query ? `/search?${query}` : "/search";
+  return localizePath(path, lang);
 }
 
 export default function SearchCategoryFilter({
@@ -20,6 +22,8 @@ export default function SearchCategoryFilter({
 }: SearchCategoryFilterProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = useParams();
+  const lang = normalizeLanguage(typeof params?.lang === "string" ? params.lang : undefined);
   const selectedValue = selectedId ? String(selectedId) : "";
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -31,7 +35,7 @@ export default function SearchCategoryFilter({
     } else {
       params.delete("categoryId");
     }
-    router.push(buildSearchHref(params));
+    router.push(buildSearchHref(params, lang));
   };
 
   return (

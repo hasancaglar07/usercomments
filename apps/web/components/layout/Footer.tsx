@@ -1,13 +1,27 @@
 import Link from "next/link";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
+import { localizePath } from "@/src/lib/i18n";
 
-export default function Footer() {
+type FooterProps = {
+  lang: string;
+};
+
+export default function Footer({ lang }: FooterProps) {
+  const homeHref = localizePath("/", lang);
+  const catalogHref = localizePath("/catalog", lang);
+  const topRatedHref = localizePath("/catalog?sort=rating", lang);
+  const recentHref = localizePath("/catalog?sort=latest", lang);
+  const leaderboardHref = localizePath("/catalog?sort=popular", lang);
+  const termsHref = localizePath("/terms-of-use", lang);
+  const contactHref = localizePath("/contact", lang);
+  const addReviewHref = localizePath("/node/add/review", lang);
+
   return (
     <footer className="bg-background-light dark:bg-surface-dark border-t border-gray-200 dark:border-gray-800 mt-12 py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1">
-            <Link className="flex items-center gap-2 mb-4" href="/">
+            <Link className="flex items-center gap-2 mb-4" href={homeHref}>
               <span className="material-symbols-outlined text-primary text-2xl">
                 forum
               </span>
@@ -57,7 +71,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/catalog"
+                  href={catalogHref}
                 >
                   Categories
                 </Link>
@@ -65,7 +79,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/catalog?sort=rating"
+                  href={topRatedHref}
                 >
                   Top Rated
                 </Link>
@@ -73,7 +87,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/catalog?sort=latest"
+                  href={recentHref}
                 >
                   Recent Reviews
                 </Link>
@@ -81,7 +95,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/catalog?sort=popular"
+                  href={leaderboardHref}
                 >
                   Leaderboard
                 </Link>
@@ -96,7 +110,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/terms-of-use"
+                  href={termsHref}
                 >
                   Rules &amp; Guidelines
                 </Link>
@@ -105,7 +119,7 @@ export default function Footer() {
                 <AuthCtaButton
                   as="a"
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  authenticatedHref="/node/add/review"
+                  authenticatedHref={addReviewHref}
                 >
                   Write a Review
                 </AuthCtaButton>
@@ -113,7 +127,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/contact"
+                  href={contactHref}
                 >
                   Help Center
                 </Link>
@@ -121,7 +135,7 @@ export default function Footer() {
               <li>
                 <Link
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href="/contact"
+                  href={contactHref}
                 >
                   Contact Us
                 </Link>

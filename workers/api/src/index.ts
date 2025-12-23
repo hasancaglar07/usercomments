@@ -62,6 +62,7 @@ import {
   fetchSitemapReviewCount,
   fetchSitemapReviews,
 } from "./services/sitemap";
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage } from "./utils/i18n";
 
 const MAX_SITEMAP_PAGE_SIZE = 50000;
 
@@ -108,6 +109,11 @@ const limitSchema = z.coerce
   .max(MAX_PAGE_SIZE)
   .default(DEFAULT_PAGE_SIZE);
 
+const langSchema = z
+  .string()
+  .optional()
+  .transform((value) => normalizeLanguage(value));
+
 const cursorSchema = z
   .string()
   .optional()
@@ -117,11 +123,13 @@ const cursorSchema = z
 
 const popularQuerySchema = z.object({
   limit: limitSchema,
+  lang: langSchema,
 });
 
 const latestQuerySchema = z.object({
   cursor: cursorSchema,
   limit: limitSchema,
+  lang: langSchema,
 });
 
 const listQuerySchema = z.object({
@@ -135,6 +143,7 @@ const listQuerySchema = z.object({
     .positive()
     .max(MAX_PAGE_SIZE)
     .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
 });
 
 const slugParamSchema = z.object({
@@ -273,6 +282,7 @@ const userListQuerySchema = z.object({
     .positive()
     .max(MAX_PAGE_SIZE)
     .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
 });
 
 const adminCategoryCreateSchema = z.object({
@@ -320,6 +330,7 @@ const searchQuerySchema = z.object({
     .positive()
     .max(MAX_PAGE_SIZE)
     .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
 });
 
 const presignSchema = z.object({
@@ -335,6 +346,7 @@ const sitemapReviewsQuerySchema = z.object({
     .positive()
     .max(MAX_SITEMAP_PAGE_SIZE)
     .default(5000),
+  lang: langSchema,
 });
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -499,61 +511,131 @@ function buildReviewCacheUrls(options: {
   reviewId?: string;
   categoryId?: number | null;
   authorUsername?: string | null;
+  translations?: { lang: string; slug: string }[];
 }): string[] {
   const urls: string[] = [];
-  const { origin, slug, reviewId, categoryId, authorUsername } = options;
+  const { origin, slug, reviewId, categoryId, authorUsername, translations } = options;
+  const languageSet = SUPPORTED_LANGUAGES;
+  const translationEntries =
+    translations && translations.length > 0
+      ? translations
+      : slug
+        ? [{ lang: DEFAULT_LANGUAGE, slug }]
+        : [];
 
-  if (slug) {
-    urls.push(buildApiUrl(origin, `/api/reviews/slug/${slug}`));
-  }
+  translationEntries.forEach((entry) => {
+    const params = new URLSearchParams({ lang: entry.lang });
+    urls.push(buildApiUrl(origin, `/api/reviews/slug/${entry.slug}`, params));
+    if (entry.lang === DEFAULT_LANGUAGE) {
+      urls.push(buildApiUrl(origin, `/api/reviews/slug/${entry.slug}`));
+    }
+  });
+
   if (reviewId) {
     const params = new URLSearchParams({ limit: "10" });
     urls.push(buildApiUrl(origin, `/api/reviews/${reviewId}/comments`, params));
   }
 
-  POPULAR_LIMITS.forEach((limit) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    urls.push(buildApiUrl(origin, "/api/reviews/popular", params));
-  });
+  languageSet.forEach((lang) => {
+    POPULAR_LIMITS.forEach((limit) => {
+      const params = new URLSearchParams({ limit: String(limit), lang });
+      urls.push(buildApiUrl(origin, "/api/reviews/popular", params));
+      if (lang === DEFAULT_LANGUAGE) {
+        urls.push(buildApiUrl(origin, "/api/reviews/popular", new URLSearchParams({ limit: String(limit) })));
+      }
+    });
 
-  LATEST_LIMITS.forEach((limit) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    urls.push(buildApiUrl(origin, "/api/reviews/latest", params));
-  });
+    LATEST_LIMITS.forEach((limit) => {
+      const params = new URLSearchParams({ limit: String(limit), lang });
+      urls.push(buildApiUrl(origin, "/api/reviews/latest", params));
+      if (lang === DEFAULT_LANGUAGE) {
+        urls.push(buildApiUrl(origin, "/api/reviews/latest", new URLSearchParams({ limit: String(limit) })));
+      }
+    });
 
-  const baseParams = new URLSearchParams({
-    page: String(DEFAULT_PAGE),
-    pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
-    sort: "latest",
-  });
-  urls.push(buildApiUrl(origin, "/api/reviews", baseParams));
-
-  if (categoryId) {
-    const categoryParams = new URLSearchParams(baseParams);
-    categoryParams.set("categoryId", String(categoryId));
-    urls.push(buildApiUrl(origin, "/api/reviews", categoryParams));
-    urls.push(buildApiUrl(origin, `/api/categories/${categoryId}/subcategories`));
-  }
-
-  urls.push(buildApiUrl(origin, "/api/categories"));
-
-  if (authorUsername) {
-    const userParams = new URLSearchParams({
+    const baseParams = new URLSearchParams({
       page: String(DEFAULT_PAGE),
       pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+      sort: "latest",
+      lang,
     });
-    urls.push(buildApiUrl(origin, `/api/users/${authorUsername}/reviews`, userParams));
-    urls.push(buildApiUrl(origin, `/api/users/${authorUsername}`));
-  }
+    urls.push(buildApiUrl(origin, "/api/reviews", baseParams));
+    if (lang === DEFAULT_LANGUAGE) {
+      const fallbackParams = new URLSearchParams({
+        page: String(DEFAULT_PAGE),
+        pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+        sort: "latest",
+      });
+      urls.push(buildApiUrl(origin, "/api/reviews", fallbackParams));
+    }
+
+    if (categoryId) {
+      const categoryParams = new URLSearchParams(baseParams);
+      categoryParams.set("categoryId", String(categoryId));
+      urls.push(buildApiUrl(origin, "/api/reviews", categoryParams));
+      urls.push(
+        buildApiUrl(
+          origin,
+          `/api/categories/${categoryId}/subcategories`,
+          new URLSearchParams({ lang })
+        )
+      );
+      if (lang === DEFAULT_LANGUAGE) {
+        const fallbackCategoryParams = new URLSearchParams({
+          page: String(DEFAULT_PAGE),
+          pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+          sort: "latest",
+          categoryId: String(categoryId),
+        });
+        urls.push(buildApiUrl(origin, "/api/reviews", fallbackCategoryParams));
+        urls.push(buildApiUrl(origin, `/api/categories/${categoryId}/subcategories`));
+      }
+    }
+
+    urls.push(buildApiUrl(origin, "/api/categories", new URLSearchParams({ lang })));
+    if (lang === DEFAULT_LANGUAGE) {
+      urls.push(buildApiUrl(origin, "/api/categories"));
+    }
+
+    if (authorUsername) {
+      const userParams = new URLSearchParams({
+        page: String(DEFAULT_PAGE),
+        pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+        lang,
+      });
+      urls.push(buildApiUrl(origin, `/api/users/${authorUsername}/reviews`, userParams));
+      urls.push(buildApiUrl(origin, `/api/users/${authorUsername}/comments`, userParams));
+      if (lang === DEFAULT_LANGUAGE) {
+        const fallbackUserParams = new URLSearchParams({
+          page: String(DEFAULT_PAGE),
+          pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+        });
+        urls.push(buildApiUrl(origin, `/api/users/${authorUsername}/reviews`, fallbackUserParams));
+        urls.push(buildApiUrl(origin, `/api/users/${authorUsername}/comments`, fallbackUserParams));
+      }
+      urls.push(buildApiUrl(origin, `/api/users/${authorUsername}`));
+    }
+  });
 
   return urls;
 }
 
 function buildCategoryCacheUrls(origin: string, parentId?: number | null): string[] {
-  const urls = [buildApiUrl(origin, "/api/categories")];
-  if (parentId) {
-    urls.push(buildApiUrl(origin, `/api/categories/${parentId}/subcategories`));
-  }
+  const urls: string[] = [];
+  SUPPORTED_LANGUAGES.forEach((lang) => {
+    urls.push(buildApiUrl(origin, "/api/categories", new URLSearchParams({ lang })));
+    if (lang === DEFAULT_LANGUAGE) {
+      urls.push(buildApiUrl(origin, "/api/categories"));
+    }
+    if (parentId) {
+      urls.push(
+        buildApiUrl(origin, `/api/categories/${parentId}/subcategories`, new URLSearchParams({ lang }))
+      );
+      if (lang === DEFAULT_LANGUAGE) {
+        urls.push(buildApiUrl(origin, `/api/categories/${parentId}/subcategories`));
+      }
+    }
+  });
   return urls;
 }
 
@@ -570,19 +652,25 @@ async function handleHealth(): Promise<Response> {
   });
 }
 
-async function handleCategories({ env }: HandlerContext): Promise<Response> {
-  const categories = await fetchCategories(env);
+async function handleCategories({ env, url }: HandlerContext): Promise<Response> {
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const categories = await fetchCategories(env, lang);
   return jsonResponse({
     items: categories,
     pageInfo: buildPaginationInfo(1, categories.length, categories.length),
   });
 }
 
-async function handleSubcategories({ env, params }: HandlerContext): Promise<Response> {
+async function handleSubcategories({
+  env,
+  params,
+  url,
+}: HandlerContext): Promise<Response> {
   const { id } = z
     .object({ id: z.coerce.number().int().positive() })
     .parse(params);
-  const categories = await fetchSubcategories(env, id);
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const categories = await fetchSubcategories(env, id, lang);
   return jsonResponse({
     items: categories,
     pageInfo: buildPaginationInfo(1, categories.length, categories.length),
@@ -590,8 +678,8 @@ async function handleSubcategories({ env, params }: HandlerContext): Promise<Res
 }
 
 async function handlePopularReviews({ env, url }: HandlerContext): Promise<Response> {
-  const { limit } = popularQuerySchema.parse(getQueryObject(url));
-  const reviews = await fetchPopularReviews(env, limit);
+  const { limit, lang } = popularQuerySchema.parse(getQueryObject(url));
+  const reviews = await fetchPopularReviews(env, limit, lang);
   return jsonResponse({
     items: reviews,
     pageInfo: buildPaginationInfo(1, reviews.length, reviews.length),
@@ -599,28 +687,29 @@ async function handlePopularReviews({ env, url }: HandlerContext): Promise<Respo
 }
 
 async function handleLatestReviews({ env, url }: HandlerContext): Promise<Response> {
-  const { cursor, limit } = latestQuerySchema.parse(getQueryObject(url));
-  const result = await fetchLatestReviews(env, cursor ?? null, limit);
+  const { cursor, limit, lang } = latestQuerySchema.parse(getQueryObject(url));
+  const result = await fetchLatestReviews(env, cursor ?? null, limit, lang);
   return jsonResponse(result);
 }
 
 async function handleReviewsList({ env, url }: HandlerContext): Promise<Response> {
-  const { categoryId, subCategoryId, sort, page, pageSize } = listQuerySchema.parse(
-    getQueryObject(url)
-  );
+  const { categoryId, subCategoryId, sort, page, pageSize, lang } =
+    listQuerySchema.parse(getQueryObject(url));
   const result = await fetchReviews(env, {
     categoryId,
     subCategoryId,
     sort: sort ?? "latest",
     page,
     pageSize,
+    lang,
   });
   return jsonResponse(result);
 }
 
-async function handleReviewBySlug({ env, params }: HandlerContext): Promise<Response> {
+async function handleReviewBySlug({ env, params, url }: HandlerContext): Promise<Response> {
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
   const { slug } = slugParamSchema.parse(params);
-  const review = await fetchReviewBySlug(env, slug);
+  const review = await fetchReviewBySlug(env, slug, lang);
   if (!review) {
     return errorResponse(404, "Review not found");
   }
@@ -696,6 +785,7 @@ async function handleCreateComment({
       reviewId: id,
       categoryId: meta.categoryId,
       authorUsername: meta.authorUsername ?? null,
+      translations: meta.translations,
     })
   );
   return jsonResponse(comment, { status: 201, headers: { "Cache-Control": "no-store" } });
@@ -724,14 +814,15 @@ async function handleVote({
     });
     queueCachePurge(
       ctx,
-      buildReviewCacheUrls({
-        origin: url.origin,
-        slug: meta.slug,
-        reviewId: id,
-        categoryId: meta.categoryId,
-        authorUsername: meta.authorUsername ?? null,
-      })
-    );
+    buildReviewCacheUrls({
+      origin: url.origin,
+      slug: meta.slug,
+      reviewId: id,
+      categoryId: meta.categoryId,
+      authorUsername: meta.authorUsername ?? null,
+      translations: meta.translations,
+    })
+  );
     return jsonResponse(result, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (
@@ -814,7 +905,7 @@ async function handleUserProfile({ env, params }: HandlerContext): Promise<Respo
 
 async function handleUserReviews({ env, params, url }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
-  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+  const { page, pageSize, lang } = userListQuerySchema.parse(getQueryObject(url));
 
   const record = await fetchUserProfileRecord(env, username);
   if (!record) {
@@ -825,6 +916,7 @@ async function handleUserReviews({ env, params, url }: HandlerContext): Promise<
     record.userId,
     page,
     pageSize,
+    lang,
     ["published"]
   );
   return jsonResponse(result);
@@ -832,7 +924,7 @@ async function handleUserReviews({ env, params, url }: HandlerContext): Promise<
 
 async function handleUserComments({ env, params, url }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
-  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+  const { page, pageSize, lang } = userListQuerySchema.parse(getQueryObject(url));
 
   const record = await fetchUserProfileRecord(env, username);
   if (!record) {
@@ -843,7 +935,8 @@ async function handleUserComments({ env, params, url }: HandlerContext): Promise
     env,
     record.userId,
     page,
-    pageSize
+    pageSize,
+    lang
   );
   return jsonResponse(result);
 }
@@ -855,7 +948,7 @@ async function handleUserDrafts({
   url,
 }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
-  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+  const { page, pageSize, lang } = userListQuerySchema.parse(getQueryObject(url));
 
   const record = await fetchUserProfileRecord(env, username);
   if (!record) {
@@ -872,6 +965,7 @@ async function handleUserDrafts({
     record.userId,
     page,
     pageSize,
+    lang,
     ["draft"]
   );
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
@@ -884,7 +978,7 @@ async function handleUserSaved({
   url,
 }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
-  const { page, pageSize } = userListQuerySchema.parse(getQueryObject(url));
+  const { page, pageSize, lang } = userListQuerySchema.parse(getQueryObject(url));
 
   const record = await fetchUserProfileRecord(env, username);
   if (!record) {
@@ -896,12 +990,12 @@ async function handleUserSaved({
     return errorResponse(403, "Forbidden");
   }
 
-  const result = await fetchSavedReviews(env, record.userId, page, pageSize);
+  const result = await fetchSavedReviews(env, record.userId, page, pageSize, lang);
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
 async function handleSearch({ env, url }: HandlerContext): Promise<Response> {
-  const { q, categoryId, page, pageSize } = searchQuerySchema.parse(
+  const { q, categoryId, page, pageSize, lang } = searchQuerySchema.parse(
     getQueryObject(url)
   );
   const trimmed = q.trim();
@@ -916,6 +1010,7 @@ async function handleSearch({ env, url }: HandlerContext): Promise<Response> {
     categoryId,
     page,
     pageSize,
+    lang,
   });
   return jsonResponse(result);
 }
@@ -971,51 +1066,58 @@ async function handlePresign({ env, request }: HandlerContext): Promise<Response
 }
 
 async function handleSitemapReviewsJson({ env, url }: HandlerContext): Promise<Response> {
-  const { part, pageSize } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
-  const result = await fetchSitemapReviews(env, part, pageSize);
+  const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
+  const result = await fetchSitemapReviews(env, part, pageSize, lang);
   return jsonResponse(result);
 }
 
-async function handleSitemapCategoriesJson({ env }: HandlerContext): Promise<Response> {
-  const result = await fetchSitemapCategories(env);
+async function handleSitemapCategoriesJson({ env, url }: HandlerContext): Promise<Response> {
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const result = await fetchSitemapCategories(env, lang);
   return jsonResponse(result);
 }
 
 async function handleSitemapIndexXml({ env, request }: HandlerContext): Promise<Response> {
   const origin = new URL(request.url).origin;
-  const reviewCount = await fetchSitemapReviewCount(env);
+  const { lang } = z.object({ lang: langSchema }).parse(
+    getQueryObject(new URL(request.url))
+  );
+  const reviewCount = await fetchSitemapReviewCount(env, lang);
   const pageSize = 5000;
   const totalPages = Math.ceil(reviewCount / pageSize);
   const urls = [] as string[];
-  urls.push(`${origin}/api/sitemap-categories.xml`);
+  urls.push(`${origin}/api/sitemap-categories.xml?lang=${lang}`);
   for (let part = 1; part <= totalPages; part += 1) {
-    urls.push(`${origin}/api/sitemap-reviews?part=${part}`);
+    urls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
   }
   return xmlResponse(buildSitemapIndex(urls));
 }
 
 async function handleSitemapCategoriesXml({ env, request }: HandlerContext): Promise<Response> {
   const origin = new URL(request.url).origin;
-  const categories = await fetchSitemapCategories(env);
+  const { lang } = z.object({ lang: langSchema }).parse(
+    getQueryObject(new URL(request.url))
+  );
+  const categories = await fetchSitemapCategories(env, lang);
   const urls = [
-    `${origin}/`,
-    `${origin}/catalog`,
-    `${origin}/contact`,
-    `${origin}/privacy-policy`,
-    `${origin}/terms-of-use`,
+    `${origin}/${lang}`,
+    `${origin}/${lang}/catalog`,
+    `${origin}/${lang}/contact`,
+    `${origin}/${lang}/privacy-policy`,
+    `${origin}/${lang}/terms-of-use`,
   ];
   for (const category of categories.items) {
-    urls.push(`${origin}/catalog/reviews/${category.id}`);
+    urls.push(`${origin}/${lang}/catalog/reviews/${category.id}`);
   }
   return xmlResponse(buildUrlset(urls.map((loc) => ({ loc }))));
 }
 
 async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): Promise<Response> {
   const origin = new URL(request.url).origin;
-  const { part, pageSize } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
-  const result = await fetchSitemapReviews(env, part, pageSize);
+  const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
+  const result = await fetchSitemapReviews(env, part, pageSize, lang);
   const urls = result.items.map((item) => ({
-    loc: `${origin}/content/${item.slug}`,
+    loc: `${origin}/${lang}/content/${item.slug}`,
     lastmod: item.updatedAt ?? item.createdAt,
   }));
   return xmlResponse(buildUrlset(urls));
@@ -1024,7 +1126,7 @@ async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): P
 async function handleAdminCategories({ env, request }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const categories = await fetchCategories(env);
+  const categories = await fetchCategories(env, DEFAULT_LANGUAGE);
   return jsonResponse(
     {
       items: categories,
@@ -1184,6 +1286,7 @@ async function handleAdminReviewStatus({
         reviewId: review.id,
         categoryId: meta.categoryId,
         authorUsername: meta.authorUsername ?? null,
+        translations: meta.translations,
       })
     );
   }
@@ -1201,6 +1304,7 @@ async function handleAdminReviewUpdate({
   requireRole(user, "admin");
   enforceRateLimit(request, env, user.id);
   const { id } = reviewIdParamSchema.parse(params);
+  const meta = await fetchReviewMetaById(env, id);
   const payload = adminReviewUpdateSchema.parse(await readJson(request));
   const updated = await updateAdminReview(env, id, {
     title: payload.title,
@@ -1221,6 +1325,7 @@ async function handleAdminReviewUpdate({
       reviewId: updated.id,
       categoryId: updated.categoryId ?? null,
       authorUsername: updated.author.username,
+      translations: meta?.translations,
     })
   );
   return jsonResponse(updated, { headers: { "Cache-Control": "no-store" } });
@@ -1252,6 +1357,7 @@ async function handleAdminCommentUpdate({
         reviewId: updated.reviewId,
         categoryId: meta.categoryId,
         authorUsername: meta.authorUsername ?? null,
+        translations: meta.translations,
       })
     );
   }
@@ -1284,6 +1390,7 @@ async function handleAdminCommentStatus({
         reviewId: comment.reviewId,
         categoryId: meta.categoryId,
         authorUsername: meta.authorUsername ?? null,
+        translations: meta.translations,
       })
     );
   }

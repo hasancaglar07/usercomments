@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import type {
   AdminComment,
@@ -23,6 +23,7 @@ import {
   formatRelativeTime,
 } from "@/src/lib/review-utils";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import {
   bulkUpdateAdminCommentStatus,
   bulkUpdateAdminReportStatus,
@@ -356,6 +357,10 @@ function toggleSelectAll(selected: string[], ids: string[]) {
 
 export default function AdminDashboardClient() {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -597,11 +602,13 @@ export default function AdminDashboardClient() {
   const ensureAdminSession = useCallback(async () => {
     await ensureAuthLoaded();
     if (!getAccessToken()) {
-      router.replace("/user/login?next=/admin");
+      const loginPath = localizePath("/user/login", lang);
+      const nextPath = localizePath("/admin", lang);
+      router.replace(`${loginPath}?next=${encodeURIComponent(nextPath)}`);
       return false;
     }
     return true;
-  }, [router]);
+  }, [lang, router]);
 
   const extractErrorMessage = useCallback((error: unknown) => {
     if (error instanceof Error) {
@@ -1863,7 +1870,7 @@ export default function AdminDashboardClient() {
                               </p>
                             </div>
                             <Link
-                              href={`/content/${reviewDetail.slug}`}
+                              href={localizePath(`/content/${reviewDetail.slug}`, lang)}
                               className="text-xs text-primary hover:underline"
                             >
                               Open
@@ -2723,7 +2730,7 @@ export default function AdminDashboardClient() {
                                     {activeReport.target.review.status}
                                   </span>
                                   <Link
-                                    href={`/content/${activeReport.target.review.slug}`}
+                                    href={localizePath(`/content/${activeReport.target.review.slug}`, lang)}
                                     className="text-primary hover:underline text-[11px] font-semibold"
                                   >
                                     Open review
@@ -2796,7 +2803,7 @@ export default function AdminDashboardClient() {
                                   </span>
                                   {activeReport.target.comment.reviewSlug ? (
                                     <Link
-                                      href={`/content/${activeReport.target.comment.reviewSlug}`}
+                                      href={localizePath(`/content/${activeReport.target.comment.reviewSlug}`, lang)}
                                       className="text-primary hover:underline text-[11px] font-semibold"
                                     >
                                       Open review

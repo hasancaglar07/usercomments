@@ -28,6 +28,21 @@ Create `apps/web/.env.local` with:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_ALLOW_MOCK_FALLBACK` (`false` in production)
 
+## Internationalization (i18n)
+
+- All public routes are language-prefixed under `/{lang}/...` (App Router: `app/(site)/[lang]`).
+- Default language is `en`. Missing or unknown prefixes redirect to `/en`.
+- Arabic uses RTL layout (`dir="rtl"`).
+- Review slugs are language-specific (`review_translations.slug`). `/[lang]/content/[slug]` resolves by `lang` and redirects to `/en/...` when a translation is missing.
+- Category routes use IDs (`/catalog/reviews/[id]`) while names come from `category_translations`.
+
+### Add a new language
+
+1) Add the language code to `SUPPORTED_LANGUAGES` in `apps/web/src/lib/i18n.ts`.
+2) Add the same language code to `workers/api/src/utils/i18n.ts`.
+3) Ensure translations exist in `review_translations` and `category_translations`.
+4) Verify `/sitemap.xml` and hreflang output; update `docs/seo-i18n.md` if needed.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Build Troubleshooting (lightningcss)
@@ -56,11 +71,11 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Cloudflare Pages
 
-We deploy the web app to Cloudflare Pages using an OpenNext/next-on-pages workflow.
+We deploy the web app to Cloudflare Pages using the OpenNext adapter.
 
 High-level steps:
 
-1) Build with `@cloudflare/next-on-pages`.
+1) Build with `opennextjs-cloudflare` (`npx opennextjs-cloudflare build`).
 2) Deploy the generated output to Cloudflare Pages.
 3) Configure `NEXT_PUBLIC_API_BASE_URL` to your Worker domain.
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import { createReview, presignUpload } from "@/src/lib/api-client";
 import { getSubcategories } from "@/src/lib/api";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import { Category } from "@/src/types";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
@@ -36,6 +37,10 @@ const reviewSchema = z.object({
 
 export default function AddReviewClient({ categories }: AddReviewClientProps) {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
@@ -61,13 +66,15 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
     const checkAuth = async () => {
       await ensureAuthLoaded();
       if (!getAccessToken()) {
-        router.replace("/user/login?next=/node/add/review");
+        const loginPath = localizePath("/user/login", lang);
+        const nextPath = localizePath("/node/add/review", lang);
+        router.replace(`${loginPath}?next=${encodeURIComponent(nextPath)}`);
       } else {
         setIsCheckingAuth(false);
       }
     };
     checkAuth();
-  }, [router]);
+  }, [lang, router]);
 
   // Load subcategories when category changes
   useEffect(() => {
@@ -80,7 +87,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
     const fetchSubs = async () => {
       setLoadingSubcategories(true);
       try {
-        const subs = await getSubcategories(Number(categoryId));
+        const subs = await getSubcategories(Number(categoryId), lang);
         setSubcategories(subs);
         setSubCategoryId(""); // Reset subcategory when category changes
       } catch (error) {
@@ -91,7 +98,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
     };
 
     fetchSubs();
-  }, [categoryId]);
+  }, [categoryId, lang]);
 
   const handleRatingClick = (val: number) => {
     setRating(val);
@@ -265,7 +272,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
         photoUrls,
       });
 
-      router.push(`/content/${result.slug}`);
+      router.push(localizePath(`/content/${result.slug}`, lang));
     } catch (error) {
       console.error("Submission error:", error);
       window.alert(error instanceof Error ? error.message : "Failed to publish review.");

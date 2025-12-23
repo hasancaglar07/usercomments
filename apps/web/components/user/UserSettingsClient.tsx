@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import { FALLBACK_PROFILE_IMAGES } from "@/src/lib/review-utils";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import { getProfile, presignUpload, updateProfile } from "@/src/lib/api-client";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 const profileSchema = z.object({
   username: z
@@ -20,6 +21,10 @@ const profileSchema = z.object({
 
 export default function UserSettingsClient() {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,7 +43,9 @@ export default function UserSettingsClient() {
       try {
         await ensureAuthLoaded();
         if (!getAccessToken()) {
-          router.replace("/user/login?next=/user/settings");
+          const loginPath = localizePath("/user/login", lang);
+          const nextPath = localizePath("/user/settings", lang);
+          router.replace(`${loginPath}?next=${encodeURIComponent(nextPath)}`);
           return;
         }
         const profile = await getProfile();
@@ -66,7 +73,7 @@ export default function UserSettingsClient() {
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [lang, router]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();

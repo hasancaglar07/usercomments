@@ -11,4 +11,5 @@ build/
 *.log
 .DS_Store
 .vercel
+.open-next
 docs/archive/**/.env*

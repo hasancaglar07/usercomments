@@ -5,6 +5,7 @@ import {
   UserProfileShareLink,
 } from "@/components/user/UserProfileActionsClient";
 import type { Category, Review, UserProfile } from "@/src/types";
+import { localizePath } from "@/src/lib/i18n";
 
 export type HomepageTopReviewer = {
   profile: UserProfile;
@@ -15,11 +16,13 @@ export type HomepageTopReviewer = {
 };
 
 export type SidebarHomepageProps = {
+  lang: string;
   topReviewers: HomepageTopReviewer[];
   popularCategories: Category[];
 };
 
 export function SidebarHomepage({
+  lang,
   topReviewers,
   popularCategories,
 }: SidebarHomepageProps) {
@@ -37,7 +40,10 @@ export function SidebarHomepage({
             <Link
               key={`${reviewer.profile.username}-${reviewer.rankLabel}`}
               className="flex items-center justify-between group cursor-pointer"
-              href={`/users/${encodeURIComponent(reviewer.profile.username.toLowerCase())}`}
+              href={localizePath(
+                `/users/${encodeURIComponent(reviewer.profile.username.toLowerCase())}`,
+                lang
+              )}
             >
               <div className="flex items-center gap-3">
                 <div
@@ -88,7 +94,7 @@ export function SidebarHomepage({
             <Link
               key={category.id}
               className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              href={`/catalog/reviews/${category.id}`}
+              href={localizePath(`/catalog/reviews/${category.id}`, lang)}
             >
               {category.name}
             </Link>
@@ -118,11 +124,12 @@ export type CatalogTopAuthor = {
 };
 
 export type SidebarCatalogProps = {
+  lang: string;
   popularTopics: CatalogPopularTopic[];
   topAuthors: CatalogTopAuthor[];
 };
 
-export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProps) {
+export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatalogProps) {
   return (
     <div className="lg:col-span-4 space-y-8">
       <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
@@ -139,7 +146,7 @@ export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProp
             <li key={`${topic.rankLabel}-${index}`}>
               <Link
                 className="flex gap-3 items-start group cursor-pointer"
-                href={`/content/${topic.slug}`}
+                href={localizePath(`/content/${topic.slug}`, lang)}
               >
                 <div className="text-2xl font-black text-slate-200 dark:text-slate-700 leading-none group-hover:text-primary transition-colors">
                   {topic.rankLabel}
@@ -167,7 +174,10 @@ export function SidebarCatalog({ popularTopics, topAuthors }: SidebarCatalogProp
             >
               <Link
                 className="flex items-center gap-3 cursor-pointer"
-                href={`/users/${encodeURIComponent(author.profile.username.toLowerCase())}`}
+                href={localizePath(
+                  `/users/${encodeURIComponent(author.profile.username.toLowerCase())}`,
+                  lang
+                )}
               >
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -243,6 +253,7 @@ export type CategoryTopAuthor = {
 };
 
 export type SidebarCategoryProps = {
+  lang: string;
   bestItems: CategoryBestItem[];
   topAuthors: CategoryTopAuthor[];
   popularTags: Category[];
@@ -250,6 +261,7 @@ export type SidebarCategoryProps = {
 };
 
 export function SidebarCategory({
+  lang,
   bestItems,
   topAuthors,
   popularTags,
@@ -269,7 +281,7 @@ export function SidebarCategory({
             <Link
               key={item.rankLabel}
               className="flex gap-3 items-center group cursor-pointer"
-              href={`/content/${item.review.slug}`}
+              href={localizePath(`/content/${item.review.slug}`, lang)}
             >
               <span className="text-xl font-bold text-gray-300 w-6 text-center group-hover:text-primary transition-colors">
                 {item.rankLabel}
@@ -314,7 +326,10 @@ export function SidebarCategory({
             >
               <Link
                 className="flex items-center gap-3 cursor-pointer"
-                href={`/users/${encodeURIComponent(author.profile.username.toLowerCase())}`}
+                href={localizePath(
+                  `/users/${encodeURIComponent(author.profile.username.toLowerCase())}`,
+                  lang
+                )}
               >
                 <div
                   className="size-10 rounded-full bg-cover bg-center shrink-0 border border-[#e7edf3]"
@@ -353,7 +368,7 @@ export function SidebarCategory({
               <Link
                 key={tag.id}
                 className="text-xs font-medium text-[#4c739a] bg-[#f6f7f8] px-3 py-1.5 rounded-md hover:bg-[#e7edf3] transition-colors"
-                href={href}
+                href={localizePath(href, lang)}
               >
                 {tag.name}
               </Link>
@@ -374,11 +389,12 @@ export type ProfilePopularReview = {
 };
 
 export type SidebarProfileProps = {
+  lang: string;
   profile: UserProfile;
   popularReviews: ProfilePopularReview[];
 };
 
-export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps) {
+export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfileProps) {
   const bio =
     profile.bio && profile.bio.trim().length > 0
       ? profile.bio
@@ -395,7 +411,7 @@ export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps)
         <div className="flex flex-wrap gap-2">
           <UserProfileShareLink
             className="flex items-center justify-center w-8 h-8 rounded-full bg-background-light dark:bg-background-dark text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors"
-            href={`/users/${profile.username}`}
+            href={localizePath(`/users/${profile.username}`, lang)}
             aria-label="Copy profile link"
           >
             <span className="material-symbols-outlined text-[18px]">link</span>
@@ -448,7 +464,7 @@ export function SidebarProfile({ profile, popularReviews }: SidebarProfileProps)
             <Link
               key={item.review.id}
               className="flex gap-3 items-center group/item"
-              href={`/content/${item.review.slug}`}
+              href={localizePath(`/content/${item.review.slug}`, lang)}
             >
               <div
                 className="w-12 h-12 rounded-lg bg-cover bg-center shrink-0"

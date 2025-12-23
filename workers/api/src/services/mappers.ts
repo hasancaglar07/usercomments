@@ -20,6 +20,16 @@ type DbReview = {
   title: string;
   excerpt: string | null;
   content_html?: string | null;
+      review_translations?:
+    | {
+        lang: string;
+        slug: string;
+        title?: string | null;
+        content_html?: string | null;
+        meta_title?: string | null;
+        meta_description?: string | null;
+      }[]
+    | null;
   rating_avg?: number | string | null;
   rating_count?: number | string | null;
   views?: number | string | null;
@@ -78,8 +88,28 @@ export function mapProfileRow(row: DbProfile): UserProfile {
   };
 }
 
-export function mapReviewRow(row: DbReview): Review {
+export function mapReviewRow(
+  row: DbReview,
+  options?: { lang?: string; includeTranslations?: boolean }
+): Review {
   const profile = pickRelation(row.profiles);
+  const translations = Array.isArray(row.review_translations)
+    ? row.review_translations
+        .filter((item): item is NonNullable<DbReview["review_translations"]>[number] =>
+          Boolean(item)
+        )
+        .map((translation) => ({
+          lang: translation.lang,
+          slug: translation.slug,
+          title: translation.title,
+          contentHtml: translation.content_html ?? undefined,
+          metaTitle: translation.meta_title ?? undefined,
+          metaDescription: translation.meta_description ?? undefined,
+        }))
+    : [];
+  const preferredTranslation = options?.lang
+    ? translations.find((translation) => translation.lang === options.lang)
+    : translations[0];
   const photoUrls = Array.isArray(row.photo_urls)
     ? row.photo_urls.filter((item): item is string => typeof item === "string")
     : undefined;
@@ -96,10 +126,19 @@ export function mapReviewRow(row: DbReview): Review {
 
   return {
     id: row.id,
-    slug: row.slug,
-    title: row.title,
+    translationLang: preferredTranslation?.lang,
+    slug: preferredTranslation?.slug ?? row.slug,
+    title: preferredTranslation?.title ?? row.title,
     excerpt: row.excerpt ?? "",
-    contentHtml: row.content_html ?? undefined,
+    contentHtml: preferredTranslation?.contentHtml ?? row.content_html ?? undefined,
+    metaTitle: preferredTranslation?.metaTitle,
+    metaDescription: preferredTranslation?.metaDescription,
+    translations: options?.includeTranslations
+      ? translations.map((translation) => ({
+          lang: translation.lang,
+          slug: translation.slug,
+        }))
+      : undefined,
     ratingAvg,
     ratingCount,
     views,

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
 type AuthCtaButtonProps = {
   className: string;
@@ -21,20 +22,25 @@ export default function AuthCtaButton({
   as = "button",
 }: AuthCtaButtonProps) {
   const router = useRouter();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
   const { isAuthenticated, loading } = useAuth();
 
+  const resolvedAuthHref = localizePath(authenticatedHref, lang);
   const resolvedGuestHref = guestHref.startsWith("/")
     ? (() => {
         const base =
           typeof window !== "undefined" ? window.location.origin : "http://localhost";
-        const url = new URL(guestHref, base);
+        const url = new URL(localizePath(guestHref, lang), base);
         if (!url.searchParams.has("next")) {
-          url.searchParams.set("next", authenticatedHref);
+          url.searchParams.set("next", resolvedAuthHref);
         }
         return `${url.pathname}${url.search}`;
       })()
     : guestHref;
-  const linkHref = isAuthenticated ? authenticatedHref : resolvedGuestHref;
+  const linkHref = isAuthenticated ? resolvedAuthHref : resolvedGuestHref;
   const isInternal = linkHref.startsWith("/");
 
   const handleAnchorClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
