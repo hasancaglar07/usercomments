@@ -4,7 +4,7 @@
 - Web: Cloudflare Pages (Next.js App Router via OpenNext adapter).
 - API: Cloudflare Workers (`workers/api`).
 - DB/Auth: Supabase (service role key stays server-side only).
-- Images: Backblaze B2 (S3-compatible) with presigned uploads.
+- Images: Cloudflare R2 (S3-compatible) with presigned uploads.
 
 ## Worker (API) Setup
 
@@ -19,24 +19,24 @@ npm run dev
 Set these with `wrangler secret put`:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `B2_S3_ENDPOINT`
-- `B2_S3_REGION`
-- `B2_S3_ACCESS_KEY_ID`
-- `B2_S3_SECRET_ACCESS_KEY`
-- `B2_S3_BUCKET`
-- `B2_PUBLIC_BASE_URL`
+- `R2_ENDPOINT`
+- `R2_REGION` (optional, default: `auto`)
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
+- `R2_PUBLIC_BASE_URL`
 
 Example:
 ```bash
 cd workers/api
 wrangler secret put SUPABASE_URL
 wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-wrangler secret put B2_S3_ENDPOINT
-wrangler secret put B2_S3_REGION
-wrangler secret put B2_S3_ACCESS_KEY_ID
-wrangler secret put B2_S3_SECRET_ACCESS_KEY
-wrangler secret put B2_S3_BUCKET
-wrangler secret put B2_PUBLIC_BASE_URL
+wrangler secret put R2_ENDPOINT
+wrangler secret put R2_REGION
+wrangler secret put R2_ACCESS_KEY_ID
+wrangler secret put R2_SECRET_ACCESS_KEY
+wrangler secret put R2_BUCKET
+wrangler secret put R2_PUBLIC_BASE_URL
 ```
 
 ### Optional tuning (secrets)
@@ -45,11 +45,14 @@ These fall back to defaults if unset:
 - `RATE_LIMIT_MAX` (default: 60)
 - `CACHE_TTL_CATEGORIES_SEC` (default: 21600)
 - `CACHE_TTL_SUBCATEGORIES_SEC` (default: 21600)
-- `CACHE_TTL_LATEST_SEC` (default: 45)
-- `CACHE_TTL_POPULAR_SEC` (default: 45)
+- `CACHE_TTL_LATEST_SEC` (default: 60)
+- `CACHE_TTL_POPULAR_SEC` (default: 60)
 - `CACHE_TTL_REVIEW_LIST_SEC` (default: 60)
 - `CACHE_TTL_REVIEW_SEC` (default: 90)
 - `CACHE_TTL_REVIEW_COMMENTS_SEC` (default: 30)
+- `CACHE_TTL_PRODUCTS_SEC` (default: 300)
+- `CACHE_TTL_PRODUCT_SEC` (default: 300)
+- `CACHE_TTL_PRODUCT_REVIEWS_SEC` (default: 60)
 - `CACHE_TTL_USER_SEC` (default: 90)
 - `CACHE_TTL_USER_REVIEWS_SEC` (default: 90)
 - `CACHE_TTL_SEARCH_SEC` (default: 30)
@@ -101,3 +104,4 @@ Set these in Cloudflare Pages:
 - Sitemaps are available via the web routes and via Worker endpoints.
 - Worker sitemap endpoints are cached for 30-60 minutes by default.
 - Keep `robots.txt` in `apps/web` and ensure it points to the canonical sitemap URLs.
+- Product sitemaps are exposed as `sitemap-products-[lang].xml` and paginated by `sitemap-products-[lang]-[part].xml`.

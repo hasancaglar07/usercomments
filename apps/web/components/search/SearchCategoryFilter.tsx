@@ -4,6 +4,7 @@ import type { ChangeEvent } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { Category } from "@/src/types";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type SearchCategoryFilterProps = {
   categories: Category[];
@@ -45,7 +46,7 @@ export default function SearchCategoryFilter({
         value={selectedValue}
         onChange={handleChange}
       >
-        <option value="">All categories</option>
+        <option value="">{t(lang, "search.allCategories")}</option>
         {categories.map((category) => (
           <option key={category.id} value={category.id}>
             {category.name}

@@ -1,17 +1,13 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type CategorySortSelectProps = {
   sort: "latest" | "popular" | "rating";
 };
-
-const SORT_OPTIONS = [
-  { label: "Newest", value: "latest" },
-  { label: "Most Helpful", value: "popular" },
-  { label: "Highest Rated", value: "rating" },
-];
 
 function buildCategoryHref(pathname: string, params: URLSearchParams) {
   const query = params.toString();
@@ -22,8 +18,17 @@ export default function CategorySortSelect({ sort }: CategorySortSelectProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
+  const sortOptions = [
+    { label: t(lang, "category.sort.newest"), value: "latest" },
+    { label: t(lang, "category.sort.mostHelpful"), value: "popular" },
+    { label: t(lang, "category.sort.highestRated"), value: "rating" },
+  ];
   const selected =
-    SORT_OPTIONS.find((option) => option.value === sort)?.value ?? "latest";
+    sortOptions.find((option) => option.value === sort)?.value ?? "latest";
 
   const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextSort = event.target.value;
@@ -43,7 +48,7 @@ export default function CategorySortSelect({ sort }: CategorySortSelectProps) {
       value={selected}
       onChange={handleSortChange}
     >
-      {SORT_OPTIONS.map((option) => (
+      {sortOptions.map((option) => (
         <option key={option.label} value={option.value}>
           {option.label}
         </option>

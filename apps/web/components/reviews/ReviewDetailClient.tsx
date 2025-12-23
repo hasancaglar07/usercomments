@@ -7,8 +7,8 @@ import { incrementReviewView } from "@/src/lib/api";
 import { createComment, voteReview } from "@/src/lib/api-client";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
-
-const commentSchema = z.string().trim().min(1, "Please write a comment.");
+import { formatNumber } from "@/src/lib/review-utils";
+import { t } from "@/src/lib/copy";
 
 type ReviewDetailClientProps = {
   reviewId: string;
@@ -74,7 +74,7 @@ export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonPr
       const message =
         error && typeof error === "object" && "message" in error
           ? String(error.message)
-          : "Vote failed.";
+          : t(lang, "reviewDetail.vote.error");
       window.alert(message);
     } finally {
       setIsVoting(false);
@@ -91,8 +91,10 @@ export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonPr
       <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">
         thumb_up
       </span>
-      <span className="font-bold">Helpful </span>
-      <span className="text-slate-400 font-normal">({votesUp})</span>
+      <span className="font-bold">{t(lang, "reviewDetail.helpful.button")} </span>
+      <span className="text-slate-400 font-normal">
+        ({formatNumber(votesUp, lang)})
+      </span>
     </button>
   );
 }
@@ -108,6 +110,10 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
   const lang = normalizeLanguage(
     typeof params?.lang === "string" ? params.lang : undefined
   );
+  const commentSchema = z
+    .string()
+    .trim()
+    .min(1, t(lang, "reviewDetail.comment.validation"));
   const [commentText, setCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -128,7 +134,9 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
   const handleSubmit = async () => {
     const parsed = commentSchema.safeParse(commentText);
     if (!parsed.success) {
-      window.alert(parsed.error.issues[0]?.message ?? "Please write a comment.");
+      window.alert(
+        parsed.error.issues[0]?.message ?? t(lang, "reviewDetail.comment.validation")
+      );
       return;
     }
 
@@ -145,7 +153,7 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
       const message =
         error && typeof error === "object" && "message" in error
           ? String(error.message)
-          : "Failed to post comment.";
+          : t(lang, "reviewDetail.comment.error");
       window.alert(message);
     } finally {
       setIsSubmitting(false);
@@ -161,7 +169,7 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
       <div className="flex-1">
         <textarea
           className="w-full p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:outline-none min-h-[100px] text-slate-900 dark:text-white placeholder:text-slate-400"
-          placeholder="Share your thoughts..."
+          placeholder={t(lang, "reviewDetail.comment.placeholder")}
           value={commentText}
           onChange={(event) => setCommentText(event.target.value)}
           disabled={isSubmitting}
@@ -173,7 +181,9 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Posting..." : "Post Comment"}
+            {isSubmitting
+              ? t(lang, "reviewDetail.comment.posting")
+              : t(lang, "reviewDetail.comment.post")}
           </button>
         </div>
       </div>

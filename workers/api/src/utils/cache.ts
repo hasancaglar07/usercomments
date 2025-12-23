@@ -75,7 +75,12 @@ export async function cacheResponse(
   const response = await handler();
   if (response.ok) {
     const cacheable = new Response(response.body, response);
-    cacheable.headers.set("Cache-Control", `public, max-age=${ttlSeconds}`);
+    const swrSeconds = Math.max(0, Math.floor(ttlSeconds / 2));
+    const cacheControl =
+      swrSeconds > 0
+        ? `public, max-age=${ttlSeconds}, stale-while-revalidate=${swrSeconds}`
+        : `public, max-age=${ttlSeconds}`;
+    cacheable.headers.set("Cache-Control", cacheControl);
     cacheable.headers.set("x-cache", "MISS");
     ctx.waitUntil(cache.put(cacheKey, cacheable.clone()));
     return cacheable;

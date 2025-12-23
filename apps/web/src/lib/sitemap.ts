@@ -39,6 +39,7 @@ export async function buildLanguageSitemapXml(
   if (part === 1) {
     entries.push({ loc: `${siteUrl}${localizePath("/", lang)}` });
     entries.push({ loc: `${siteUrl}${localizePath("/catalog", lang)}` });
+    entries.push({ loc: `${siteUrl}${localizePath("/products", lang)}` });
   }
 
   if (!apiBaseUrl) {
@@ -58,6 +59,12 @@ export async function buildLanguageSitemapXml(
           entries.push({
             loc: `${siteUrl}${localizePath(
               `/catalog/reviews/${category.id}`,
+              lang
+            )}`,
+          });
+          entries.push({
+            loc: `${siteUrl}${localizePath(
+              `/catalog/list/${category.id}`,
               lang
             )}`,
           });

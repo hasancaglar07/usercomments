@@ -1,4 +1,9 @@
 import type { Category, StarType } from "@/src/types";
+import {
+  DEFAULT_LANGUAGE,
+  getLocale,
+  type SupportedLanguage,
+} from "@/src/lib/i18n";
 
 function buildDataUrl(svg: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -52,7 +57,18 @@ export function buildRatingStars(rating?: number): StarType[] {
   return stars;
 }
 
-export function formatRelativeTime(value?: string): string {
+const JUST_NOW: Record<SupportedLanguage, string> = {
+  en: "just now",
+  tr: "az önce",
+  es: "justo ahora",
+  de: "gerade eben",
+  ar: "الآن",
+};
+
+export function formatRelativeTime(
+  value?: string,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): string {
   if (!value) {
     return "";
   }
@@ -64,60 +80,72 @@ export function formatRelativeTime(value?: string): string {
 
   const diffMs = Date.now() - date.getTime();
   const diffSeconds = Math.floor(diffMs / 1000);
+  if (diffSeconds < 0) {
+    return "";
+  }
 
   if (diffSeconds < 30) {
-    return "just now";
+    return JUST_NOW[lang] ?? JUST_NOW[DEFAULT_LANGUAGE];
   }
+  const rtf = new Intl.RelativeTimeFormat(getLocale(lang), {
+    numeric: "auto",
+  });
   if (diffSeconds < 60) {
-    return `${diffSeconds} seconds ago`;
+    return rtf.format(-diffSeconds, "second");
   }
 
   const diffMinutes = Math.floor(diffSeconds / 60);
   if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+    return rtf.format(-diffMinutes, "minute");
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) {
-    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+    return rtf.format(-diffHours, "hour");
   }
 
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) {
-    return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+    return rtf.format(-diffDays, "day");
   }
 
   const diffWeeks = Math.floor(diffDays / 7);
   if (diffWeeks < 4) {
-    return `${diffWeeks} week${diffWeeks === 1 ? "" : "s"} ago`;
+    return rtf.format(-diffWeeks, "week");
   }
 
   const diffMonths = Math.floor(diffDays / 30);
   if (diffMonths < 12) {
-    return `${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`;
+    return rtf.format(-diffMonths, "month");
   }
 
   const diffYears = Math.floor(diffDays / 365);
-  return `${diffYears} year${diffYears === 1 ? "" : "s"} ago`;
+  return rtf.format(-diffYears, "year");
 }
 
-export function formatCompactNumber(value?: number): string {
+export function formatCompactNumber(
+  value?: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "0";
   }
 
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(getLocale(lang), {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value);
 }
 
-export function formatNumber(value?: number): string {
+export function formatNumber(
+  value?: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "0";
   }
 
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat(getLocale(lang)).format(value);
 }
 
 export function getCategoryLabel(
@@ -138,22 +166,67 @@ export function getCategoryMeta(label?: string): {
   const fallback = label ?? "General";
   const normalized = fallback.toLowerCase();
 
-  if (normalized.includes("beauty") || normalized.includes("skin")) {
+  if (
+    normalized.includes("beauty") ||
+    normalized.includes("skin") ||
+    normalized.includes("güzellik") ||
+    normalized.includes("belleza") ||
+    normalized.includes("schön") ||
+    normalized.includes("الجمال")
+  ) {
     return { icon: "face", className: "text-pink-500", label: fallback };
   }
-  if (normalized.includes("travel") || normalized.includes("hotel")) {
+  if (
+    normalized.includes("travel") ||
+    normalized.includes("hotel") ||
+    normalized.includes("seyahat") ||
+    normalized.includes("viaje") ||
+    normalized.includes("reisen") ||
+    normalized.includes("السفر")
+  ) {
     return { icon: "flight_takeoff", className: "text-green-600", label: fallback };
   }
-  if (normalized.includes("book")) {
+  if (
+    normalized.includes("book") ||
+    normalized.includes("kitap") ||
+    normalized.includes("libro") ||
+    normalized.includes("bücher") ||
+    normalized.includes("كتاب")
+  ) {
     return { icon: "menu_book", className: "text-purple-600", label: fallback };
   }
-  if (normalized.includes("auto") || normalized.includes("car")) {
+  if (
+    normalized.includes("auto") ||
+    normalized.includes("car") ||
+    normalized.includes("otomotiv") ||
+    normalized.includes("araba") ||
+    normalized.includes("automotriz") ||
+    normalized.includes("coche") ||
+    normalized.includes("سيارة")
+  ) {
     return { icon: "directions_car", className: "text-orange-600", label: fallback };
   }
-  if (normalized.includes("movie") || normalized.includes("film")) {
+  if (
+    normalized.includes("movie") ||
+    normalized.includes("film") ||
+    normalized.includes("sinema") ||
+    normalized.includes("película") ||
+    normalized.includes("cine") ||
+    normalized.includes("أفلام")
+  ) {
     return { icon: "movie", className: "text-indigo-600", label: fallback };
   }
-  if (normalized.includes("tech") || normalized.includes("phone")) {
+  if (
+    normalized.includes("tech") ||
+    normalized.includes("phone") ||
+    normalized.includes("teknoloji") ||
+    normalized.includes("telefon") ||
+    normalized.includes("tecnología") ||
+    normalized.includes("móvil") ||
+    normalized.includes("technik") ||
+    normalized.includes("هاتف") ||
+    normalized.includes("تقنية")
+  ) {
     return { icon: "smartphone", className: "text-primary", label: fallback };
   }
 

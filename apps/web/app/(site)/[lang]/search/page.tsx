@@ -20,6 +20,7 @@ import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { homepagePopularCategories } from "@/data/mock/categories";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 
 type SearchPageProps = {
@@ -85,11 +86,11 @@ export default async function Page(props: SearchPageProps) {
     } catch (error) {
       console.error("Failed to load search results", error);
       if (!allowMockFallback) {
-        errorMessage = "Unable to load search results. Please try again later.";
+        errorMessage = t(lang, "search.error.loadFailed");
       }
     }
   } else if (query && !allowMockFallback) {
-    errorMessage = "API base URL is not configured.";
+    errorMessage = t(lang, "search.error.apiNotConfigured");
   }
 
   const cards: ReviewCardCatalogData[] = results.map((review, index) => {
@@ -99,18 +100,22 @@ export default async function Page(props: SearchPageProps) {
     return {
       review,
       href: localizePath(`/content/${review.slug}`, lang),
-      dateLabel: formatRelativeTime(review.createdAt),
+      dateLabel: formatRelativeTime(review.createdAt, lang),
       ratingStars: buildRatingStars(review.ratingAvg),
       ratingValue: (review.ratingAvg ?? 0).toFixed(1),
       imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
       imageAlt: review.title,
-      authorAvatarAlt: `${review.author.username} Avatar`,
-      authorAvatarDataAlt: `Avatar of user ${review.author.username}`,
+      authorAvatarAlt: t(lang, "catalog.avatarAlt", {
+        username: review.author.username,
+      }),
+      authorAvatarDataAlt: t(lang, "catalog.avatarDataAlt", {
+        username: review.author.username,
+      }),
       authorAvatarUrl:
         review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
       category: categoryMeta,
-      viewsLabel: formatCompactNumber(review.views ?? 0),
-      likesLabel: formatCompactNumber(review.votesUp ?? 0),
+      viewsLabel: formatCompactNumber(review.views ?? 0, lang),
+      likesLabel: formatCompactNumber(review.votesUp ?? 0, lang),
       showImageOverlay: Boolean(review.photoCount && review.photoCount > 1),
     };
   });
@@ -126,20 +131,21 @@ export default async function Page(props: SearchPageProps) {
             {errorMessage}
           </div>
         ) : null}
-        <h1 className="text-2xl font-bold mb-2">Search</h1>
+        <h1 className="text-2xl font-bold mb-2">{t(lang, "search.heading")}</h1>
         <p className="text-slate-500 dark:text-slate-400">
           {query ? (
             <>
-              Showing results for: <span className="font-semibold">{query}</span>
+              {t(lang, "search.resultsFor")}{" "}
+              <span className="font-semibold">{query}</span>
             </>
           ) : (
-            "Enter a search term to see results."
+            t(lang, "search.prompt")
           )}
         </p>
         {query ? (
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <span className="text-sm text-slate-500 dark:text-slate-400">
-              Category
+              {t(lang, "search.categoryLabel")}
             </span>
             <Suspense fallback={null}>
               <SearchCategoryFilter
@@ -172,9 +178,9 @@ export default async function Page(props: SearchPageProps) {
           ) : (
             <div className="mt-6">
               <EmptyState
-                title="No results found"
-                description="Try a different search term or be the first to share your experience on this topic."
-                ctaLabel="Write review"
+                title={t(lang, "search.empty.title")}
+                description={t(lang, "search.empty.description")}
+                ctaLabel={t(lang, "search.empty.cta")}
                 authenticatedHref="/node/add/review"
               />
             </div>
@@ -192,10 +198,12 @@ export async function generateMetadata(
   const searchParams = await props.searchParams;
   const lang = normalizeLanguage(params.lang);
   const query = typeof searchParams?.q === "string" ? searchParams.q.trim() : "";
-  const title = query ? `Search: ${query}` : "Search";
+  const title = query
+    ? t(lang, "search.meta.titleWithQuery", { query })
+    : t(lang, "search.meta.title");
   const description = query
-    ? `Search results for "${query}".`
-    : "Search reviews and recommendations.";
+    ? t(lang, "search.meta.descriptionWithQuery", { query })
+    : t(lang, "search.meta.description");
   const path = query ? `/search?q=${encodeURIComponent(query)}` : "/search";
 
   return buildMetadata({

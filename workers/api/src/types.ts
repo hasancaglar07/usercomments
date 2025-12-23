@@ -19,6 +19,9 @@ export type Review = {
   photoCount?: number;
   photoUrls?: string[];
   commentCount?: number;
+  recommend?: boolean;
+  pros?: string[];
+  cons?: string[];
   author: {
     username: string;
     displayName?: string;
@@ -27,9 +30,17 @@ export type Review = {
   createdAt: string;
   categoryId?: number;
   subCategoryId?: number;
+  productId?: string;
+  product?: {
+    id: string;
+    slug: string;
+    name: string;
+  };
 };
 
 export type ReviewStatus = "published" | "hidden" | "deleted" | "pending" | "draft";
+export type ProductStatus = "published" | "hidden" | "deleted" | "pending";
+export type BrandStatus = "published" | "hidden" | "deleted" | "pending";
 export type UserRole = "user" | "moderator" | "admin";
 
 export type AdminReview = {
@@ -54,8 +65,17 @@ export type AdminReview = {
   photoUrls?: string[];
   photoCount?: number;
   commentCount?: number;
+  recommend?: boolean;
+  pros?: string[];
+  cons?: string[];
   categoryId?: number;
   subCategoryId?: number;
+  productId?: string;
+  product?: {
+    id: string;
+    slug: string;
+    name: string;
+  };
 };
 
 export type AdminComment = {
@@ -115,6 +135,76 @@ export type Category = {
   id: number;
   name: string;
   parentId?: number | null;
+};
+
+export type CategoryTranslation = {
+  lang: string;
+  name: string;
+  slug?: string | null;
+};
+
+export type Brand = {
+  id: string;
+  slug: string;
+  name: string;
+  status?: BrandStatus;
+};
+
+export type ProductImage = {
+  id: string;
+  url: string;
+  sortOrder?: number;
+};
+
+export type ProductStats = {
+  reviewCount?: number;
+  ratingAvg?: number;
+  ratingCount?: number;
+  recommendUp?: number;
+  recommendDown?: number;
+  photoCount?: number;
+};
+
+export type Product = {
+  id: string;
+  translationLang?: string;
+  slug: string;
+  name: string;
+  description?: string;
+  status?: ProductStatus;
+  brand?: Brand;
+  categoryIds?: number[];
+  images?: ProductImage[];
+  stats?: ProductStats;
+  createdAt?: string;
+  updatedAt?: string;
+  translations?: {
+    lang: string;
+    slug: string;
+  }[];
+};
+
+export type ProductTranslation = {
+  lang: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+};
+
+export type UploadHealth = {
+  ok: boolean;
+  checks: {
+    r2: {
+      configured: boolean;
+      missing: string[];
+    };
+  };
+};
+
+export type AdminProduct = Product & {
+  status?: ProductStatus;
 };
 
 export type CommentStatus = "published" | "hidden" | "deleted";

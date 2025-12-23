@@ -8,6 +8,7 @@ let hasLoadedSession = false;
 let authSubscriptionActive = false;
 let initPromise: Promise<void> | null = null;
 const listeners = new Set<(user: User | null) => void>();
+const AUTH_COOKIE_VALUE = "1";
 
 function notify() {
   listeners.forEach((listener) => listener(currentUser));
@@ -42,7 +43,7 @@ function syncAuthCookie(session: Session | null) {
     typeof session.expires_in === "number" && session.expires_in > 0
       ? session.expires_in
       : 60 * 60;
-  setCookie(AUTH_COOKIE_NAME, session.access_token, maxAge);
+  setCookie(AUTH_COOKIE_NAME, AUTH_COOKIE_VALUE, maxAge);
 }
 
 function setSession(session: Session | null) {

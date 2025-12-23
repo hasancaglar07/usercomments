@@ -1,19 +1,25 @@
 import type {
   AdminComment,
+  AdminProduct,
   AdminReport,
   AdminReview,
   AdminUser,
   AdminUserDetail,
   Category,
+  CategoryTranslation,
   CommentStatus,
   PaginationInfo,
+  ProductTranslation,
+  ProductStatus,
   Report,
   ReportStatus,
   Review,
   ReviewStatus,
+  UploadHealth,
   UserRole,
   UserProfile,
 } from "@/src/types";
+import type { SupportedLanguage } from "@/src/lib/i18n";
 import { getAccessToken } from "./auth";
 
 type PaginatedResult<T> = {
@@ -137,9 +143,16 @@ export async function createReview(payload: {
   excerpt: string;
   contentHtml: string;
   rating: number;
+  recommend?: boolean;
+  pros?: string[];
+  cons?: string[];
   categoryId: number;
   subCategoryId?: number;
+  productId?: string;
+  productName?: string;
   photoUrls: string[];
+  productPhotoUrl?: string;
+  lang?: SupportedLanguage;
 }): Promise<{ id: string; slug: string }> {
   return authFetch<{ id: string; slug: string }>("/api/reviews", {
     method: "POST",
@@ -220,10 +233,160 @@ export async function updateAdminCategory(
   });
 }
 
+export async function getAdminCategoryTranslations(
+  id: number
+): Promise<PaginatedResult<CategoryTranslation>> {
+  return authFetch<PaginatedResult<CategoryTranslation>>(
+    `/api/admin/categories/${id}/translations`
+  );
+}
+
+export async function updateAdminCategoryTranslations(
+  id: number,
+  payload: { translations: Array<Pick<CategoryTranslation, "lang" | "name" | "slug">> }
+): Promise<PaginatedResult<CategoryTranslation>> {
+  return authFetch<PaginatedResult<CategoryTranslation>>(
+    `/api/admin/categories/${id}/translations`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function getAdminUploadHealth(): Promise<UploadHealth> {
+  return authFetch<UploadHealth>("/api/admin/uploads/health");
+}
+
+export async function getAdminProducts(options: {
+  status?: ProductStatus;
+  page?: number;
+  pageSize?: number;
+  lang?: SupportedLanguage;
+}): Promise<PaginatedResult<AdminProduct>> {
+  const params = new URLSearchParams();
+  if (options.status) {
+    params.set("status", options.status);
+  }
+  if (options.page) {
+    params.set("page", String(options.page));
+  }
+  if (options.pageSize) {
+    params.set("pageSize", String(options.pageSize));
+  }
+  if (options.lang) {
+    params.set("lang", options.lang);
+  }
+  const query = params.toString();
+  return authFetch<PaginatedResult<AdminProduct>>(
+    `/api/admin/products${query ? `?${query}` : ""}`
+  );
+}
+
+export async function getAdminProductDetail(
+  id: string,
+  lang?: SupportedLanguage
+): Promise<AdminProduct> {
+  const params = new URLSearchParams();
+  if (lang) {
+    params.set("lang", lang);
+  }
+  const query = params.toString();
+  return authFetch<AdminProduct>(
+    `/api/admin/products/${id}${query ? `?${query}` : ""}`
+  );
+}
+
+export async function getAdminProductTranslations(
+  id: string
+): Promise<PaginatedResult<ProductTranslation>> {
+  return authFetch<PaginatedResult<ProductTranslation>>(
+    `/api/admin/products/${id}/translations`
+  );
+}
+
+export async function updateAdminProductTranslations(
+  id: string,
+  payload: {
+    translations: Array<
+      Pick<ProductTranslation, "lang" | "name"> & {
+        description?: string | null;
+        metaTitle?: string | null;
+        metaDescription?: string | null;
+      }
+    >;
+  }
+): Promise<PaginatedResult<ProductTranslation>> {
+  return authFetch<PaginatedResult<ProductTranslation>>(
+    `/api/admin/products/${id}/translations`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function createAdminProduct(
+  payload: {
+    name: string;
+    description?: string | null;
+    status?: ProductStatus;
+    brandId?: string | null;
+    categoryIds?: number[];
+    imageUrls?: string[];
+  },
+  lang?: SupportedLanguage
+): Promise<AdminProduct> {
+  const params = new URLSearchParams();
+  if (lang) {
+    params.set("lang", lang);
+  }
+  const query = params.toString();
+  return authFetch<AdminProduct>(`/api/admin/products${query ? `?${query}` : ""}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminProduct(
+  id: string,
+  payload: {
+    name?: string;
+    description?: string | null;
+    status?: ProductStatus;
+    brandId?: string | null;
+    categoryIds?: number[] | null;
+    imageUrls?: string[] | null;
+  },
+  lang?: SupportedLanguage
+): Promise<AdminProduct> {
+  const params = new URLSearchParams();
+  if (lang) {
+    params.set("lang", lang);
+  }
+  const query = params.toString();
+  return authFetch<AdminProduct>(
+    `/api/admin/products/${id}${query ? `?${query}` : ""}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function bulkUpdateAdminProductStatus(
+  ids: string[],
+  status: ProductStatus,
+  lang?: SupportedLanguage
+): Promise<BulkUpdateResult<AdminProduct>> {
+  return runBulkUpdate(ids, (id) => updateAdminProduct(id, { status }, lang));
+}
+
 export async function getAdminReviews(options: {
   status?: ReviewStatus;
   page?: number;
   pageSize?: number;
+  lang?: SupportedLanguage;
 }): Promise<PaginatedResult<AdminReview>> {
   const params = new URLSearchParams();
   if (options.status) {
@@ -235,14 +398,27 @@ export async function getAdminReviews(options: {
   if (options.pageSize) {
     params.set("pageSize", String(options.pageSize));
   }
+  if (options.lang) {
+    params.set("lang", options.lang);
+  }
   const query = params.toString();
   return authFetch<PaginatedResult<AdminReview>>(
     `/api/admin/reviews${query ? `?${query}` : ""}`
   );
 }
 
-export async function getAdminReviewDetail(id: string): Promise<AdminReview> {
-  return authFetch<AdminReview>(`/api/admin/reviews/${id}`);
+export async function getAdminReviewDetail(
+  id: string,
+  lang?: SupportedLanguage
+): Promise<AdminReview> {
+  const params = new URLSearchParams();
+  if (lang) {
+    params.set("lang", lang);
+  }
+  const query = params.toString();
+  return authFetch<AdminReview>(
+    `/api/admin/reviews/${id}${query ? `?${query}` : ""}`
+  );
 }
 
 export async function updateAdminReviewStatus(
@@ -269,11 +445,21 @@ export async function updateAdminReview(
     excerpt?: string;
     contentHtml?: string;
     photoUrls?: string[];
+    recommend?: boolean;
+    pros?: string[];
+    cons?: string[];
     categoryId?: number | null;
     subCategoryId?: number | null;
-  }
+    productId?: string | null;
+  },
+  lang?: SupportedLanguage
 ): Promise<AdminReview> {
-  return authFetch(`/api/admin/reviews/${id}`, {
+  const params = new URLSearchParams();
+  if (lang) {
+    params.set("lang", lang);
+  }
+  const query = params.toString();
+  return authFetch(`/api/admin/reviews/${id}${query ? `?${query}` : ""}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -415,12 +601,16 @@ export async function bulkUpdateAdminCommentStatus(
 export async function getUserDrafts(
   username: string,
   page = 1,
-  pageSize = 10
+  pageSize = 10,
+  lang?: SupportedLanguage
 ): Promise<PaginatedResult<Review>> {
   const params = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
   });
+  if (lang) {
+    params.set("lang", lang);
+  }
   return authFetch<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/drafts?${params}`
   );
@@ -429,12 +619,16 @@ export async function getUserDrafts(
 export async function getUserSaved(
   username: string,
   page = 1,
-  pageSize = 10
+  pageSize = 10,
+  lang?: SupportedLanguage
 ): Promise<PaginatedResult<Review>> {
   const params = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
   });
+  if (lang) {
+    params.set("lang", lang);
+  }
   return authFetch<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/saved?${params}`
   );

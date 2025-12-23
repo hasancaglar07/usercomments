@@ -37,3 +37,36 @@ export function localizePath(path: string, lang: string): string {
   const withQuery = query ? `${localized}?${query}` : localized;
   return hash ? `${withQuery}#${hash}` : withQuery;
 }
+
+export function replaceLanguageInPath(path: string, lang: string): string {
+  if (!path.startsWith("/")) {
+    return path;
+  }
+
+  const normalizedLang = normalizeLanguage(lang);
+  const [pathnameWithQuery, hash] = path.split("#");
+  const [pathname, query] = pathnameWithQuery.split("?");
+  const segments = pathname.split("/").filter(Boolean);
+
+  if (segments.length > 0 && isSupportedLanguage(segments[0])) {
+    segments[0] = normalizedLang;
+  } else {
+    segments.unshift(normalizedLang);
+  }
+
+  const localized = `/${segments.join("/")}`;
+  const withQuery = query ? `${localized}?${query}` : localized;
+  return hash ? `${withQuery}#${hash}` : withQuery;
+}
+
+const LOCALE_MAP: Record<SupportedLanguage, string> = {
+  tr: "tr-TR",
+  en: "en-US",
+  es: "es-ES",
+  de: "de-DE",
+  ar: "ar",
+};
+
+export function getLocale(lang: SupportedLanguage): string {
+  return LOCALE_MAP[lang] ?? LOCALE_MAP[DEFAULT_LANGUAGE];
+}

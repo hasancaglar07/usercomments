@@ -1,12 +1,15 @@
 import Link from "next/link";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
-import { localizePath } from "@/src/lib/i18n";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type FooterProps = {
   lang: string;
 };
 
 export default function Footer({ lang }: FooterProps) {
+  const resolvedLang = normalizeLanguage(lang);
   const homeHref = localizePath("/", lang);
   const catalogHref = localizePath("/catalog", lang);
   const topRatedHref = localizePath("/catalog?sort=rating", lang);
@@ -26,15 +29,14 @@ export default function Footer({ lang }: FooterProps) {
                 forum
               </span>
               <h2 className="text-xl font-bold text-text-main dark:text-white">
-                UserComments.net
+                UserReview
               </h2>
             </Link>
             <p className="text-sm text-text-muted mb-4 italic">
-              &quot;The Voice of Real Users&quot;
+              {t(resolvedLang, "footer.tagline")}
             </p>
             <p className="text-sm text-text-muted mb-4">
-              The most trusted review platform. We help you make the best
-              decisions with real user experiences.
+              {t(resolvedLang, "footer.description")}
             </p>
             <div className="flex gap-4">
               <a
@@ -43,7 +45,7 @@ export default function Footer({ lang }: FooterProps) {
                 rel="noreferrer"
                 target="_blank"
               >
-                <span className="sr-only">Facebook</span>FB
+                <span className="sr-only">{t(resolvedLang, "footer.social.facebook")}</span>FB
               </a>
               <a
                 className="text-gray-400 hover:text-primary transition-colors"
@@ -51,7 +53,7 @@ export default function Footer({ lang }: FooterProps) {
                 rel="noreferrer"
                 target="_blank"
               >
-                <span className="sr-only">Twitter</span>TW
+                <span className="sr-only">{t(resolvedLang, "footer.social.twitter")}</span>TW
               </a>
               <a
                 className="text-gray-400 hover:text-primary transition-colors"
@@ -59,13 +61,13 @@ export default function Footer({ lang }: FooterProps) {
                 rel="noreferrer"
                 target="_blank"
               >
-                <span className="sr-only">Instagram</span>IG
+                <span className="sr-only">{t(resolvedLang, "footer.social.instagram")}</span>IG
               </a>
             </div>
           </div>
           <div>
             <h3 className="text-sm font-bold text-text-main dark:text-white uppercase tracking-wider mb-4">
-              Explore
+              {t(resolvedLang, "footer.explore")}
             </h3>
             <ul className="space-y-2">
               <li>
@@ -73,7 +75,7 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={catalogHref}
                 >
-                  Categories
+                  {t(resolvedLang, "footer.categories")}
                 </Link>
               </li>
               <li>
@@ -81,7 +83,7 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={topRatedHref}
                 >
-                  Top Rated
+                  {t(resolvedLang, "footer.topRated")}
                 </Link>
               </li>
               <li>
@@ -89,7 +91,7 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={recentHref}
                 >
-                  Recent Reviews
+                  {t(resolvedLang, "footer.recentReviews")}
                 </Link>
               </li>
               <li>
@@ -97,14 +99,14 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={leaderboardHref}
                 >
-                  Leaderboard
+                  {t(resolvedLang, "footer.leaderboard")}
                 </Link>
               </li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-bold text-text-main dark:text-white uppercase tracking-wider mb-4">
-              Community
+              {t(resolvedLang, "footer.community")}
             </h3>
             <ul className="space-y-2">
               <li>
@@ -112,7 +114,7 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={termsHref}
                 >
-                  Rules &amp; Guidelines
+                  {t(resolvedLang, "footer.rules")}
                 </Link>
               </li>
               <li>
@@ -121,7 +123,7 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   authenticatedHref={addReviewHref}
                 >
-                  Write a Review
+                  {t(resolvedLang, "footer.writeReview")}
                 </AuthCtaButton>
               </li>
               <li>
@@ -129,7 +131,7 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={contactHref}
                 >
-                  Help Center
+                  {t(resolvedLang, "footer.helpCenter")}
                 </Link>
               </li>
               <li>
@@ -137,33 +139,42 @@ export default function Footer({ lang }: FooterProps) {
                   className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
                   href={contactHref}
                 >
-                  Contact Us
+                  {t(resolvedLang, "footer.contactUs")}
                 </Link>
               </li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-bold text-text-main dark:text-white uppercase tracking-wider mb-4">
-              Newsletter
+              {t(resolvedLang, "footer.newsletter")}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Subscribe to get the best reviews directly to your inbox.
+              {t(resolvedLang, "footer.newsletterDescription")}
             </p>
             <div className="flex gap-2">
               <input
                 className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="Your email"
+                placeholder={t(resolvedLang, "footer.newsletterPlaceholder")}
                 type="email"
               />
               <button className="bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded text-sm font-bold transition-colors">
-                Go
+                {t(resolvedLang, "footer.newsletterButton")}
               </button>
             </div>
           </div>
         </div>
         <div className="border-t border-gray-100 dark:border-gray-800 mt-10 pt-6 text-center text-sm text-gray-500 flex flex-col gap-2">
-          <span>© 2024 UserComments.net. All rights reserved.</span>
-          <span className="font-medium text-primary">By users, for users.</span>
+          <span>{t(resolvedLang, "footer.rights")}</span>
+          <span className="font-medium text-primary">
+            {t(resolvedLang, "footer.byline")}
+          </span>
+          <LanguageSwitcher
+            currentLang={normalizeLanguage(lang)}
+            label={t(resolvedLang, "language.label")}
+            className="flex items-center justify-center gap-3 text-xs text-gray-500"
+            labelClassName="uppercase tracking-wide"
+            selectClassName="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-600 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
         </div>
       </div>
     </footer>

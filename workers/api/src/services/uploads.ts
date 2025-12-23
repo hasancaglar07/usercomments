@@ -20,14 +20,14 @@ function randomHex(bytesLength: number): string {
 }
 
 function getAwsClient(env: ParsedEnv): AwsClient {
-  if (!env.B2_S3_ACCESS_KEY_ID || !env.B2_S3_SECRET_ACCESS_KEY || !env.B2_S3_REGION) {
-    throw new Error("Backblaze B2 S3 credentials are not configured");
+  if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY) {
+    throw new Error("Cloudflare R2 credentials are not configured");
   }
 
   return new AwsClient({
-    accessKeyId: env.B2_S3_ACCESS_KEY_ID,
-    secretAccessKey: env.B2_S3_SECRET_ACCESS_KEY,
-    region: env.B2_S3_REGION,
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    region: env.R2_REGION,
     service: "s3",
   });
 }
@@ -38,8 +38,8 @@ export async function createPresignedUploadUrl(
   filename: string,
   contentType: string
 ): Promise<PresignResult> {
-  if (!env.B2_S3_ENDPOINT || !env.B2_S3_BUCKET || !env.B2_PUBLIC_BASE_URL) {
-    throw new Error("Backblaze B2 bucket env vars are not configured");
+  if (!env.R2_ENDPOINT || !env.R2_BUCKET || !env.R2_PUBLIC_BASE_URL) {
+    throw new Error("Cloudflare R2 bucket env vars are not configured");
   }
 
   const safeFilename = sanitizeFilename(filename);
@@ -49,8 +49,11 @@ export async function createPresignedUploadUrl(
   const random = randomHex(8);
   const objectKey = `uploads/${userId}/${year}/${month}/${random}-${safeFilename}`;
 
-  const baseEndpoint = env.B2_S3_ENDPOINT.replace(/\/$/, "");
-  const uploadUrl = new URL(`${baseEndpoint}/${env.B2_S3_BUCKET}/${objectKey}`);
+  const endpointBase = env.R2_ENDPOINT.match(/^https?:\/\//)
+    ? env.R2_ENDPOINT
+    : `https://${env.R2_ENDPOINT}`;
+  const uploadUrl = new URL(endpointBase);
+  uploadUrl.pathname = `/${env.R2_BUCKET}/${objectKey}`;
 
   const client = getAwsClient(env);
   const signed = await client.sign(uploadUrl.toString(), {
@@ -63,7 +66,7 @@ export async function createPresignedUploadUrl(
     },
   });
 
-  const publicUrl = `${env.B2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${objectKey}`;
+  const publicUrl = `${env.R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${objectKey}`;
 
   return { uploadUrl: signed.url, publicUrl };
 }

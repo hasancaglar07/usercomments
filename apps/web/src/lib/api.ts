@@ -2,6 +2,7 @@ import type {
   Category,
   Comment,
   PaginationInfo,
+  Product,
   Review,
   UserProfile,
 } from "@/src/types";
@@ -107,7 +108,7 @@ export async function getPopularReviews(
     `/api/reviews/popular?${searchParams}`,
     {
       cache: "force-cache",
-      next: { revalidate: 45 },
+      next: { revalidate: 60 },
     }
   ).then((result) => result.items);
 }
@@ -123,7 +124,7 @@ export async function getLatestReviews(
   }
   return fetchJson<CursorResult<Review>>(`/api/reviews/latest?${searchParams}`, {
     cache: "force-cache",
-    next: { revalidate: 45 },
+    next: { revalidate: 60 },
   });
 }
 
@@ -227,6 +228,86 @@ export async function getReviewBySlug(
   const searchParams = new URLSearchParams({ lang });
   return fetchJson<Review>(
     `/api/reviews/slug/${encodeURIComponent(slug)}?${searchParams}`
+  );
+}
+
+export async function getProducts(
+  page: number,
+  pageSize: number,
+  sort: "latest" | "popular" | "rating" = "latest",
+  categoryId?: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<PaginatedResult<Product>> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+    sort,
+    lang,
+  });
+  if (categoryId) {
+    searchParams.set("categoryId", String(categoryId));
+  }
+  return fetchJson<PaginatedResult<Product>>(`/api/products?${searchParams}`, {
+    cache: "force-cache",
+    next: { revalidate: 300 },
+  });
+}
+
+export async function getProductBySlug(
+  slug: string,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<Product> {
+  const searchParams = new URLSearchParams({ lang });
+  return fetchJson<Product>(
+    `/api/products/slug/${encodeURIComponent(slug)}?${searchParams}`,
+    {
+      cache: "force-cache",
+      next: { revalidate: 300 },
+    }
+  );
+}
+
+export async function getProductReviews(
+  productId: string,
+  page: number,
+  pageSize: number,
+  sort: "latest" | "popular" | "rating" = "latest",
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<PaginatedResult<Review>> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+    sort,
+    lang,
+  });
+  return fetchJson<PaginatedResult<Review>>(
+    `/api/products/${encodeURIComponent(productId)}/reviews?${searchParams}`,
+    {
+      cache: "force-cache",
+      next: { revalidate: 60 },
+    }
+  );
+}
+
+export async function searchProducts(
+  q: string,
+  limit = 8,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  includePending?: boolean
+): Promise<PaginatedResult<Product>> {
+  const searchParams = new URLSearchParams({
+    q,
+    limit: String(limit),
+    lang,
+  });
+  if (includePending) {
+    searchParams.set("includePending", "true");
+  }
+  return fetchJson<PaginatedResult<Product>>(
+    `/api/products/search?${searchParams}`,
+    {
+      cache: "no-store",
+    }
   );
 }
 

@@ -27,6 +27,7 @@ import {
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 import {
   categoryReviewCards,
   categoryPagination,
@@ -56,13 +57,15 @@ export async function generateMetadata(
     }
   }
 
-  const title = categoryLabel ? `${categoryLabel} Reviews` : "Category Reviews";
+  const title = categoryLabel
+    ? t(lang, "category.meta.titleWithLabel", { label: categoryLabel })
+    : t(lang, "category.meta.titleDefault");
 
   return buildMetadata({
     title,
     description: categoryLabel
-      ? `Explore ${categoryLabel} reviews and recommendations.`
-      : "Explore reviews and recommendations by category.",
+      ? t(lang, "category.meta.descriptionWithLabel", { label: categoryLabel })
+      : t(lang, "category.meta.descriptionDefault"),
     path: `/catalog/reviews/${params.id}`,
     lang,
     type: "website",
@@ -115,6 +118,7 @@ function buildCategoryCards(
   subcategories: Category[],
   lang: string
 ): ReviewCardCategoryData[] {
+  const resolvedLang = normalizeLanguage(lang);
   return reviews.map((review, index) => {
     const subCategoryLabel = getCategoryLabel(subcategories, review.subCategoryId);
     const categoryLabel = getCategoryLabel(categories, review.categoryId);
@@ -122,20 +126,23 @@ function buildCategoryCards(
     return {
       review,
       href: localizePath(`/content/${review.slug}`, lang),
-      dateLabel: formatRelativeTime(review.createdAt),
+      dateLabel: formatRelativeTime(review.createdAt, resolvedLang),
       ratingStars: buildRatingStars(review.ratingAvg),
       imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
       imageAlt: review.title,
       avatarUrl: review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
-      avatarAlt: `Portrait of ${review.author.username}`,
-      tagLabel: subCategoryLabel ?? categoryLabel ?? "General",
-      likesLabel: formatCompactNumber(review.votesUp ?? 0),
-      commentsLabel: formatCompactNumber(review.commentCount ?? 0),
+      avatarAlt: t(resolvedLang, "category.card.avatarAlt", {
+        username: review.author.username,
+      }),
+      tagLabel: subCategoryLabel ?? categoryLabel ?? t(resolvedLang, "common.general"),
+      likesLabel: formatCompactNumber(review.votesUp ?? 0, resolvedLang),
+      commentsLabel: formatCompactNumber(review.commentCount ?? 0, resolvedLang),
     };
   });
 }
 
-function buildBestItems(reviews: Review[]): CategoryBestItem[] {
+function buildBestItems(reviews: Review[], lang: string): CategoryBestItem[] {
+  const resolvedLang = normalizeLanguage(lang);
   const sorted = [...reviews].sort((a, b) => {
     const left = a.ratingAvg ?? 0;
     const right = b.ratingAvg ?? 0;
@@ -148,16 +155,18 @@ function buildBestItems(reviews: Review[]): CategoryBestItem[] {
     imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
     imageAlt: review.title,
     ratingLabel: (review.ratingAvg ?? 0).toFixed(1),
-    ratingCountLabel: `(${formatNumber(review.ratingCount ?? 0)})`,
+    ratingCountLabel: `(${formatNumber(review.ratingCount ?? 0, resolvedLang)})`,
   }));
 }
 
 function buildTopAuthors(
   reviews: Review[],
-  fallback: CategoryTopAuthor[]
+  fallback: CategoryTopAuthor[],
+  lang: string
 ): CategoryTopAuthor[] {
   const authors: CategoryTopAuthor[] = [];
   const seen = new Set<string>();
+  const resolvedLang = normalizeLanguage(lang);
 
   for (const review of reviews) {
     const username = review.author.username;
@@ -173,8 +182,10 @@ function buildTopAuthors(
       },
       avatarUrl:
         review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, authors.length),
-      avatarAlt: `${username} avatar`,
-      reviewsLabel: `${formatCompactNumber(review.ratingCount ?? 0)} reviews`,
+      avatarAlt: t(resolvedLang, "category.card.avatarAlt", { username }),
+      reviewsLabel: t(resolvedLang, "catalog.topAuthorReviews", {
+        count: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
+      }),
     });
 
     if (authors.length >= 2) {
@@ -196,10 +207,12 @@ export default async function Page(props: CategoryPageProps) {
   const categoryId = Number(params.id);
 
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
-  const fallbackCategoryLabel = allowMockFallback ? "Beauty & Health" : "Category";
+  const fallbackCategoryLabel = allowMockFallback
+    ? t(lang, "category.fallback.labelMock")
+    : t(lang, "category.fallback.label");
   const fallbackDescription = allowMockFallback
-    ? "Discover honest reviews on cosmetics, skincare, and health products from real users. Find the best products for your routine based on thousands of community ratings."
-    : "Discover honest reviews and recommendations from real users.";
+    ? t(lang, "category.fallback.descriptionMock")
+    : t(lang, "category.fallback.description");
   let categoryLabel = fallbackCategoryLabel;
   let categoryDescription = fallbackDescription;
   let cards = allowMockFallback ? categoryReviewCards : [];
@@ -222,15 +235,16 @@ export default async function Page(props: CategoryPageProps) {
 
       cards = buildCategoryCards(categoryResult.items, categories, subcategories, lang);
       pagination = categoryResult.pageInfo;
-      bestItems = buildBestItems(categoryResult.items);
+      bestItems = buildBestItems(categoryResult.items, lang);
       topAuthors = buildTopAuthors(
         categoryResult.items,
-        allowMockFallback ? categoryTopAuthors : []
+        allowMockFallback ? categoryTopAuthors : [],
+        lang
       );
       const label = getCategoryLabel(categories, categoryId);
       if (label) {
         categoryLabel = label;
-        categoryDescription = `Discover honest reviews and recommendations for ${label}.`;
+        categoryDescription = t(lang, "category.description.withLabel", { label });
       }
       subcategoryTags = subcategories;
       popularTags =
@@ -238,11 +252,11 @@ export default async function Page(props: CategoryPageProps) {
     } catch (error) {
       console.error("Failed to load category API data", error);
       if (!allowMockFallback) {
-        errorMessage = "Unable to load category data. Please try again later.";
+        errorMessage = t(lang, "category.error.loadFailed");
       }
     }
   } else if (!allowMockFallback) {
-    errorMessage = "API base URL is not configured.";
+    errorMessage = t(lang, "category.error.apiNotConfigured");
   }
 
   const baseParams = new URLSearchParams();
@@ -273,7 +287,7 @@ export default async function Page(props: CategoryPageProps) {
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: `${categoryLabel} Reviews`,
+    name: t(lang, "category.meta.titleWithLabel", { label: categoryLabel }),
     itemListOrder: "https://schema.org/ItemListOrderDescending",
     numberOfItems: cards.length,
     itemListElement: cards.map((card, index) => ({
@@ -296,14 +310,14 @@ export default async function Page(props: CategoryPageProps) {
               className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
               href={localizePath("/", lang)}
             >
-              Home
+              {t(lang, "category.breadcrumb.home")}
             </Link>
             <span className="text-[#4c739a] text-sm font-medium">/</span>
             <Link
               className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
               href={localizePath("/catalog", lang)}
             >
-              Reviews
+              {t(lang, "category.breadcrumb.reviews")}
             </Link>
             <span className="text-[#4c739a] text-sm font-medium">/</span>
             <span className="text-[#0d141b] text-sm font-medium">
@@ -316,6 +330,20 @@ export default async function Page(props: CategoryPageProps) {
             </div>
           ) : null}
           <div className="flex flex-col gap-3 pb-6 border-b border-[#e7edf3]">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                className="flex h-9 items-center justify-center rounded-full bg-[#0d141b] text-white px-5 text-sm font-bold"
+                href={localizePath(`/catalog/reviews/${categoryId}`, lang)}
+              >
+                {t(lang, "category.tab.reviews")}
+              </Link>
+              <Link
+                className="flex h-9 items-center justify-center rounded-full bg-white border border-[#e7edf3] px-5 text-sm font-bold text-[#0d141b] hover:border-primary hover:text-primary"
+                href={localizePath(`/catalog/list/${categoryId}`, lang)}
+              >
+                {t(lang, "category.tab.products")}
+              </Link>
+            </div>
             <h1 className="text-[#0d141b] text-4xl font-black leading-tight tracking-[-0.033em]">
               {categoryLabel}
             </h1>
@@ -332,7 +360,7 @@ export default async function Page(props: CategoryPageProps) {
                   }`}
                 href={buildFilterHref()}
               >
-                <p className="text-sm font-bold">All</p>
+                <p className="text-sm font-bold">{t(lang, "category.filter.all")}</p>
               </Link>
               {subcategoryTags.map((tag) => {
                 const isActive = tag.id === subCategoryId;
@@ -364,6 +392,7 @@ export default async function Page(props: CategoryPageProps) {
               pagination={pagination}
               buildHref={buildHref}
               sort={sort}
+              lang={lang}
             />
             <SidebarCategory
               lang={lang}

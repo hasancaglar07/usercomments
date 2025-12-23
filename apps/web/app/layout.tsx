@@ -3,10 +3,10 @@ import { headers } from "next/headers";
 import { isRtlLanguage, normalizeLanguage } from "@/src/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "UserComments.net | Real User Reviews & Honest Product Comments",
-  description: "Read what real people say before you buy. Thousands of user comments and honest experiences on the latest products.",
+  title: "UserReview | Real User Reviews & Honest Product Insights",
+  description: "Read what real people say before you buy. Thousands of user reviews and honest experiences on the latest products.",
   icons: {
-    icon: '/favicon.png',
+    icon: "/favicon.png",
   },
 };
 

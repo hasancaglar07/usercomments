@@ -1,0 +1,213 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import ProductCard from "@/components/cards/ProductCard";
+import ProductSortSelect from "@/components/catalog/ProductSortSelect";
+import EmptyState from "@/components/ui/EmptyState";
+import { PaginationCatalog } from "@/components/ui/Pagination";
+import type { Category } from "@/src/types";
+import { getCategories, getProducts } from "@/src/lib/api";
+import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
+import { formatNumber, getCategoryLabel } from "@/src/lib/review-utils";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
+
+const DEFAULT_PAGE_SIZE = 12;
+const SORT_OPTIONS = new Set(["latest", "popular", "rating"]);
+
+type SortValue = "latest" | "popular" | "rating";
+
+type PageProps = {
+  params: Promise<{ lang: string; id: string }>;
+  searchParams?: Promise<{
+    page?: string;
+    pageSize?: string;
+    sort?: string;
+  }>;
+};
+
+function parseNumber(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.floor(parsed);
+}
+
+function parseSort(value?: string): SortValue {
+  const normalized = value?.toLowerCase();
+  if (normalized && SORT_OPTIONS.has(normalized)) {
+    return normalized as SortValue;
+  }
+  return "latest";
+}
+
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  const params = await props.params;
+  const lang = normalizeLanguage(params.lang);
+  const categoryId = Number(params.id);
+  let categoryLabel: string | undefined;
+
+  if (Number.isFinite(categoryId)) {
+    try {
+      const categories = await getCategories(lang);
+      categoryLabel = getCategoryLabel(categories, categoryId);
+    } catch {
+      categoryLabel = undefined;
+    }
+  }
+
+  const title = categoryLabel
+    ? t(lang, "productList.meta.titleWithLabel", { label: categoryLabel })
+    : t(lang, "productList.meta.titleDefault");
+
+  return buildMetadata({
+    title,
+    description: categoryLabel
+      ? t(lang, "productList.meta.descriptionWithLabel", { label: categoryLabel })
+      : t(lang, "productList.meta.descriptionDefault"),
+    path: `/catalog/list/${params.id}`,
+    lang,
+    type: "website",
+  });
+}
+
+export default async function Page(props: PageProps) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const lang = normalizeLanguage(params.lang);
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
+  const categoryId = Number(params.id);
+
+  const [categories, productsResult] = await Promise.all([
+    getCategories(lang),
+    getProducts(page, pageSize, sort, categoryId, lang),
+  ]);
+
+  const categoryLabel =
+    getCategoryLabel(categories, categoryId) ?? t(lang, "category.fallback.label");
+  const basePath = localizePath(`/catalog/list/${categoryId}`, lang);
+  const buildHref = (nextPage: number) => {
+    const params = new URLSearchParams();
+    if (nextPage > 1) {
+      params.set("page", String(nextPage));
+    }
+    if (pageSize !== DEFAULT_PAGE_SIZE) {
+      params.set("pageSize", String(pageSize));
+    }
+    if (sort !== "latest") {
+      params.set("sort", sort);
+    }
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+  };
+
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: t(lang, "productList.meta.titleWithLabel", { label: categoryLabel }),
+    itemListOrder: "https://schema.org/ItemListOrderDescending",
+    numberOfItems: productsResult.items.length,
+    itemListElement: productsResult.items.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: toAbsoluteUrl(localizePath(`/products/${product.slug}`, lang)),
+    })),
+  };
+
+  return (
+    <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
+      <div className="layout-content-container flex flex-col max-w-6xl w-full gap-6">
+        <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
+        <div className="flex flex-wrap gap-2 pb-4">
+          <Link
+            className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
+            href={localizePath("/", lang)}
+          >
+            {t(lang, "category.breadcrumb.home")}
+          </Link>
+          <span className="text-[#4c739a] text-sm font-medium">/</span>
+          <Link
+            className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
+            href={localizePath("/catalog", lang)}
+          >
+            {t(lang, "category.breadcrumb.reviews")}
+          </Link>
+          <span className="text-[#4c739a] text-sm font-medium">/</span>
+          <span className="text-[#0d141b] text-sm font-medium">
+            {categoryLabel}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3 pb-6 border-b border-[#e7edf3]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-[#0d141b] text-4xl font-black leading-tight tracking-[-0.033em]">
+              {t(lang, "productList.headingWithLabel", { label: categoryLabel })}
+            </h1>
+            <div className="flex items-center gap-2">
+              <Link
+                className="flex h-9 items-center justify-center rounded-full bg-[#0d141b] text-white px-5 text-sm font-bold"
+                href={localizePath(`/catalog/list/${categoryId}`, lang)}
+              >
+                {t(lang, "category.tab.products")}
+              </Link>
+              <Link
+                className="flex h-9 items-center justify-center rounded-full bg-white border border-[#e7edf3] px-5 text-sm font-bold text-[#0d141b] hover:border-primary hover:text-primary"
+                href={localizePath(`/catalog/reviews/${categoryId}`, lang)}
+              >
+                {t(lang, "category.tab.reviews")}
+              </Link>
+            </div>
+          </div>
+          <p className="text-[#4c739a] text-lg font-normal max-w-3xl">
+            {t(lang, "productList.subtitle", { label: categoryLabel })}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {t(lang, "productList.countLabel", {
+              count: formatNumber(
+                productsResult.pageInfo.totalItems ?? productsResult.items.length,
+                lang
+              ),
+            })}
+          </p>
+          <div className="flex items-center gap-2 text-sm text-[#4c739a]">
+            <span>{t(lang, "productList.sortBy")}</span>
+            <Suspense fallback={null}>
+              <ProductSortSelect sort={sort} />
+            </Suspense>
+          </div>
+        </div>
+
+        {productsResult.items.length > 0 ? (
+          <div className="space-y-4">
+            {productsResult.items.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                lang={lang}
+                categoryLabel={categoryLabel}
+              />
+            ))}
+            <PaginationCatalog
+              pagination={productsResult.pageInfo}
+              buildHref={buildHref}
+              lang={lang}
+            />
+          </div>
+        ) : (
+          <EmptyState
+            title={t(lang, "productList.empty.title")}
+            description={t(lang, "productList.empty.description")}
+            ctaLabel={t(lang, "productList.empty.cta")}
+            authenticatedHref="/node/add/review"
+          />
+        )}
+      </div>
+    </main>
+  );
+}

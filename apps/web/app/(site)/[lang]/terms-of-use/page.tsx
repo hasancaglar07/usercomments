@@ -344,7 +344,7 @@ export async function generateMetadata(
     const lang = normalizeLanguage(params.lang);
     return buildMetadata({
         title: "Terms of Use",
-        description: "Review the terms and conditions for using UserComments.net.",
+        description: "Review the terms and conditions for using UserReview.",
         path: "/terms-of-use",
         lang,
         type: "website",

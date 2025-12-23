@@ -5,6 +5,7 @@ import { DEFAULT_LANGUAGE, isSupportedLanguage, type SupportedLanguage } from ".
 import { buildPaginationInfo } from "../utils/pagination";
 import { slugify } from "../utils/slug";
 import { mapCommentRow, mapReviewRow } from "./mappers";
+import { attachProductImage, findOrCreateProduct } from "./products";
 
 type ReviewSort = "latest" | "popular" | "rating";
 
@@ -22,6 +23,7 @@ type DbReviewTranslationRow = {
   lang: string;
   slug: string;
   title?: string | null;
+  excerpt?: string | null;
   content_html?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
@@ -42,8 +44,12 @@ type DbReviewRow = {
   photo_urls?: unknown;
   photo_count?: number | string | null;
   comment_count?: number | string | null;
+  recommend?: boolean | null;
+  pros?: unknown;
+  cons?: unknown;
   category_id?: number | string | null;
   sub_category_id?: number | string | null;
+  product_id?: string | null;
   created_at: string;
   profiles?:
     | {
@@ -53,6 +59,18 @@ type DbReviewRow = {
     | {
         username: string | null;
         profile_pic_url: string | null;
+      }[]
+    | null;
+  products?:
+    | {
+        id: string | null;
+        slug: string | null;
+        name: string | null;
+      }
+    | {
+        id: string | null;
+        slug: string | null;
+        name: string | null;
       }[]
     | null;
 };
@@ -77,10 +95,15 @@ const reviewListSelect = `
   photo_urls,
   photo_count,
   comment_count,
+  recommend,
+  pros,
+  cons,
   category_id,
   sub_category_id,
+  product_id,
   created_at,
-  profiles(username, profile_pic_url)
+  profiles(username, profile_pic_url),
+  products(id, slug, name)
 `;
 
 const reviewDetailSelect = `
@@ -94,6 +117,7 @@ const reviewTranslationSelect = `
     lang,
     slug,
     title,
+    excerpt,
     content_html,
     meta_title,
     meta_description
@@ -112,8 +136,15 @@ type CreateReviewPayload = {
   rating: number;
   categoryId: number;
   subCategoryId?: number | null;
+  productId?: string | null;
+  productName?: string | null;
+  pros?: string[];
+  cons?: string[];
+  recommend?: boolean;
   photoUrls: string[];
+  productPhotoUrl?: string | null;
   userId: string;
+  lang: SupportedLanguage;
 };
 
 export async function fetchPopularReviews(
@@ -175,13 +206,15 @@ export async function fetchReviews(
     lang: SupportedLanguage;
     categoryId?: number;
     subCategoryId?: number;
+    productId?: string;
     sort: ReviewSort;
     page: number;
     pageSize: number;
   }
 ): Promise<ReviewListResult> {
   const supabase = getSupabaseClient(env);
-  const { categoryId, subCategoryId, sort, page, pageSize, lang } = options;
+  const { categoryId, subCategoryId, productId, sort, page, pageSize, lang } =
+    options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -196,6 +229,10 @@ export async function fetchReviews(
 
   if (subCategoryId) {
     query = query.eq("sub_category_id", subCategoryId);
+  }
+
+  if (productId) {
+    query = query.eq("product_id", productId);
   }
 
   switch (sort) {
@@ -238,6 +275,7 @@ export async function fetchReviewBySlug(
     lang,
     slug,
     title,
+    excerpt,
     content_html,
     meta_title,
     meta_description,
@@ -334,6 +372,7 @@ export async function fetchReviewBySlug(
         lang: translation.lang,
         slug: translation.slug,
         title: translation.title,
+        excerpt: translation.excerpt ?? null,
         content_html: translation.content_html ?? null,
         meta_title: translation.meta_title ?? null,
         meta_description: translation.meta_description ?? null,
@@ -360,6 +399,9 @@ export async function fetchReviewMetaById(
 ): Promise<{
   slug: string;
   categoryId: number | null;
+  productId?: string | null;
+  productSlug?: string | null;
+  productTranslations?: { lang: string; slug: string }[];
   status: string;
   authorUsername?: string | null;
   translations?: { lang: string; slug: string }[];
@@ -367,7 +409,9 @@ export async function fetchReviewMetaById(
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("reviews")
-    .select("slug, category_id, status, profiles(username), review_translations(lang, slug)")
+    .select(
+      "slug, category_id, status, product_id, profiles(username), review_translations(lang, slug), products(slug, product_translations(lang, slug))"
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -388,10 +432,27 @@ export async function fetchReviewMetaById(
   const defaultTranslation = translations.find(
     (translation) => translation.lang === DEFAULT_LANGUAGE
   );
+  const productRelation = Array.isArray(data.products)
+    ? data.products[0]
+    : data.products;
+  const productTranslations = Array.isArray(productRelation?.product_translations)
+    ? productRelation.product_translations.filter(
+        (item: { lang?: string; slug?: string }): item is {
+          lang: string;
+          slug: string;
+        } => Boolean(item?.lang && item?.slug && isSupportedLanguage(item.lang))
+      )
+    : [];
+  const defaultProductTranslation = productTranslations.find(
+    (translation) => translation.lang === DEFAULT_LANGUAGE
+  );
 
   return {
     slug: defaultTranslation?.slug ?? data.slug,
     categoryId: data.category_id ?? null,
+    productId: data.product_id ?? null,
+    productSlug: defaultProductTranslation?.slug ?? productRelation?.slug ?? null,
+    productTranslations: productTranslations.length > 0 ? productTranslations : undefined,
     status: data.status ?? "published",
     authorUsername: Array.isArray(data.profiles)
       ? data.profiles[0]?.username ?? null
@@ -468,6 +529,26 @@ export async function createReview(
   const supabase = getSupabaseClient(env);
   const baseSlug = slugify(payload.title) || `review-${Date.now()}`;
   const slug = await ensureUniqueSlug(env, baseSlug);
+  let productId = payload.productId ?? null;
+  let isNewProduct = false;
+
+  if (!productId && payload.productName) {
+    const match = await findOrCreateProduct(env, {
+      name: payload.productName,
+      lang: payload.lang,
+      status: "published",
+      categoryIds: [
+        payload.categoryId,
+        ...(payload.subCategoryId ? [payload.subCategoryId] : []),
+      ],
+    });
+    productId = match?.productId ?? null;
+    isNewProduct = match?.isNew ?? false;
+  }
+
+  if (!productId) {
+    throw new Error("Product selection is required.");
+  }
 
   const { data, error } = await supabase
     .from("reviews")
@@ -480,10 +561,14 @@ export async function createReview(
       rating_count: 1,
       votes_up: 0,
       votes_down: 0,
+      recommend: payload.recommend ?? null,
+      pros: payload.pros ?? null,
+      cons: payload.cons ?? null,
       photo_urls: payload.photoUrls,
       photo_count: payload.photoUrls.length,
       category_id: payload.categoryId,
       sub_category_id: payload.subCategoryId ?? null,
+      product_id: productId,
       user_id: payload.userId,
       source: "user",
       status: "pending",
@@ -493,6 +578,70 @@ export async function createReview(
 
   if (error || !data) {
     throw error;
+  }
+
+  const { error: translationError } = await supabase
+    .from("review_translations")
+    .insert({
+      review_id: data.id,
+      lang: payload.lang,
+      slug,
+      title: payload.title,
+      excerpt: payload.excerpt,
+      content_html: payload.contentHtml,
+    });
+
+  if (translationError) {
+    throw translationError;
+  }
+
+  const categoryIds = [
+    payload.categoryId,
+    ...(payload.subCategoryId ? [payload.subCategoryId] : []),
+  ];
+  if (categoryIds.length > 0) {
+    const { error: categoryError } = await supabase
+      .from("product_categories")
+      .upsert(
+        categoryIds.map((categoryId) => ({
+          product_id: productId,
+          category_id: categoryId,
+        })),
+        { onConflict: "product_id,category_id" }
+      );
+    if (categoryError) {
+      throw categoryError;
+    }
+  }
+
+  if (payload.productPhotoUrl) {
+    if (isNewProduct) {
+      await attachProductImage(env, {
+        productId,
+        url: payload.productPhotoUrl,
+        sortOrder: 0,
+        userId: payload.userId,
+      });
+    } else {
+      const { data: existingImages, error: imageError } = await supabase
+        .from("product_images")
+        .select("id")
+        .eq("product_id", productId)
+        .limit(1);
+
+      if (imageError) {
+        throw imageError;
+      }
+
+      if (!existingImages || existingImages.length === 0) {
+        await attachProductImage(env, {
+          productId,
+          url: payload.productPhotoUrl,
+          sortOrder: 0,
+          userId: payload.userId,
+        });
+      }
+    }
   }
 
   return data;
@@ -732,7 +881,9 @@ async function fetchReviewTranslationMap(
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("review_translations")
-    .select("review_id, lang, slug, title, content_html, meta_title, meta_description")
+    .select(
+      "review_id, lang, slug, title, excerpt, content_html, meta_title, meta_description"
+    )
     .in("review_id", reviewIds)
     .eq("lang", lang);
 
@@ -747,6 +898,7 @@ async function fetchReviewTranslationMap(
       lang: translation.lang,
       slug: translation.slug,
       title: translation.title,
+      excerpt: translation.excerpt ?? null,
       content_html: translation.content_html ?? null,
       meta_title: translation.meta_title ?? null,
       meta_description: translation.meta_description ?? null,
@@ -828,18 +980,30 @@ async function ensureUniqueSlug(
 
   // eslint-disable-next-line no-constant-condition -- intentional loop until slug is unique
   while (true) {
-    const { data, error } = await supabase
-      .from("reviews")
-      .select("id")
+    const { data: translation, error: translationError } = await supabase
+      .from("review_translations")
+      .select("review_id")
       .eq("slug", candidate)
       .maybeSingle();
 
-    if (error) {
-      throw error;
+    if (translationError) {
+      throw translationError;
     }
 
-    if (!data) {
-      return candidate;
+    if (!translation) {
+      const { data: review, error: reviewError } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("slug", candidate)
+        .maybeSingle();
+
+      if (reviewError) {
+        throw reviewError;
+      }
+
+      if (!review) {
+        return candidate;
+      }
     }
 
     suffix += 1;

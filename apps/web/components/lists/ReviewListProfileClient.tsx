@@ -23,6 +23,7 @@ import { getUserComments } from "@/src/lib/api";
 import { getProfile, getUserDrafts, getUserSaved } from "@/src/lib/api-client";
 import { ensureAuthLoaded, getAccessToken, getCurrentUser } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type ProfileTab = "reviews" | "drafts" | "comments" | "saved";
 
@@ -50,16 +51,19 @@ function buildProfileCards(
   categories: Category[],
   lang: string
 ): ReviewCardProfileData[] {
+  const resolvedLang = normalizeLanguage(lang);
   return reviews.map((review, index) => ({
     review,
     href: localizePath(`/content/${review.slug}`, lang),
-    dateLabel: formatRelativeTime(review.createdAt),
+    dateLabel: formatRelativeTime(review.createdAt, resolvedLang),
     ratingStars: buildRatingStars(review.ratingAvg),
     imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
     imageAlt: review.title,
-    tagLabel: getCategoryLabel(categories, review.categoryId) ?? "General",
-    likesLabel: formatCompactNumber(review.votesUp ?? 0),
-    commentsLabel: formatCompactNumber(review.commentCount ?? 0),
+    tagLabel:
+      getCategoryLabel(categories, review.categoryId) ??
+      t(resolvedLang, "common.general"),
+    likesLabel: formatCompactNumber(review.votesUp ?? 0, resolvedLang),
+    commentsLabel: formatCompactNumber(review.commentCount ?? 0, resolvedLang),
   }));
 }
 
@@ -94,31 +98,31 @@ export default function ReviewListProfileClient({
   const emptyState = useMemo(() => {
     if (activeTab === "reviews") {
       return {
-        title: "No reviews yet",
-        description: "Share your first review and start your profile.",
-        ctaLabel: "Write first review",
+        title: t(lang, "reviewList.profile.empty.reviews.title"),
+        description: t(lang, "reviewList.profile.empty.reviews.description"),
+        ctaLabel: t(lang, "reviewList.profile.empty.reviews.cta"),
       };
     }
     if (activeTab === "drafts") {
       return {
-        title: "No drafts yet",
-        description: "Start a draft to share your experience later.",
-        ctaLabel: "Write review",
+        title: t(lang, "reviewList.profile.empty.drafts.title"),
+        description: t(lang, "reviewList.profile.empty.drafts.description"),
+        ctaLabel: t(lang, "reviewList.profile.empty.drafts.cta"),
       };
     }
     if (activeTab === "comments") {
       return {
-        title: "No comments yet",
-        description: "Write a review to start a conversation.",
-        ctaLabel: "Write review",
+        title: t(lang, "reviewList.profile.empty.comments.title"),
+        description: t(lang, "reviewList.profile.empty.comments.description"),
+        ctaLabel: t(lang, "reviewList.profile.empty.comments.cta"),
       };
     }
     return {
-      title: "No saved items",
-      description: "Save items for later access.",
-      ctaLabel: "Write review",
+      title: t(lang, "reviewList.profile.empty.saved.title"),
+      description: t(lang, "reviewList.profile.empty.saved.description"),
+      ctaLabel: t(lang, "reviewList.profile.empty.saved.cta"),
     };
-  }, [activeTab]);
+  }, [activeTab, lang]);
 
   useEffect(() => {
     let isMounted = true;
@@ -189,7 +193,7 @@ export default function ReviewListProfileClient({
           setLoading(false);
           setCards([]);
           setPagination({ page, pageSize, totalPages: 1, totalItems: 0 });
-          setErrorMessage("This tab is only available to the profile owner.");
+          setErrorMessage(t(lang, "profileClient.error.ownerOnly"));
           return;
         }
 
@@ -205,15 +209,15 @@ export default function ReviewListProfileClient({
                 totalPages: 1,
                 totalItems: 0,
               });
-              setErrorMessage("Taslaklar icin giris yapmalisiniz.");
+              setErrorMessage(t(lang, "profileClient.error.signInRequired"));
             }
             return;
           }
 
           const result =
             activeTab === "drafts"
-              ? await getUserDrafts(username, page, pageSize)
-              : await getUserSaved(username, page, pageSize);
+              ? await getUserDrafts(username, page, pageSize, lang)
+              : await getUserSaved(username, page, pageSize, lang);
           if (!isMounted) {
             return;
           }
@@ -226,7 +230,7 @@ export default function ReviewListProfileClient({
           console.error("Failed to load profile tab data", error);
           setCards([]);
           setPagination({ page, pageSize, totalPages: 1, totalItems: 0 });
-          setErrorMessage("This tab data could not be loaded.");
+          setErrorMessage(t(lang, "profileClient.error.loadFailed"));
         } finally {
           if (isMounted) {
             setLoading(false);
@@ -251,7 +255,7 @@ export default function ReviewListProfileClient({
           console.error("Failed to load comments tab", error);
           setCards([]);
           setPagination({ page, pageSize, totalPages: 1, totalItems: 0 });
-          setErrorMessage("Comments could not be loaded.");
+          setErrorMessage(t(lang, "profileClient.error.commentsFailed"));
         } finally {
           if (isMounted) {
             setLoading(false);
@@ -296,7 +300,7 @@ export default function ReviewListProfileClient({
     return `?${params.toString()}`;
   };
 
-  const reviewCountLabel = formatCompactNumber(reviewCount);
+  const reviewCountLabel = formatCompactNumber(reviewCount, lang);
   const restrictedTabs = ownerResolved && !isOwner;
   const handleRestrictedTabClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!restrictedTabs) {
@@ -304,7 +308,7 @@ export default function ReviewListProfileClient({
     }
     event.preventDefault();
     setLoading(false);
-    setErrorMessage("This tab is only available to the profile owner.");
+    setErrorMessage(t(lang, "profileClient.error.ownerOnly"));
     setCards([]);
     setPagination({ page, pageSize, totalPages: 1, totalItems: 0 });
   };
@@ -318,7 +322,7 @@ export default function ReviewListProfileClient({
             href={tabHrefs.reviews}
           >
             <p className="text-sm font-bold tracking-wide">
-              Reviews ({reviewCountLabel})
+              {t(lang, "reviewList.profile.tab.reviews", { count: reviewCountLabel })}
             </p>
           </Link>
           <Link
@@ -327,13 +331,17 @@ export default function ReviewListProfileClient({
             aria-disabled={restrictedTabs}
             onClick={handleRestrictedTabClick}
           >
-            <p className="text-sm font-bold tracking-wide">Drafts</p>
+            <p className="text-sm font-bold tracking-wide">
+              {t(lang, "reviewList.profile.tab.drafts")}
+            </p>
           </Link>
           <Link
             className={activeTab === "comments" ? activeTabClass : inactiveTabClass}
             href={tabHrefs.comments}
           >
-            <p className="text-sm font-bold tracking-wide">Comments</p>
+            <p className="text-sm font-bold tracking-wide">
+              {t(lang, "reviewList.profile.tab.comments")}
+            </p>
           </Link>
           <Link
             className={activeTab === "saved" ? activeTabClass : inactiveTabClass}
@@ -341,7 +349,9 @@ export default function ReviewListProfileClient({
             aria-disabled={restrictedTabs}
             onClick={handleRestrictedTabClick}
           >
-            <p className="text-sm font-bold tracking-wide">Saved Items</p>
+            <p className="text-sm font-bold tracking-wide">
+              {t(lang, "reviewList.profile.tab.saved")}
+            </p>
           </Link>
         </div>
       </div>
@@ -354,7 +364,7 @@ export default function ReviewListProfileClient({
 
       {loading ? (
         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500 dark:text-slate-400">
-          Loading...
+          {t(lang, "profileClient.loading")}
         </div>
       ) : cards.length > 0 ? (
         cards.map((card, index) => (
@@ -365,6 +375,7 @@ export default function ReviewListProfileClient({
             onReport={onReviewReport}
             onShare={onReviewShare}
             onVote={onReviewVote}
+            lang={lang}
           />
         ))
       ) : (

@@ -13,6 +13,7 @@ export type CatalogSortOption = {
 export type CatalogCategoryPill = {
   label: string;
   id?: number;
+  isAll?: boolean;
 };
 
 type CatalogSortSelectProps = {
@@ -84,7 +85,7 @@ export function CatalogCategoryChips({
   return (
     <div className="flex flex-wrap gap-2 pb-2">
       {pills.map((pill) => {
-        const isAll = !pill.id && pill.label === "All";
+        const isAll = Boolean(pill.isAll);
         const isActive = isAll ? !categoryId : pill.id === categoryId;
 
         const params = new URLSearchParams(searchParams.toString());

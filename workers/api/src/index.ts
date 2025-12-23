@@ -11,7 +11,9 @@ import {
 import {
   createCategory,
   fetchCategories,
+  fetchCategoryTranslations,
   fetchSubcategories,
+  upsertCategoryTranslations,
   updateCategory,
 } from "./services/categories";
 import {
@@ -30,6 +32,17 @@ import {
   fetchSavedReviews,
   incrementReviewViews,
 } from "./services/reviews";
+import {
+  createAdminProduct,
+  fetchAdminProductDetail,
+  fetchAdminProducts,
+  fetchProductBySlug,
+  fetchProductTranslations,
+  fetchProducts,
+  searchProducts,
+  upsertProductTranslations,
+  updateAdminProduct,
+} from "./services/products";
 import { searchReviews } from "./services/search";
 import { fetchUserProfileRecord } from "./services/users";
 import { createPresignedUploadUrl } from "./services/uploads";
@@ -59,12 +72,23 @@ import {
 } from "./services/moderation";
 import {
   fetchSitemapCategories,
+  fetchSitemapProductCount,
+  fetchSitemapProducts,
   fetchSitemapReviewCount,
   fetchSitemapReviews,
 } from "./services/sitemap";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage } from "./utils/i18n";
+import type { UploadHealth } from "./types";
 
 const MAX_SITEMAP_PAGE_SIZE = 50000;
+const R2_ENV_KEYS = [
+  "R2_ENDPOINT",
+  "R2_REGION",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+  "R2_PUBLIC_BASE_URL",
+] as const;
 
 class HttpError extends Error {
   status: number;
@@ -114,6 +138,22 @@ const langSchema = z
   .optional()
   .transform((value) => normalizeLanguage(value));
 
+const supportedLangSchema = z.enum(SUPPORTED_LANGUAGES);
+
+function buildUploadHealth(env: ParsedEnv): UploadHealth {
+  const missing = R2_ENV_KEYS.filter((key) => !env[key]);
+  const configured = missing.length === 0;
+  return {
+    ok: configured,
+    checks: {
+      r2: {
+        configured,
+        missing,
+      },
+    },
+  };
+}
+
 const cursorSchema = z
   .string()
   .optional()
@@ -146,11 +186,50 @@ const listQuerySchema = z.object({
   lang: langSchema,
 });
 
+const productListQuerySchema = z.object({
+  categoryId: z.coerce.number().int().positive().optional(),
+  sort: z.enum(["latest", "popular", "rating"]).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
+});
+
+const productReviewQuerySchema = z.object({
+  sort: z.enum(["latest", "popular", "rating"]).optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
+});
+
+const productSearchQuerySchema = z.object({
+  q: z.string().min(1),
+  limit: z.coerce.number().int().positive().max(20).default(8),
+  includePending: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
+  lang: langSchema,
+});
+
 const slugParamSchema = z.object({
   slug: z.string().min(1),
 });
 
 const reviewIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const productIdParamSchema = z.object({
   id: z.string().uuid(),
 });
 
@@ -167,15 +246,26 @@ const commentQuerySchema = z.object({
   limit: limitSchema,
 });
 
-const createReviewSchema = z.object({
-  title: z.string().min(3),
-  excerpt: z.string().min(10),
-  contentHtml: z.string().min(10),
-  rating: z.number().min(0).max(5),
-  categoryId: z.number().int().positive(),
-  subCategoryId: z.number().int().positive().optional(),
-  photoUrls: z.array(z.string().url()).default([]),
-});
+const createReviewSchema = z
+  .object({
+    title: z.string().min(3),
+    excerpt: z.string().min(10),
+    contentHtml: z.string().min(10),
+    rating: z.number().min(0).max(5),
+    recommend: z.boolean().optional(),
+    pros: z.array(z.string().min(1)).max(20).optional(),
+    cons: z.array(z.string().min(1)).max(20).optional(),
+    categoryId: z.number().int().positive(),
+    subCategoryId: z.number().int().positive().optional(),
+    productId: z.string().uuid().optional(),
+    productName: z.string().min(2).optional(),
+    photoUrls: z.array(z.string().url()).default([]),
+    productPhotoUrl: z.string().url().optional(),
+    lang: langSchema,
+  })
+  .refine((value) => value.productId || value.productName, {
+    message: "Product selection is required.",
+  });
 
 const createCommentSchema = z.object({
   text: z.string().min(1).max(2000),
@@ -209,6 +299,13 @@ const reviewStatusSchema = z.object({
   status: z.enum(["published", "hidden", "deleted", "pending", "draft"]),
 });
 
+const productStatusSchema = z.enum([
+  "published",
+  "hidden",
+  "deleted",
+  "pending",
+]);
+
 const commentStatusSchema = z.object({
   status: z.enum(["published", "hidden", "deleted"]),
 });
@@ -226,6 +323,70 @@ const adminReviewQuerySchema = z.object({
     .positive()
     .max(MAX_PAGE_SIZE)
     .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
+});
+
+const adminProductQuerySchema = z.object({
+  status: productStatusSchema.optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
+});
+
+const adminProductCreateSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(2000).optional().nullable(),
+  status: productStatusSchema.optional(),
+  brandId: z.string().uuid().optional().nullable(),
+  categoryIds: z.array(z.coerce.number().int().positive()).max(50).optional(),
+  imageUrls: z.array(z.string().url()).max(20).optional(),
+});
+
+const adminProductUpdateSchema = z
+  .object({
+    name: z.string().trim().min(2).max(160).optional(),
+    description: z.string().trim().max(2000).optional().nullable(),
+    status: productStatusSchema.optional(),
+    brandId: z.string().uuid().optional().nullable(),
+    categoryIds: z.array(z.coerce.number().int().positive()).max(50).optional().nullable(),
+    imageUrls: z.array(z.string().url()).max(20).optional().nullable(),
+  })
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.description !== undefined ||
+      value.status !== undefined ||
+      value.brandId !== undefined ||
+      value.categoryIds !== undefined ||
+      value.imageUrls !== undefined,
+    "At least one field is required."
+  );
+
+const categoryTranslationSchema = z.object({
+  lang: supportedLangSchema,
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().optional().nullable(),
+});
+
+const categoryTranslationsSchema = z.object({
+  translations: z.array(categoryTranslationSchema).min(1),
+});
+
+const productTranslationSchema = z.object({
+  lang: supportedLangSchema,
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(2000).optional().nullable(),
+  metaTitle: z.string().trim().max(160).optional().nullable(),
+  metaDescription: z.string().trim().max(300).optional().nullable(),
+});
+
+const productTranslationsSchema = z.object({
+  translations: z.array(productTranslationSchema).min(1),
 });
 
 const adminReviewUpdateSchema = z
@@ -234,8 +395,12 @@ const adminReviewUpdateSchema = z
     excerpt: z.string().trim().min(10).max(300).optional(),
     contentHtml: z.string().min(10).optional(),
     photoUrls: z.array(z.string().url()).optional(),
+    recommend: z.boolean().optional(),
+    pros: z.array(z.string().min(1)).max(20).optional(),
+    cons: z.array(z.string().min(1)).max(20).optional(),
     categoryId: z.coerce.number().int().positive().optional(),
     subCategoryId: z.coerce.number().int().positive().nullable().optional(),
+    productId: z.string().uuid().nullable().optional(),
   })
   .refine(
     (value) =>
@@ -243,8 +408,12 @@ const adminReviewUpdateSchema = z
       value.excerpt !== undefined ||
       value.contentHtml !== undefined ||
       value.photoUrls !== undefined ||
+      value.recommend !== undefined ||
+      value.pros !== undefined ||
+      value.cons !== undefined ||
       value.categoryId !== undefined ||
-      value.subCategoryId !== undefined,
+      value.subCategoryId !== undefined ||
+      value.productId !== undefined,
     "At least one field is required."
   );
 
@@ -494,6 +663,7 @@ function buildSitemapIndex(urls: string[]): string {
 
 const POPULAR_LIMITS = [3, 4, 6];
 const LATEST_LIMITS = [3];
+const PRODUCT_SORTS = ["latest", "popular", "rating"] as const;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE_CACHE = 10;
 
@@ -510,11 +680,24 @@ function buildReviewCacheUrls(options: {
   slug?: string;
   reviewId?: string;
   categoryId?: number | null;
+  productId?: string | null;
+  productSlug?: string | null;
+  productTranslations?: { lang: string; slug: string }[];
   authorUsername?: string | null;
   translations?: { lang: string; slug: string }[];
 }): string[] {
   const urls: string[] = [];
-  const { origin, slug, reviewId, categoryId, authorUsername, translations } = options;
+  const {
+    origin,
+    slug,
+    reviewId,
+    categoryId,
+    productId,
+    productSlug,
+    productTranslations,
+    authorUsername,
+    translations,
+  } = options;
   const languageSet = SUPPORTED_LANGUAGES;
   const translationEntries =
     translations && translations.length > 0
@@ -522,12 +705,26 @@ function buildReviewCacheUrls(options: {
       : slug
         ? [{ lang: DEFAULT_LANGUAGE, slug }]
         : [];
+  const productTranslationEntries =
+    productTranslations && productTranslations.length > 0
+      ? productTranslations
+      : productSlug
+        ? [{ lang: DEFAULT_LANGUAGE, slug: productSlug }]
+        : [];
 
   translationEntries.forEach((entry) => {
     const params = new URLSearchParams({ lang: entry.lang });
     urls.push(buildApiUrl(origin, `/api/reviews/slug/${entry.slug}`, params));
     if (entry.lang === DEFAULT_LANGUAGE) {
       urls.push(buildApiUrl(origin, `/api/reviews/slug/${entry.slug}`));
+    }
+  });
+
+  productTranslationEntries.forEach((entry) => {
+    const params = new URLSearchParams({ lang: entry.lang });
+    urls.push(buildApiUrl(origin, `/api/products/slug/${entry.slug}`, params));
+    if (entry.lang === DEFAULT_LANGUAGE) {
+      urls.push(buildApiUrl(origin, `/api/products/slug/${entry.slug}`));
     }
   });
 
@@ -615,6 +812,61 @@ function buildReviewCacheUrls(options: {
       }
       urls.push(buildApiUrl(origin, `/api/users/${authorUsername}`));
     }
+
+    if (productId) {
+      PRODUCT_SORTS.forEach((sort) => {
+        const params = new URLSearchParams({
+          page: String(DEFAULT_PAGE),
+          pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+          sort,
+          lang,
+        });
+        urls.push(buildApiUrl(origin, `/api/products/${productId}/reviews`, params));
+        if (lang === DEFAULT_LANGUAGE) {
+          const fallbackParams = new URLSearchParams({
+            page: String(DEFAULT_PAGE),
+            pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+            sort,
+          });
+          urls.push(buildApiUrl(origin, `/api/products/${productId}/reviews`, fallbackParams));
+        }
+      });
+    }
+
+    if (productId || productTranslationEntries.length > 0) {
+      PRODUCT_SORTS.forEach((sort) => {
+        const baseParams = new URLSearchParams({
+          page: String(DEFAULT_PAGE),
+          pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+          sort,
+          lang,
+        });
+        urls.push(buildApiUrl(origin, "/api/products", baseParams));
+        if (lang === DEFAULT_LANGUAGE) {
+          const fallbackParams = new URLSearchParams({
+            page: String(DEFAULT_PAGE),
+            pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+            sort,
+          });
+          urls.push(buildApiUrl(origin, "/api/products", fallbackParams));
+        }
+
+        if (categoryId) {
+          const categoryParams = new URLSearchParams(baseParams);
+          categoryParams.set("categoryId", String(categoryId));
+          urls.push(buildApiUrl(origin, "/api/products", categoryParams));
+          if (lang === DEFAULT_LANGUAGE) {
+            const fallbackCategoryParams = new URLSearchParams({
+              page: String(DEFAULT_PAGE),
+              pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+              sort,
+              categoryId: String(categoryId),
+            });
+            urls.push(buildApiUrl(origin, "/api/products", fallbackCategoryParams));
+          }
+        }
+      });
+    }
   });
 
   return urls;
@@ -636,6 +888,98 @@ function buildCategoryCacheUrls(origin: string, parentId?: number | null): strin
       }
     }
   });
+  return urls;
+}
+
+function buildProductCacheUrls(options: {
+  origin: string;
+  productId?: string | null;
+  productSlug?: string | null;
+  productTranslations?: { lang: string; slug: string }[];
+  categoryIds?: number[] | null;
+}): string[] {
+  const {
+    origin,
+    productId,
+    productSlug,
+    productTranslations,
+    categoryIds,
+  } = options;
+  const urls: string[] = [];
+  const translationEntries =
+    productTranslations && productTranslations.length > 0
+      ? productTranslations
+      : productSlug
+        ? [{ lang: DEFAULT_LANGUAGE, slug: productSlug }]
+        : [];
+
+  translationEntries.forEach((entry) => {
+    const params = new URLSearchParams({ lang: entry.lang });
+    urls.push(buildApiUrl(origin, `/api/products/slug/${entry.slug}`, params));
+    if (entry.lang === DEFAULT_LANGUAGE) {
+      urls.push(buildApiUrl(origin, `/api/products/slug/${entry.slug}`));
+    }
+  });
+
+  SUPPORTED_LANGUAGES.forEach((lang) => {
+    PRODUCT_SORTS.forEach((sort) => {
+      const baseParams = new URLSearchParams({
+        page: String(DEFAULT_PAGE),
+        pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+        sort,
+        lang,
+      });
+      urls.push(buildApiUrl(origin, "/api/products", baseParams));
+      if (lang === DEFAULT_LANGUAGE) {
+        const fallbackParams = new URLSearchParams({
+          page: String(DEFAULT_PAGE),
+          pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+          sort,
+        });
+        urls.push(buildApiUrl(origin, "/api/products", fallbackParams));
+      }
+
+      if (categoryIds && categoryIds.length > 0) {
+        categoryIds.forEach((categoryId) => {
+          const categoryParams = new URLSearchParams(baseParams);
+          categoryParams.set("categoryId", String(categoryId));
+          urls.push(buildApiUrl(origin, "/api/products", categoryParams));
+          if (lang === DEFAULT_LANGUAGE) {
+            const fallbackCategoryParams = new URLSearchParams({
+              page: String(DEFAULT_PAGE),
+              pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+              sort,
+              categoryId: String(categoryId),
+            });
+            urls.push(buildApiUrl(origin, "/api/products", fallbackCategoryParams));
+          }
+        });
+      }
+    });
+
+    if (productId) {
+      PRODUCT_SORTS.forEach((sort) => {
+        const reviewParams = new URLSearchParams({
+          page: String(DEFAULT_PAGE),
+          pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+          sort,
+          lang,
+        });
+        urls.push(buildApiUrl(origin, `/api/products/${productId}/reviews`, reviewParams));
+        if (lang === DEFAULT_LANGUAGE) {
+          const fallbackReviewParams = new URLSearchParams({
+            page: String(DEFAULT_PAGE),
+            pageSize: String(DEFAULT_PAGE_SIZE_CACHE),
+            sort,
+          });
+          urls.push(
+            buildApiUrl(origin, `/api/products/${productId}/reviews`, fallbackReviewParams)
+          );
+        }
+      });
+    }
+  });
+
   return urls;
 }
 
@@ -706,6 +1050,56 @@ async function handleReviewsList({ env, url }: HandlerContext): Promise<Response
   return jsonResponse(result);
 }
 
+async function handleProductsList({ env, url }: HandlerContext): Promise<Response> {
+  const { categoryId, sort, page, pageSize, lang } = productListQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchProducts(env, {
+    categoryId,
+    sort: sort ?? "latest",
+    page,
+    pageSize,
+    lang,
+  });
+  return jsonResponse(result);
+}
+
+async function handleProductBySlug({ env, params, url }: HandlerContext): Promise<Response> {
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const { slug } = slugParamSchema.parse(params);
+  const product = await fetchProductBySlug(env, slug, lang);
+  if (!product) {
+    return errorResponse(404, "Product not found");
+  }
+  return jsonResponse(product);
+}
+
+async function handleProductReviews({ env, params, url }: HandlerContext): Promise<Response> {
+  const { id } = productIdParamSchema.parse(params);
+  const { sort, page, pageSize, lang } = productReviewQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchReviews(env, {
+    productId: id,
+    sort: sort ?? "latest",
+    page,
+    pageSize,
+    lang,
+  });
+  return jsonResponse(result);
+}
+
+async function handleProductSearch({ env, url }: HandlerContext): Promise<Response> {
+  const { q, limit, includePending, lang } = productSearchQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const items = await searchProducts(env, { q, limit, lang, includePending });
+  return jsonResponse({
+    items,
+    pageInfo: buildPaginationInfo(1, items.length, items.length),
+  });
+}
+
 async function handleReviewBySlug({ env, params, url }: HandlerContext): Promise<Response> {
   const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
   const { slug } = slugParamSchema.parse(params);
@@ -753,10 +1147,17 @@ async function handleCreateReview({ env, request }: HandlerContext): Promise<Res
     excerpt: payload.excerpt,
     contentHtml: payload.contentHtml,
     rating: payload.rating,
+    recommend: payload.recommend ?? undefined,
+    pros: payload.pros,
+    cons: payload.cons,
     categoryId: payload.categoryId,
     subCategoryId: payload.subCategoryId ?? null,
+    productId: payload.productId ?? null,
+    productName: payload.productName ?? null,
     photoUrls: payload.photoUrls ?? [],
+    productPhotoUrl: payload.productPhotoUrl ?? null,
     userId: user.id,
+    lang: payload.lang,
   });
   return jsonResponse(result, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
@@ -784,6 +1185,9 @@ async function handleCreateComment({
       slug: meta.slug,
       reviewId: id,
       categoryId: meta.categoryId,
+      productId: meta.productId ?? null,
+      productSlug: meta.productSlug ?? null,
+      productTranslations: meta.productTranslations,
       authorUsername: meta.authorUsername ?? null,
       translations: meta.translations,
     })
@@ -814,15 +1218,18 @@ async function handleVote({
     });
     queueCachePurge(
       ctx,
-    buildReviewCacheUrls({
-      origin: url.origin,
-      slug: meta.slug,
-      reviewId: id,
-      categoryId: meta.categoryId,
-      authorUsername: meta.authorUsername ?? null,
-      translations: meta.translations,
-    })
-  );
+      buildReviewCacheUrls({
+        origin: url.origin,
+        slug: meta.slug,
+        reviewId: id,
+        categoryId: meta.categoryId,
+        productId: meta.productId ?? null,
+        productSlug: meta.productSlug ?? null,
+        productTranslations: meta.productTranslations,
+        authorUsername: meta.authorUsername ?? null,
+        translations: meta.translations,
+      })
+    );
     return jsonResponse(result, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (
@@ -1071,6 +1478,12 @@ async function handleSitemapReviewsJson({ env, url }: HandlerContext): Promise<R
   return jsonResponse(result);
 }
 
+async function handleSitemapProductsJson({ env, url }: HandlerContext): Promise<Response> {
+  const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
+  const result = await fetchSitemapProducts(env, part, pageSize, lang);
+  return jsonResponse(result);
+}
+
 async function handleSitemapCategoriesJson({ env, url }: HandlerContext): Promise<Response> {
   const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
   const result = await fetchSitemapCategories(env, lang);
@@ -1083,10 +1496,15 @@ async function handleSitemapIndexXml({ env, request }: HandlerContext): Promise<
     getQueryObject(new URL(request.url))
   );
   const reviewCount = await fetchSitemapReviewCount(env, lang);
+  const productCount = await fetchSitemapProductCount(env, lang);
   const pageSize = 5000;
   const totalPages = Math.ceil(reviewCount / pageSize);
+  const productPages = Math.ceil(productCount / pageSize);
   const urls = [] as string[];
   urls.push(`${origin}/api/sitemap-categories.xml?lang=${lang}`);
+  for (let part = 1; part <= productPages; part += 1) {
+    urls.push(`${origin}/api/sitemap-products?part=${part}&lang=${lang}`);
+  }
   for (let part = 1; part <= totalPages; part += 1) {
     urls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
   }
@@ -1118,6 +1536,17 @@ async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): P
   const result = await fetchSitemapReviews(env, part, pageSize, lang);
   const urls = result.items.map((item) => ({
     loc: `${origin}/${lang}/content/${item.slug}`,
+    lastmod: item.updatedAt ?? item.createdAt,
+  }));
+  return xmlResponse(buildUrlset(urls));
+}
+
+async function handleSitemapProductsXml({ env, request, url }: HandlerContext): Promise<Response> {
+  const origin = new URL(request.url).origin;
+  const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
+  const result = await fetchSitemapProducts(env, part, pageSize, lang);
+  const urls = result.items.map((item) => ({
+    loc: `${origin}/${lang}/products/${item.slug}`,
     lastmod: item.updatedAt ?? item.createdAt,
   }));
   return xmlResponse(buildUrlset(urls));
@@ -1191,11 +1620,203 @@ async function handleAdminCategoryUpdate({
   return jsonResponse(category, { headers: { "Cache-Control": "no-store" } });
 }
 
+async function handleAdminCategoryTranslations({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { id } = z
+    .object({ id: z.coerce.number().int().positive() })
+    .parse(params);
+
+  if (request.method === "GET") {
+    const items = await fetchCategoryTranslations(env, id);
+    return jsonResponse(
+      { items, pageInfo: buildPaginationInfo(1, items.length, items.length) },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  enforceRateLimit(request, env, user.id);
+  const payload = categoryTranslationsSchema.parse(await readJson(request));
+  const items = await upsertCategoryTranslations(env, id, payload.translations);
+  const categories = await fetchCategories(env, DEFAULT_LANGUAGE);
+  const parentId = categories.find((category) => category.id === id)?.parentId ?? null;
+  queueCachePurge(ctx, buildCategoryCacheUrls(url.origin, parentId));
+  return jsonResponse(
+    { items, pageInfo: buildPaginationInfo(1, items.length, items.length) },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+async function handleAdminUploadHealth({
+  env,
+  request,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const health = buildUploadHealth(env);
+  return jsonResponse(health);
+}
+
+async function handleAdminProducts({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { status, page, pageSize, lang } = adminProductQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchAdminProducts(env, { status, page, pageSize, lang });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminProductDetail({
+  env,
+  request,
+  params,
+  url,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { id } = productIdParamSchema.parse(params);
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const product = await fetchAdminProductDetail(env, id, lang);
+  if (!product) {
+    return errorResponse(404, "Product not found");
+  }
+  return jsonResponse(product, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminProductCreate({
+  env,
+  request,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const payload = adminProductCreateSchema.parse(await readJson(request));
+  const product = await createAdminProduct(
+    env,
+    {
+      name: payload.name,
+      description: payload.description ?? null,
+      status: payload.status,
+      brandId: payload.brandId ?? null,
+      categoryIds: payload.categoryIds,
+      imageUrls: payload.imageUrls,
+    },
+    lang
+  );
+  queueCachePurge(
+    ctx,
+    buildProductCacheUrls({
+      origin: url.origin,
+      productId: product.id,
+      productSlug: product.slug,
+      productTranslations: product.translations,
+      categoryIds: product.categoryIds,
+    })
+  );
+  return jsonResponse(product, { status: 201, headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminProductUpdate({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  enforceRateLimit(request, env, user.id);
+  const { id } = productIdParamSchema.parse(params);
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const payload = adminProductUpdateSchema.parse(await readJson(request));
+  const product = await updateAdminProduct(
+    env,
+    id,
+    {
+      name: payload.name,
+      description: payload.description ?? null,
+      status: payload.status,
+      brandId: payload.brandId ?? null,
+      categoryIds: payload.categoryIds,
+      imageUrls: payload.imageUrls,
+    },
+    lang
+  );
+  if (!product) {
+    return errorResponse(404, "Product not found");
+  }
+  queueCachePurge(
+    ctx,
+    buildProductCacheUrls({
+      origin: url.origin,
+      productId: product.id,
+      productSlug: product.slug,
+      productTranslations: product.translations,
+      categoryIds: product.categoryIds,
+    })
+  );
+  return jsonResponse(product, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleAdminProductTranslations({
+  env,
+  request,
+  params,
+  url,
+  ctx,
+}: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  requireRole(user, "admin");
+  const { id } = productIdParamSchema.parse(params);
+
+  if (request.method === "GET") {
+    const items = await fetchProductTranslations(env, id);
+    return jsonResponse(
+      { items, pageInfo: buildPaginationInfo(1, items.length, items.length) },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  enforceRateLimit(request, env, user.id);
+  const payload = productTranslationsSchema.parse(await readJson(request));
+  const items = await upsertProductTranslations(env, id, payload.translations);
+  const product = await fetchAdminProductDetail(env, id, DEFAULT_LANGUAGE);
+  if (!product) {
+    return errorResponse(404, "Product not found");
+  }
+  queueCachePurge(
+    ctx,
+    buildProductCacheUrls({
+      origin: url.origin,
+      productId: product.id,
+      productSlug: product.slug,
+      productTranslations: product.translations,
+      categoryIds: product.categoryIds,
+    })
+  );
+  return jsonResponse(
+    { items, pageInfo: buildPaginationInfo(1, items.length, items.length) },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 async function handleAdminReviews({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const { status, page, pageSize } = adminReviewQuerySchema.parse(getQueryObject(url));
-  const result = await fetchAdminReviews(env, { status, page, pageSize });
+  const { status, page, pageSize, lang } = adminReviewQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchAdminReviews(env, { status, page, pageSize, lang });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -1203,7 +1824,10 @@ async function handleAdminReviewDetail({ env, request, params }: HandlerContext)
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
   const { id } = reviewIdParamSchema.parse(params);
-  const review = await fetchAdminReviewDetail(env, id);
+  const { lang } = z.object({ lang: langSchema }).parse(
+    getQueryObject(new URL(request.url))
+  );
+  const review = await fetchAdminReviewDetail(env, id, lang);
   if (!review) {
     return errorResponse(404, "Review not found");
   }
@@ -1285,6 +1909,9 @@ async function handleAdminReviewStatus({
         slug: review.slug,
         reviewId: review.id,
         categoryId: meta.categoryId,
+        productId: meta.productId ?? null,
+        productSlug: meta.productSlug ?? null,
+        productTranslations: meta.productTranslations,
         authorUsername: meta.authorUsername ?? null,
         translations: meta.translations,
       })
@@ -1304,30 +1931,76 @@ async function handleAdminReviewUpdate({
   requireRole(user, "admin");
   enforceRateLimit(request, env, user.id);
   const { id } = reviewIdParamSchema.parse(params);
-  const meta = await fetchReviewMetaById(env, id);
+  const previousMeta = await fetchReviewMetaById(env, id);
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
   const payload = adminReviewUpdateSchema.parse(await readJson(request));
-  const updated = await updateAdminReview(env, id, {
-    title: payload.title,
-    excerpt: payload.excerpt,
-    contentHtml: payload.contentHtml,
-    photoUrls: payload.photoUrls,
-    categoryId: payload.categoryId,
-    subCategoryId: payload.subCategoryId ?? null,
-  });
+  const updated = await updateAdminReview(
+    env,
+    id,
+    {
+      title: payload.title,
+      excerpt: payload.excerpt,
+      contentHtml: payload.contentHtml,
+      photoUrls: payload.photoUrls,
+      recommend: payload.recommend,
+      pros: payload.pros,
+      cons: payload.cons,
+      categoryId: payload.categoryId,
+      subCategoryId: payload.subCategoryId ?? null,
+      productId: payload.productId ?? null,
+    },
+    lang
+  );
   if (!updated) {
     return errorResponse(404, "Review not found");
   }
-  queueCachePurge(
-    ctx,
-    buildReviewCacheUrls({
-      origin: url.origin,
-      slug: updated.slug,
-      reviewId: updated.id,
-      categoryId: updated.categoryId ?? null,
-      authorUsername: updated.author.username,
-      translations: meta?.translations,
-    })
-  );
+  const cacheUrls: string[] = [];
+  if (previousMeta) {
+    cacheUrls.push(
+      ...buildReviewCacheUrls({
+        origin: url.origin,
+        slug: previousMeta.slug,
+        reviewId: updated.id,
+        categoryId: previousMeta.categoryId ?? null,
+        productId: previousMeta.productId ?? null,
+        productSlug: previousMeta.productSlug ?? null,
+        productTranslations: previousMeta.productTranslations,
+        authorUsername: previousMeta.authorUsername ?? null,
+        translations: previousMeta.translations,
+      })
+    );
+  }
+
+  const nextMeta = await fetchReviewMetaById(env, updated.id);
+  if (nextMeta) {
+    cacheUrls.push(
+      ...buildReviewCacheUrls({
+        origin: url.origin,
+        slug: nextMeta.slug,
+        reviewId: updated.id,
+        categoryId: nextMeta.categoryId ?? null,
+        productId: nextMeta.productId ?? null,
+        productSlug: nextMeta.productSlug ?? null,
+        productTranslations: nextMeta.productTranslations,
+        authorUsername: nextMeta.authorUsername ?? null,
+        translations: nextMeta.translations,
+      })
+    );
+  } else {
+    cacheUrls.push(
+      ...buildReviewCacheUrls({
+        origin: url.origin,
+        slug: updated.slug,
+        reviewId: updated.id,
+        categoryId: updated.categoryId ?? null,
+        productId: updated.productId ?? null,
+        productSlug: updated.product?.slug ?? null,
+        authorUsername: updated.author.username,
+      })
+    );
+  }
+
+  queueCachePurge(ctx, cacheUrls);
   return jsonResponse(updated, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -1356,6 +2029,9 @@ async function handleAdminCommentUpdate({
         slug: meta.slug,
         reviewId: updated.reviewId,
         categoryId: meta.categoryId,
+        productId: meta.productId ?? null,
+        productSlug: meta.productSlug ?? null,
+        productTranslations: meta.productTranslations,
         authorUsername: meta.authorUsername ?? null,
         translations: meta.translations,
       })
@@ -1389,6 +2065,9 @@ async function handleAdminCommentStatus({
         slug: meta.slug,
         reviewId: comment.reviewId,
         categoryId: meta.categoryId,
+        productId: meta.productId ?? null,
+        productSlug: meta.productSlug ?? null,
+        productTranslations: meta.productTranslations,
         authorUsername: meta.authorUsername ?? null,
         translations: meta.translations,
       })
@@ -1496,6 +2175,30 @@ const routes: Route[] = [
     cacheTtl: (env) => env.CACHE_TTL_REVIEW_LIST_SEC,
   },
   {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/products" }),
+    handler: handleProductsList,
+    cacheTtl: (env) => env.CACHE_TTL_PRODUCTS_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/products/slug/:slug" }),
+    handler: handleProductBySlug,
+    cacheTtl: (env) => env.CACHE_TTL_PRODUCT_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/products/:id/reviews" }),
+    handler: handleProductReviews,
+    cacheTtl: (env) => env.CACHE_TTL_PRODUCT_REVIEWS_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/products/search" }),
+    handler: handleProductSearch,
+    cacheTtl: (env) => env.CACHE_TTL_SEARCH_SEC,
+  },
+  {
     method: "POST",
     pattern: new URLPattern({ pathname: "/api/reviews" }),
     handler: handleCreateReview,
@@ -1593,6 +2296,12 @@ const routes: Route[] = [
   },
   {
     method: "GET",
+    pattern: new URLPattern({ pathname: "/api/sitemap/products" }),
+    handler: handleSitemapProductsJson,
+    cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
+  },
+  {
+    method: "GET",
     pattern: new URLPattern({ pathname: "/api/sitemap/categories" }),
     handler: handleSitemapCategoriesJson,
     cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
@@ -1617,6 +2326,12 @@ const routes: Route[] = [
   },
   {
     method: "GET",
+    pattern: new URLPattern({ pathname: "/api/sitemap-products" }),
+    handler: handleSitemapProductsXml,
+    cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
+  },
+  {
+    method: "GET",
     pattern: new URLPattern({ pathname: "/api/admin/categories" }),
     handler: handleAdminCategories,
     noStore: true,
@@ -1631,6 +2346,60 @@ const routes: Route[] = [
     method: "PATCH",
     pattern: new URLPattern({ pathname: "/api/admin/categories/:id" }),
     handler: handleAdminCategoryUpdate,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/categories/:id/translations" }),
+    handler: handleAdminCategoryTranslations,
+    noStore: true,
+  },
+  {
+    method: "PUT",
+    pattern: new URLPattern({ pathname: "/api/admin/categories/:id/translations" }),
+    handler: handleAdminCategoryTranslations,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/uploads/health" }),
+    handler: handleAdminUploadHealth,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/products" }),
+    handler: handleAdminProducts,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/admin/products" }),
+    handler: handleAdminProductCreate,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/products/:id" }),
+    handler: handleAdminProductDetail,
+    noStore: true,
+  },
+  {
+    method: "PATCH",
+    pattern: new URLPattern({ pathname: "/api/admin/products/:id" }),
+    handler: handleAdminProductUpdate,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/admin/products/:id/translations" }),
+    handler: handleAdminProductTranslations,
+    noStore: true,
+  },
+  {
+    method: "PUT",
+    pattern: new URLPattern({ pathname: "/api/admin/products/:id/translations" }),
+    handler: handleAdminProductTranslations,
     noStore: true,
   },
   {

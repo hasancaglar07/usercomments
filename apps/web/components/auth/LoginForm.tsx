@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { z } from "zod";
 import { signInWithPassword } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
@@ -16,16 +17,22 @@ export default function LoginForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
+    const loginSchema = z.object({
+        email: z.string().trim().email("Please enter a valid email address."),
+        password: z.string().min(6, "Password must be at least 6 characters."),
+    });
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!email || !password) {
-            window.alert("Please enter your email and password.");
+        const parsed = loginSchema.safeParse({ email, password });
+        if (!parsed.success) {
+            window.alert(parsed.error.issues[0]?.message ?? "Please enter your email and password.");
             return;
         }
 
         setIsLoading(true);
         try {
-            await signInWithPassword(email, password);
+            await signInWithPassword(parsed.data.email, parsed.data.password);
             const next = searchParams.get("next");
             router.push(
                 next && next.startsWith("/") ? next : localizePath("/", lang)
@@ -105,10 +112,10 @@ export default function LoginForm() {
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
-                {/* Username/Email */}
+                {/* Email */}
                 <label className="block">
                     <span className="text-slate-900 dark:text-slate-200 text-sm font-medium mb-1.5 block">
-                        Email or Username
+                        Email
                     </span>
                     <div className="relative">
                         <input

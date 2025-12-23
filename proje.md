@@ -1,4 +1,4 @@
-proje.md — iRecommend.ru Klonu (Pixel-Perfect HTML → Next.js) + API/Worker (VDS) + Supabase DB + B2 Images
+proje.md — iRecommend.ru Klonu (Pixel-Perfect HTML → Next.js) + API/Worker (VDS) + Supabase DB + R2 Images
 
 0\) Proje Özeti
 
@@ -172,7 +172,7 @@ Supabase Postgres + Supabase Auth
 
 
 
-Backblaze B2 (S3 uyumlu)
+Cloudflare R2 (S3 uyumlu)
 
 
 
@@ -634,7 +634,7 @@ comments(review\_id, created\_at desc)
 
 
 
-10\) Görseller (Backblaze B2)
+10\) Görseller (Cloudflare R2)
 
 
 
@@ -646,11 +646,11 @@ Upload:
 
 
 
-Kullanıcı tarafı: POST /api/uploads/presign → presigned URL al → direkt B2’ye yükle
+Kullanıcı tarafı: POST /api/uploads/presign → presigned URL al → direkt R2’ye yükle
 
 
 
-Worker tarafı: indir → B2’ye yükle → DB’ye URL yaz
+Worker tarafı: indir → R2’ye yükle → DB’ye URL yaz
 
 
 
@@ -674,7 +674,7 @@ DB’ye yaz
 
 
 
-görselleri B2’ye yükle
+görselleri R2’ye yükle
 
 
 
@@ -720,15 +720,27 @@ REDIS\_URL
 
 
 
-B2\_KEY\_ID
+R2\_ENDPOINT
 
 
 
-B2\_APP\_KEY
+R2\_REGION
 
 
 
-B2\_BUCKET\_NAME
+R2\_ACCESS\_KEY\_ID
+
+
+
+R2\_SECRET\_ACCESS\_KEY
+
+
+
+R2\_BUCKET
+
+
+
+R2\_PUBLIC\_BASE\_URL
 
 
 

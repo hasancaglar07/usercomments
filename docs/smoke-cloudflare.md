@@ -3,14 +3,14 @@
 ## Prerequisites
 - `cd workers/api && npm install`
 - Secrets configured (via `wrangler secret put`):
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `B2_S3_ENDPOINT`
-  - `B2_S3_REGION`
-  - `B2_S3_ACCESS_KEY_ID`
-  - `B2_S3_SECRET_ACCESS_KEY`
-  - `B2_S3_BUCKET`
-  - `B2_PUBLIC_BASE_URL`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+  - `R2_ENDPOINT`
+  - `R2_REGION` (optional, default: `auto`)
+  - `R2_ACCESS_KEY_ID`
+  - `R2_SECRET_ACCESS_KEY`
+  - `R2_BUCKET`
+  - `R2_PUBLIC_BASE_URL`
 
 ## Run locally
 ```bash

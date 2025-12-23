@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { PaginationInfo } from "@/src/types";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type PageItem = number | "ellipsis";
 
@@ -28,6 +30,7 @@ const getPageItems = (currentPage: number, totalPages: number): PageItem[] => {
 type PaginationProps = {
   pagination: PaginationInfo;
   buildHref?: (page: number) => string;
+  lang?: SupportedLanguage;
 };
 
 export function PaginationCatalog({ pagination, buildHref }: PaginationProps) {
@@ -153,7 +156,8 @@ export function PaginationCategory({ pagination, buildHref }: PaginationProps) {
   );
 }
 
-export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
+export function PaginationProfile({ pagination, buildHref, lang }: PaginationProps) {
+  const resolvedLang = lang ?? DEFAULT_LANGUAGE;
   const items = getPageItems(pagination.page, pagination.totalPages);
   const prevPage = Math.max(1, pagination.page - 1);
   const nextPage = Math.min(pagination.totalPages, pagination.page + 1);
@@ -163,14 +167,14 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
   return (
     <div className="flex justify-center mt-6">
       <nav
-        aria-label="Pagination"
+        aria-label={t(resolvedLang, "pagination.label")}
         className="isolate inline-flex -space-x-px rounded-md shadow-sm"
       >
         <Link
           className="relative inline-flex items-center rounded-l-md px-2 py-2 text-text-sub-light dark:text-text-sub-dark ring-1 ring-inset ring-border-light dark:ring-border-dark hover:bg-background-light dark:hover:bg-surface-dark focus:z-20 focus:outline-offset-0 bg-surface-light dark:bg-surface-dark"
           href={resolveHref(prevPage)}
         >
-          <span className="sr-only">Previous</span>
+          <span className="sr-only">{t(resolvedLang, "pagination.previous")}</span>
           <span className="material-symbols-outlined text-[20px]">
             chevron_left
           </span>
@@ -215,7 +219,7 @@ export function PaginationProfile({ pagination, buildHref }: PaginationProps) {
           className="relative inline-flex items-center rounded-r-md px-2 py-2 text-text-sub-light dark:text-text-sub-dark ring-1 ring-inset ring-border-light dark:ring-border-dark hover:bg-background-light dark:hover:bg-surface-dark focus:z-20 focus:outline-offset-0 bg-surface-light dark:bg-surface-dark"
           href={resolveHref(nextPage)}
         >
-          <span className="sr-only">Next</span>
+          <span className="sr-only">{t(resolvedLang, "pagination.next")}</span>
           <span className="material-symbols-outlined text-[20px]">
             chevron_right
           </span>

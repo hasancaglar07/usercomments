@@ -26,12 +26,12 @@ const envSchema = z.object({
   CACHE_TTL_USER_REVIEWS_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_SEARCH_SEC: z.coerce.number().int().positive().default(30),
   CACHE_TTL_SITEMAP_SEC: z.coerce.number().int().positive().default(300),
-  B2_S3_ENDPOINT: z.string().min(1).optional(),
-  B2_S3_REGION: z.string().min(1).optional(),
-  B2_S3_ACCESS_KEY_ID: z.string().min(1).optional(),
-  B2_S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  B2_S3_BUCKET: z.string().min(1).optional(),
-  B2_PUBLIC_BASE_URL: z.string().min(1).optional(),
+  R2_ENDPOINT: z.string().min(1).optional(),
+  R2_REGION: z.string().min(1).default("auto"),
+  R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+  R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  R2_BUCKET: z.string().min(1).optional(),
+  R2_PUBLIC_BASE_URL: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);

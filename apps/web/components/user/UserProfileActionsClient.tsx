@@ -24,7 +24,12 @@ import {
   updateProfile,
   voteReview,
 } from "@/src/lib/api-client";
-import { ensureAuthLoaded, getAccessToken, getCurrentUser } from "@/src/lib/auth";
+import {
+  ensureAuthLoaded,
+  getAccessToken,
+  getCurrentUser,
+  signOut,
+} from "@/src/lib/auth";
 import { FALLBACK_PROFILE_IMAGES } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
@@ -50,11 +55,13 @@ type ReportTarget = {
 type UserProfileActionsContextValue = {
   isSelf: boolean;
   isFollowing: boolean;
+  isSigningOut: boolean;
   followLabel: string;
   followIcon: string;
   onFollowClick: () => void;
   onMessageClick: () => void;
   onMoreClick: () => void;
+  onSignOut: () => void;
   onShareProfileClick: () => void;
   onOpenAchievements: () => void;
   onReviewShare: (reviewSlug: string, reviewTitle: string) => void;
@@ -156,6 +163,7 @@ export default function UserProfileActionsClient({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isSelf, setIsSelf] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const achievements = useMemo(
     () => [
@@ -496,6 +504,26 @@ export default function UserProfileActionsClient({
     [requireAuth, router, showToast]
   );
 
+  const handleSignOut = useCallback(async () => {
+    if (signingOut) {
+      return;
+    }
+    setSigningOut(true);
+    try {
+      await signOut();
+      setIsSelf(false);
+      setIsFollowing(false);
+      setSelfProfile(null);
+      showToast("Signed out.", "success");
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to sign out", error);
+      showToast("Sign out failed. Please try again.", "error");
+    } finally {
+      setSigningOut(false);
+    }
+  }, [router, showToast, signingOut]);
+
   const handleReviewReport = useCallback((target: ReportTarget) => {
     setReportError(null);
     setReportForm({ reason: "", details: "" });
@@ -723,11 +751,13 @@ export default function UserProfileActionsClient({
     () => ({
       isSelf,
       isFollowing,
+      isSigningOut: signingOut,
       followLabel,
       followIcon,
       onFollowClick: handleFollowClick,
       onMessageClick: handleMessageClick,
       onMoreClick: handleProfileShare,
+      onSignOut: handleSignOut,
       onShareProfileClick: handleProfileShare,
       onOpenAchievements: () => setAchievementsOpen(true),
       onReviewShare: handleReviewShare,
@@ -741,12 +771,14 @@ export default function UserProfileActionsClient({
       handleFollowClick,
       handleMessageClick,
       handleProfileShare,
+      handleSignOut,
       handleReviewComment,
       handleReviewReport,
       handleReviewShare,
       handleReviewVote,
       isFollowing,
       isSelf,
+      signingOut,
     ]
   );
 
@@ -1166,11 +1198,13 @@ export function UserProfileHeaderActions() {
   const {
     isSelf,
     isFollowing,
+    isSigningOut,
     followLabel,
     followIcon,
     onFollowClick,
     onMessageClick,
     onMoreClick,
+    onSignOut,
   } = useUserProfileActions();
 
   return (
@@ -1191,13 +1225,16 @@ export function UserProfileHeaderActions() {
         <span data-follow-label>{followLabel}</span>
       </button>
       <button
-        className="flex items-center justify-center rounded-lg h-10 px-4 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-main-light dark:text-text-main-dark text-sm font-bold transition-all gap-2 flex-1 md:flex-none"
+        className="flex items-center justify-center rounded-lg h-10 px-4 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-main-light dark:text-text-main-dark text-sm font-bold transition-all gap-2 flex-1 md:flex-none disabled:opacity-70 disabled:cursor-not-allowed"
         type="button"
         data-profile-message
-        onClick={onMessageClick}
+        onClick={isSelf ? onSignOut : onMessageClick}
+        disabled={isSelf && isSigningOut}
       >
-        <span className="material-symbols-outlined text-[18px]">mail</span>
-        <span>Message</span>
+        <span className="material-symbols-outlined text-[18px]">
+          {isSelf ? "logout" : "mail"}
+        </span>
+        <span>{isSelf ? (isSigningOut ? "Signing out..." : "Sign out") : "Message"}</span>
       </button>
       <button
         className="flex items-center justify-center rounded-lg h-10 w-10 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark transition-all"

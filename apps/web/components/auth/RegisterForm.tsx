@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { z } from "zod";
 import { signUpWithPassword } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 
@@ -16,16 +17,22 @@ export default function RegisterForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
+    const registerSchema = z.object({
+        email: z.string().trim().email("Please enter a valid email address."),
+        password: z.string().min(6, "Password must be at least 6 characters."),
+    });
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!email || !password) {
-            window.alert("Please enter your email and password.");
+        const parsed = registerSchema.safeParse({ email, password });
+        if (!parsed.success) {
+            window.alert(parsed.error.issues[0]?.message ?? "Please enter your email and password.");
             return;
         }
 
         setIsLoading(true);
         try {
-            const result = await signUpWithPassword(email, password);
+            const result = await signUpWithPassword(parsed.data.email, parsed.data.password);
             if (!result.session) {
                 window.alert("Check your email to confirm your account.");
                 return;

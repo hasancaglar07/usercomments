@@ -43,6 +43,13 @@ export default function AuthCtaButton({
   const linkHref = isAuthenticated ? resolvedAuthHref : resolvedGuestHref;
   const isInternal = linkHref.startsWith("/");
 
+  const handlePrefetch = () => {
+    if (loading || !isInternal) {
+      return;
+    }
+    router.prefetch(linkHref);
+  };
+
   const handleAnchorClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (loading) {
       event.preventDefault();
@@ -53,13 +60,25 @@ export default function AuthCtaButton({
   if (as === "a") {
     if (isInternal) {
       return (
-        <Link className={className} href={linkHref} onClick={handleAnchorClick}>
+        <Link
+          className={className}
+          href={linkHref}
+          onClick={handleAnchorClick}
+          onMouseEnter={handlePrefetch}
+          onFocus={handlePrefetch}
+        >
           {children}
         </Link>
       );
     }
     return (
-      <a className={className} href={linkHref} onClick={handleAnchorClick}>
+      <a
+        className={className}
+        href={linkHref}
+        onClick={handleAnchorClick}
+        onMouseEnter={handlePrefetch}
+        onFocus={handlePrefetch}
+      >
         {children}
       </a>
     );
@@ -79,7 +98,13 @@ export default function AuthCtaButton({
   };
 
   return (
-    <button className={className} onClick={handleButtonClick} type="button">
+    <button
+      className={className}
+      onClick={handleButtonClick}
+      onMouseEnter={handlePrefetch}
+      onFocus={handlePrefetch}
+      type="button"
+    >
       {children}
     </button>
   );

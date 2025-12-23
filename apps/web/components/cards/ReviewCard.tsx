@@ -6,6 +6,8 @@ import {
   RatingStarsProfile,
 } from "@/components/ui/RatingStars";
 import type { Review, StarType } from "@/src/types";
+import { t } from "@/src/lib/copy";
+import type { SupportedLanguage } from "@/src/lib/i18n";
 
 type HomepageBadge = "verified" | "expert" | null;
 
@@ -26,6 +28,11 @@ export type ReviewCardHomepageData = {
   photoCountLabel?: string;
 };
 
+type ReviewCardHomepageProps = ReviewCardHomepageData & {
+  lang: SupportedLanguage;
+  imagePriority?: boolean;
+};
+
 export function ReviewCardHomepage({
   review,
   href,
@@ -41,25 +48,40 @@ export function ReviewCardHomepage({
   likesLabel,
   commentsLabel,
   photoCountLabel,
-}: ReviewCardHomepageData) {
+  lang,
+  imagePriority = false,
+}: ReviewCardHomepageProps) {
   const authorName = review.author.displayName ?? review.author.username;
 
   return (
     <article className="flex flex-col sm:flex-row bg-background-light dark:bg-surface-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow">
-      <div
-        className="w-full sm:w-48 h-48 sm:h-auto bg-cover bg-center flex-shrink-0"
-        data-alt={imageAlt}
-        style={{ backgroundImage: `url(${imageUrl})` }}
-      />
+      <div className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt={imageAlt}
+          className="h-full w-full object-cover"
+          data-alt={imageAlt}
+          decoding="async"
+          fetchPriority={imagePriority ? "high" : "auto"}
+          loading={imagePriority ? "eager" : "lazy"}
+          src={imageUrl}
+        />
+      </div>
       <div className="flex-1 p-5 flex flex-col justify-between">
         <div>
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-2 mb-2">
-              <div
-                className="w-8 h-8 rounded-full bg-gray-200 bg-cover bg-center"
-                data-alt={avatarAlt}
-                style={{ backgroundImage: `url(${avatarUrl})` }}
-              />
+              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  alt={avatarAlt}
+                  className="h-full w-full object-cover"
+                  data-alt={avatarAlt}
+                  decoding="async"
+                  loading="lazy"
+                  src={avatarUrl}
+                />
+              </div>
               <div>
                 <p className="text-xs font-bold text-text-main dark:text-white">
                   {authorName}
@@ -69,12 +91,12 @@ export function ReviewCardHomepage({
             </div>
             {badge === "verified" ? (
               <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-medium">
-                Verified Purchase
+                {t(lang, "reviewCard.verifiedPurchase")}
               </span>
             ) : null}
             {badge === "expert" ? (
               <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-medium">
-                Expert
+                {t(lang, "reviewCard.expert")}
               </span>
             ) : null}
           </div>
@@ -345,7 +367,10 @@ export type ReviewCardProfileActions = {
   onShare?: (reviewSlug: string, reviewTitle: string) => void;
 };
 
-type ReviewCardProfileProps = ReviewCardProfileData & ReviewCardProfileActions;
+type ReviewCardProfileProps = ReviewCardProfileData &
+  ReviewCardProfileActions & {
+    lang: SupportedLanguage;
+  };
 
 export function ReviewCardProfile({
   review,
@@ -362,6 +387,7 @@ export function ReviewCardProfile({
   onVote,
   onComment,
   onShare,
+  lang,
 }: ReviewCardProfileProps) {
   return (
     <article
@@ -416,7 +442,7 @@ export function ReviewCardProfile({
             className="text-primary text-sm font-bold hover:underline mb-4 inline-block"
             href={href}
           >
-            Read full review
+            {t(lang, "reviewCard.readFullReview")}
           </Link>
           <div className="mt-auto flex items-center justify-between pt-4 border-t border-border-light dark:border-border-dark">
             <div className="flex gap-4">
@@ -457,7 +483,7 @@ export function ReviewCardProfile({
               <span className="material-symbols-outlined text-[18px]">
                 share
               </span>
-              <span className="hidden sm:inline">Share</span>
+              <span className="hidden sm:inline">{t(lang, "reviewCard.share")}</span>
             </button>
           </div>
         </div>

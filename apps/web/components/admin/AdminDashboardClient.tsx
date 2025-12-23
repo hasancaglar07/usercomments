@@ -1,41 +1,64 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import type {
   AdminComment,
   AdminReport,
+  AdminProduct,
   AdminReview,
   AdminUser,
   AdminUserDetail,
   Category,
+  CategoryTranslation,
   CommentStatus,
   PaginationInfo,
+  ProductTranslation,
+  ProductStatus,
   ReportStatus,
   ReviewStatus,
+  UploadHealth,
   UserRole,
 } from "@/src/types";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
 import {
   formatCompactNumber,
   formatNumber,
   formatRelativeTime,
 } from "@/src/lib/review-utils";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
-import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import {
+  DEFAULT_LANGUAGE,
+  SUPPORTED_LANGUAGES,
+  localizePath,
+  normalizeLanguage,
+  type SupportedLanguage,
+} from "@/src/lib/i18n";
 import {
   bulkUpdateAdminCommentStatus,
+  bulkUpdateAdminProductStatus,
   bulkUpdateAdminReportStatus,
   bulkUpdateAdminReviewStatus,
   createAdminCategory,
+  createAdminProduct,
+  presignUpload,
   getAdminCategories,
+  getAdminCategoryTranslations,
   getAdminComments,
+  getAdminUploadHealth,
+  getAdminProductDetail,
+  getAdminProductTranslations,
+  getAdminProducts,
   getAdminReports,
   getAdminReviewDetail,
   getAdminReviews,
   getAdminUserDetail,
   getAdminUsers,
+  updateAdminCategoryTranslations,
+  updateAdminProduct,
+  updateAdminProductTranslations,
   updateAdminCategory,
   updateAdminComment,
   updateAdminCommentStatus,
@@ -56,6 +79,19 @@ const updateCategorySchema = z.object({
   parentId: z.number().int().positive().nullable().optional(),
 });
 
+const supportedLangSchema = z.enum(SUPPORTED_LANGUAGES);
+
+const categoryTranslationSchema = z.object({
+  lang: supportedLangSchema,
+  name: z.string().trim().min(2, "Translation name is required."),
+});
+
+const productTranslationSchema = z.object({
+  lang: supportedLangSchema,
+  name: z.string().trim().min(2, "Translation name is required."),
+  description: z.string().trim().max(2000).optional(),
+});
+
 const reviewEditSchema = z.object({
   title: z.string().trim().min(3).max(160),
   excerpt: z.string().trim().min(10).max(300),
@@ -63,6 +99,17 @@ const reviewEditSchema = z.object({
   photoUrls: z.array(z.string().url()),
   categoryId: z.number().int().positive(),
   subCategoryId: z.number().int().positive().nullable().optional(),
+  productId: z.string().uuid().nullable().optional(),
+  recommend: z.boolean().optional(),
+  pros: z.array(z.string().min(1)).max(20).optional(),
+  cons: z.array(z.string().min(1)).max(20).optional(),
+});
+
+const productEditSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  description: z.string().trim().max(2000).optional(),
+  categoryIds: z.array(z.number().int().positive()).min(1, "Select at least one category."),
+  imageUrls: z.array(z.string().url()).optional(),
 });
 
 const commentEditSchema = z.object({
@@ -92,6 +139,25 @@ const userUpdateSchema = z
 type ReviewPreviewBlock =
   | { type: "paragraph"; lines: string[] }
   | { type: "list"; items: string[] };
+
+type TranslationDraft = {
+  lang: SupportedLanguage;
+  name: string;
+  description?: string;
+  slug?: string | null;
+};
+
+type UploadStatus = "idle" | "uploading" | "success" | "error";
+
+type UploadFile = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  status: UploadStatus;
+  progress: number;
+  publicUrl?: string;
+  error?: string;
+};
 
 function buildReviewPreviewBlocks(contentHtml: string): ReviewPreviewBlock[] {
   const normalized = contentHtml
@@ -171,6 +237,15 @@ const reviewStatusOptions = [
   "draft",
 ] as const;
 
+const productStatusFilters = [
+  "all",
+  "pending",
+  "published",
+  "hidden",
+  "deleted",
+] as const;
+const productStatusOptions = ["pending", "published", "hidden", "deleted"] as const;
+
 const commentStatusFilters = ["all", "published", "hidden", "deleted"] as const;
 const commentStatusOptions = ["published", "hidden", "deleted"] as const;
 
@@ -182,6 +257,7 @@ const userRoleOptions = ["user", "moderator", "admin"] as const;
 
 const tabs = [
   { key: "reviews", label: "Reviews" },
+  { key: "products", label: "Products" },
   { key: "comments", label: "Comments" },
   { key: "reports", label: "Reports" },
   { key: "users", label: "Users" },
@@ -191,6 +267,7 @@ const tabs = [
 type TabKey = (typeof tabs)[number]["key"];
 
 type ReviewStatusFilter = (typeof reviewStatusFilters)[number];
+type ProductStatusFilter = (typeof productStatusFilters)[number];
 type CommentStatusFilter = (typeof commentStatusFilters)[number];
 type ReportStatusFilter = (typeof reportStatusFilters)[number];
 type ReportTargetFilter = (typeof reportTargetFilters)[number];
@@ -206,6 +283,13 @@ const reviewStatusStyles: Record<ReviewStatus, string> = {
   hidden: "bg-slate-200 text-slate-600",
   deleted: "bg-rose-100 text-rose-700",
   draft: "bg-indigo-100 text-indigo-700",
+};
+
+const productStatusStyles: Record<ProductStatus, string> = {
+  published: "bg-emerald-100 text-emerald-700",
+  pending: "bg-amber-100 text-amber-700",
+  hidden: "bg-slate-200 text-slate-600",
+  deleted: "bg-rose-100 text-rose-700",
 };
 
 const commentStatusStyles: Record<CommentStatus, string> = {
@@ -355,6 +439,13 @@ function toggleSelectAll(selected: string[], ids: string[]) {
   return ids;
 }
 
+function toggleNumericSelection(selected: number[], id: number) {
+  if (selected.includes(id)) {
+    return selected.filter((item) => item !== id);
+  }
+  return [...selected, id];
+}
+
 export default function AdminDashboardClient() {
   const router = useRouter();
   const params = useParams();
@@ -371,6 +462,15 @@ export default function AdminDashboardClient() {
   const [categoryMessage, setCategoryMessage] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryTranslationDrafts, setCategoryTranslationDrafts] = useState<
+    TranslationDraft[]
+  >([]);
+  const [categoryTranslationMessage, setCategoryTranslationMessage] =
+    useState<string | null>(null);
+  const [categoryTranslationError, setCategoryTranslationError] =
+    useState<string | null>(null);
+  const [categoryTranslationLoading, setCategoryTranslationLoading] =
+    useState(false);
 
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [reviewPageInfo, setReviewPageInfo] = useState<PaginationInfo | null>(null);
@@ -398,11 +498,24 @@ export default function AdminDashboardClient() {
     photoUrls: string;
     categoryId: string;
     subCategoryId: string;
+    productId: string;
+    recommend: boolean;
+    pros: string;
+    cons: string;
   } | null>(null);
   const reviewPreviewBlocks = useMemo(
     () => buildReviewPreviewBlocks(reviewEdit?.contentHtml ?? ""),
     [reviewEdit?.contentHtml]
   );
+  const translationLanguages = useMemo(() => {
+    const ordered = [...SUPPORTED_LANGUAGES];
+    const defaultIndex = ordered.indexOf(DEFAULT_LANGUAGE);
+    if (defaultIndex > 0) {
+      ordered.splice(defaultIndex, 1);
+      ordered.unshift(DEFAULT_LANGUAGE);
+    }
+    return ordered as SupportedLanguage[];
+  }, []);
   const [reviewComments, setReviewComments] = useState<AdminComment[]>([]);
   const [reviewCommentsPageInfo, setReviewCommentsPageInfo] =
     useState<PaginationInfo | null>(null);
@@ -410,6 +523,63 @@ export default function AdminDashboardClient() {
   const [reviewCommentsError, setReviewCommentsError] = useState<string | null>(
     null
   );
+
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [productPageInfo, setProductPageInfo] = useState<PaginationInfo | null>(null);
+  const [productStatusFilter, setProductStatusFilter] = useState<ProductStatusFilter>(
+    "pending"
+  );
+  const [productPage, setProductPage] = useState(1);
+  const [productPageSize, setProductPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [productQuery, setProductQuery] = useState("");
+  const [productLoading, setProductLoading] = useState(false);
+  const [productError, setProductError] = useState<string | null>(null);
+  const [productMessage, setProductMessage] = useState<string | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [productBulkStatus, setProductBulkStatus] =
+    useState<ProductStatus>("published");
+
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const [productDetail, setProductDetail] = useState<AdminProduct | null>(null);
+  const [productDetailLoading, setProductDetailLoading] = useState(false);
+  const [productDetailError, setProductDetailError] = useState<string | null>(null);
+  const [productStatusEdit, setProductStatusEdit] =
+    useState<ProductStatus>("pending");
+  const [productEdit, setProductEdit] = useState<{
+    name: string;
+    description: string;
+    categoryIds: number[];
+    imageUrls: string;
+  } | null>(null);
+  const [productEditUploads, setProductEditUploads] = useState<UploadFile[]>([]);
+  const [productEditUploadError, setProductEditUploadError] = useState<string | null>(
+    null
+  );
+  const productEditFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [productTranslationDrafts, setProductTranslationDrafts] = useState<
+    TranslationDraft[]
+  >([]);
+  const [productTranslationMessage, setProductTranslationMessage] =
+    useState<string | null>(null);
+  const [productTranslationError, setProductTranslationError] =
+    useState<string | null>(null);
+  const [productTranslationLoading, setProductTranslationLoading] =
+    useState(false);
+  const [uploadHealth, setUploadHealth] = useState<UploadHealth | null>(null);
+  const [uploadHealthLoading, setUploadHealthLoading] = useState(false);
+  const [uploadHealthError, setUploadHealthError] = useState<string | null>(null);
+
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductDescription, setNewProductDescription] = useState("");
+  const [newProductCategoryIds, setNewProductCategoryIds] = useState<number[]>([]);
+  const [newProductImageUrls, setNewProductImageUrls] = useState("");
+  const [newProductUploads, setNewProductUploads] = useState<UploadFile[]>([]);
+  const [newProductUploadError, setNewProductUploadError] = useState<string | null>(
+    null
+  );
+  const [newProductStatus, setNewProductStatus] =
+    useState<ProductStatus>("published");
+  const newProductFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [comments, setComments] = useState<AdminComment[]>([]);
   const [commentPageInfo, setCommentPageInfo] = useState<PaginationInfo | null>(null);
@@ -510,6 +680,8 @@ export default function AdminDashboardClient() {
   }, [categories]);
 
   const reviewFilterLabel = reviewStatusFilter === "all" ? "All" : reviewStatusFilter;
+  const productFilterLabel =
+    productStatusFilter === "all" ? "All" : productStatusFilter;
   const commentFilterLabel =
     commentStatusFilter === "all" ? "All" : commentStatusFilter;
   const reportFilterLabel = reportStatusFilter === "all" ? "All" : reportStatusFilter;
@@ -532,6 +704,29 @@ export default function AdminDashboardClient() {
       return haystack.includes(query);
     });
   }, [reviews, reviewQuery]);
+
+  const filteredProducts = useMemo(() => {
+    const query = productQuery.trim().toLowerCase();
+    if (!query) {
+      return products;
+    }
+    return products.filter((product) => {
+      const categoryNames = (product.categoryIds ?? [])
+        .map((id) => categoryLookup.get(id)?.name)
+        .filter((name): name is string => Boolean(name))
+        .join(" ");
+      const haystack = [
+        product.name,
+        product.slug,
+        product.brand?.name,
+        categoryNames,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [categoryLookup, productQuery, products]);
 
   const filteredComments = useMemo(() => {
     const query = commentQuery.trim().toLowerCase();
@@ -592,6 +787,26 @@ export default function AdminDashboardClient() {
     });
   }, [users, userQuery]);
 
+  const newProductUploadSummary = useMemo(() => {
+    const summary = {
+      total: newProductUploads.length,
+      uploading: 0,
+      success: 0,
+      error: 0,
+    };
+    newProductUploads.forEach((upload) => {
+      if (upload.status === "uploading") {
+        summary.uploading += 1;
+      } else if (upload.status === "success") {
+        summary.success += 1;
+      } else if (upload.status === "error") {
+        summary.error += 1;
+      }
+    });
+    return summary;
+  }, [newProductUploads]);
+
+
   const activeReport = useMemo(() => {
     if (!activeReportId) {
       return null;
@@ -620,6 +835,299 @@ export default function AdminDashboardClient() {
     return "";
   }, []);
 
+  const parseImageUrls = useCallback((value: string) => {
+    return value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }, []);
+
+  const productEditUploadSummary = useMemo(() => {
+    const summary = {
+      total: productEditUploads.length,
+      uploading: 0,
+      success: 0,
+      error: 0,
+    };
+    productEditUploads.forEach((upload) => {
+      if (upload.status === "uploading") {
+        summary.uploading += 1;
+      } else if (upload.status === "success") {
+        summary.success += 1;
+      } else if (upload.status === "error") {
+        summary.error += 1;
+      }
+    });
+    return summary;
+  }, [productEditUploads]);
+
+  const productEditImageUrls = useMemo(() => {
+    if (!productEdit?.imageUrls) {
+      return [];
+    }
+    return parseImageUrls(productEdit.imageUrls);
+  }, [parseImageUrls, productEdit?.imageUrls]);
+
+  const createUploadFile = useCallback((file: File): UploadFile => {
+    return {
+      id: Math.random().toString(36).slice(2),
+      file,
+      previewUrl: URL.createObjectURL(file),
+      status: "idle",
+      progress: 0,
+    };
+  }, []);
+
+  const updateNewProductUpload = useCallback(
+    (id: string, updates: Partial<UploadFile>) => {
+      setNewProductUploads((current) =>
+        current.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      );
+    },
+    []
+  );
+
+  const updateProductEditUpload = useCallback(
+    (id: string, updates: Partial<UploadFile>) => {
+      setProductEditUploads((current) =>
+        current.map((item) => (item.id === id ? { ...item, ...updates } : item))
+      );
+    },
+    []
+  );
+
+  const removeNewProductUpload = useCallback((id: string) => {
+    setNewProductUploads((current) => {
+      const removed = current.find((item) => item.id === id);
+      if (removed) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return current.filter((item) => item.id !== id);
+    });
+  }, []);
+
+  const removeProductEditUpload = useCallback((id: string) => {
+    setProductEditUploads((current) => {
+      const removed = current.find((item) => item.id === id);
+      if (removed) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return current.filter((item) => item.id !== id);
+    });
+  }, []);
+
+  const clearNewProductUploads = useCallback(() => {
+    setNewProductUploads((current) => {
+      current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+  }, []);
+
+  const clearProductEditUploads = useCallback(() => {
+    setProductEditUploads((current) => {
+      current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
+  }, []);
+
+  const addProductEditImageUrls = useCallback(
+    (urls: string[]) => {
+      setProductEdit((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const current = parseImageUrls(prev.imageUrls);
+        const next = Array.from(new Set([...current, ...urls]));
+        return { ...prev, imageUrls: next.join("\n") };
+      });
+    },
+    [parseImageUrls]
+  );
+
+  const moveProductEditImageUrl = useCallback(
+    (index: number, direction: "up" | "down") => {
+      setProductEdit((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const current = parseImageUrls(prev.imageUrls);
+        const targetIndex = direction === "up" ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= current.length) {
+          return prev;
+        }
+        const next = [...current];
+        [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+        return { ...prev, imageUrls: next.join("\n") };
+      });
+    },
+    [parseImageUrls]
+  );
+
+  const removeProductEditImageUrl = useCallback(
+    (index: number) => {
+      setProductEdit((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const current = parseImageUrls(prev.imageUrls);
+        const next = current.filter((_, currentIndex) => currentIndex !== index);
+        return { ...prev, imageUrls: next.join("\n") };
+      });
+    },
+    [parseImageUrls]
+  );
+
+  const uploadImageFile = useCallback(
+    async (
+      upload: UploadFile,
+      updateUpload: (id: string, updates: Partial<UploadFile>) => void,
+      onSuccess?: (publicUrl: string) => void
+    ) => {
+      if (upload.status === "uploading" || upload.status === "success") {
+        return;
+      }
+
+      if (!upload.file.type.startsWith("image/")) {
+        updateUpload(upload.id, {
+          status: "error",
+          error: "Only image files are supported.",
+        });
+        return;
+      }
+
+      const maxBytes = 5 * 1024 * 1024;
+      if (upload.file.size > maxBytes) {
+        updateUpload(upload.id, {
+          status: "error",
+          error: "File too large (max 5MB).",
+        });
+        return;
+      }
+
+      updateUpload(upload.id, {
+        status: "uploading",
+        progress: 10,
+        error: undefined,
+      });
+
+      try {
+        const { uploadUrl, publicUrl } = await presignUpload({
+          filename: upload.file.name,
+          contentType: upload.file.type || "application/octet-stream",
+        });
+
+        updateUpload(upload.id, { progress: 40 });
+
+        const response = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": upload.file.type || "application/octet-stream",
+          },
+          body: upload.file,
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Upload failed with status ${response.status}: ${response.statusText}`
+          );
+        }
+
+        updateUpload(upload.id, {
+          status: "success",
+          progress: 100,
+          publicUrl,
+        });
+
+        if (onSuccess) {
+          onSuccess(publicUrl);
+        }
+      } catch (error) {
+        console.error("Product image upload error:", error);
+        const isNetworkError =
+          error instanceof Error && error.message.includes("fetch");
+        updateUpload(upload.id, {
+          status: "error",
+          error: isNetworkError
+            ? "Network error (CORS?). Check bucket configuration."
+            : error instanceof Error
+              ? error.message
+              : "Upload failed.",
+        });
+      }
+    },
+    []
+  );
+
+  const uploadNewProductFile = useCallback(
+    async (upload: UploadFile) => {
+      await uploadImageFile(upload, updateNewProductUpload);
+    },
+    [uploadImageFile, updateNewProductUpload]
+  );
+
+  const uploadProductEditFile = useCallback(
+    async (upload: UploadFile) => {
+      await uploadImageFile(upload, updateProductEditUpload, (publicUrl) => {
+        addProductEditImageUrls([publicUrl]);
+      });
+    },
+    [addProductEditImageUrls, updateProductEditUpload, uploadImageFile]
+  );
+
+  const handleNewProductFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      if (files.length === 0) {
+        return;
+      }
+
+      setNewProductUploadError(null);
+
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      if (imageFiles.length !== files.length) {
+        setNewProductUploadError("Only image files are supported.");
+      }
+
+      const uploads = imageFiles.map(createUploadFile);
+      if (uploads.length > 0) {
+        setNewProductUploads((current) => [...current, ...uploads]);
+        uploads.forEach((item) => uploadNewProductFile(item));
+      }
+
+      if (newProductFileInputRef.current) {
+        newProductFileInputRef.current.value = "";
+      }
+    },
+    [createUploadFile, uploadNewProductFile]
+  );
+
+  const handleProductEditFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      if (files.length === 0) {
+        return;
+      }
+
+      setProductEditUploadError(null);
+
+      const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+      if (imageFiles.length !== files.length) {
+        setProductEditUploadError("Only image files are supported.");
+      }
+
+      const uploads = imageFiles.map(createUploadFile);
+      if (uploads.length > 0) {
+        setProductEditUploads((current) => [...current, ...uploads]);
+        uploads.forEach((item) => uploadProductEditFile(item));
+      }
+
+      if (productEditFileInputRef.current) {
+        productEditFileInputRef.current.value = "";
+      }
+    },
+    [createUploadFile, uploadProductEditFile]
+  );
+
   const handleAccessError = useCallback((message: string) => {
     if (!message) {
       return;
@@ -633,6 +1141,35 @@ export default function AdminDashboardClient() {
       setErrorMessage("Session expired. Please sign in again.");
     }
   }, []);
+
+  const buildCategoryTranslationDrafts = useCallback(
+    (items: CategoryTranslation[]) => {
+      const map = new Map(items.map((item) => [item.lang, item]));
+      return translationLanguages.map((lang) => ({
+        lang,
+        name: map.get(lang)?.name ?? "",
+        slug: map.get(lang)?.slug ?? null,
+      }));
+    },
+    [translationLanguages]
+  );
+
+  const buildProductTranslationDrafts = useCallback(
+    (items: ProductTranslation[], fallback?: { name?: string; description?: string }) => {
+      const map = new Map(items.map((item) => [item.lang, item]));
+      return translationLanguages.map((lang) => ({
+        lang,
+        name:
+          map.get(lang)?.name ??
+          (lang === DEFAULT_LANGUAGE ? fallback?.name ?? "" : ""),
+        description:
+          map.get(lang)?.description ??
+          (lang === DEFAULT_LANGUAGE ? fallback?.description ?? "" : ""),
+        slug: map.get(lang)?.slug ?? null,
+      }));
+    },
+    [translationLanguages]
+  );
 
   const loadCategories = useCallback(async () => {
     setCategoryLoading(true);
@@ -651,6 +1188,25 @@ export default function AdminDashboardClient() {
     }
   }, [extractErrorMessage, handleAccessError]);
 
+  const loadCategoryTranslations = useCallback(
+    async (categoryId: number) => {
+      setCategoryTranslationLoading(true);
+      setCategoryTranslationError(null);
+      try {
+        const result = await getAdminCategoryTranslations(categoryId);
+        setCategoryTranslationDrafts(buildCategoryTranslationDrafts(result.items));
+      } catch (error) {
+        console.error("Failed to load category translations", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setCategoryTranslationError("Unable to load category translations.");
+      } finally {
+        setCategoryTranslationLoading(false);
+      }
+    },
+    [buildCategoryTranslationDrafts, extractErrorMessage, handleAccessError]
+  );
+
   const loadReviews = useCallback(async () => {
     setReviewLoading(true);
     setReviewError(null);
@@ -660,6 +1216,7 @@ export default function AdminDashboardClient() {
         status,
         page: reviewPage,
         pageSize: reviewPageSize,
+        lang,
       });
       setReviews(result.items);
       setReviewPageInfo(result.pageInfo);
@@ -678,14 +1235,121 @@ export default function AdminDashboardClient() {
     reviewPage,
     reviewPageSize,
     reviewStatusFilter,
+    lang,
   ]);
+
+  const loadProducts = useCallback(async () => {
+    setProductLoading(true);
+    setProductError(null);
+    try {
+      const status = productStatusFilter === "all" ? undefined : productStatusFilter;
+      const result = await getAdminProducts({
+        status,
+        page: productPage,
+        pageSize: productPageSize,
+        lang,
+      });
+      setProducts(result.items);
+      setProductPageInfo(result.pageInfo);
+      setSelectedProductIds([]);
+    } catch (error) {
+      console.error("Failed to load products", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setProductError("Unable to load products.");
+    } finally {
+      setProductLoading(false);
+    }
+  }, [
+    extractErrorMessage,
+    handleAccessError,
+    lang,
+    productPage,
+    productPageSize,
+    productStatusFilter,
+  ]);
+
+  const loadUploadHealth = useCallback(async () => {
+    setUploadHealthLoading(true);
+    setUploadHealthError(null);
+    try {
+      const result = await getAdminUploadHealth();
+      setUploadHealth(result);
+    } catch (error) {
+      console.error("Failed to load upload health", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setUploadHealthError("Unable to check upload health.");
+    } finally {
+      setUploadHealthLoading(false);
+    }
+  }, [extractErrorMessage, handleAccessError]);
+
+  const loadProductTranslations = useCallback(
+    async (productId: string, fallback?: { name?: string; description?: string }) => {
+      setProductTranslationLoading(true);
+      setProductTranslationError(null);
+      try {
+        const result = await getAdminProductTranslations(productId);
+        setProductTranslationDrafts(
+          buildProductTranslationDrafts(result.items, fallback)
+        );
+      } catch (error) {
+        console.error("Failed to load product translations", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setProductTranslationError("Unable to load product translations.");
+      } finally {
+        setProductTranslationLoading(false);
+      }
+    },
+    [buildProductTranslationDrafts, extractErrorMessage, handleAccessError]
+  );
+
+  const loadProductDetail = useCallback(
+    async (productId: string) => {
+      setProductDetailLoading(true);
+      setProductDetailError(null);
+      try {
+        clearProductEditUploads();
+        setProductEditUploadError(null);
+        const detail = await getAdminProductDetail(productId, lang);
+        setProductDetail(detail);
+        setProductStatusEdit(detail.status ?? "pending");
+        setProductEdit({
+          name: detail.name,
+          description: detail.description ?? "",
+          categoryIds: detail.categoryIds ?? [],
+          imageUrls: (detail.images ?? []).map((item) => item.url).join("\n"),
+        });
+        await loadProductTranslations(productId, {
+          name: detail.name,
+          description: detail.description ?? "",
+        });
+      } catch (error) {
+        console.error("Failed to load product detail", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setProductDetailError("Unable to load product details.");
+      } finally {
+        setProductDetailLoading(false);
+      }
+    },
+    [
+      clearProductEditUploads,
+      extractErrorMessage,
+      handleAccessError,
+      lang,
+      loadProductTranslations,
+    ]
+  );
 
   const loadReviewDetail = useCallback(
     async (reviewId: string) => {
       setReviewDetailLoading(true);
       setReviewDetailError(null);
       try {
-        const detail = await getAdminReviewDetail(reviewId);
+        const detail = await getAdminReviewDetail(reviewId, lang);
         setReviewDetail(detail);
         setReviewStatusEdit(detail.status);
         setReviewEdit({
@@ -695,6 +1359,10 @@ export default function AdminDashboardClient() {
           photoUrls: (detail.photoUrls ?? []).join("\n"),
           categoryId: detail.categoryId ? String(detail.categoryId) : "",
           subCategoryId: detail.subCategoryId ? String(detail.subCategoryId) : "",
+          productId: detail.productId ?? "",
+          recommend: detail.recommend ?? false,
+          pros: (detail.pros ?? []).join("\n"),
+          cons: (detail.cons ?? []).join("\n"),
         });
       } catch (error) {
         console.error("Failed to load review detail", error);
@@ -705,7 +1373,7 @@ export default function AdminDashboardClient() {
         setReviewDetailLoading(false);
       }
     },
-    [extractErrorMessage, handleAccessError]
+    [extractErrorMessage, handleAccessError, lang]
   );
 
   const loadReviewComments = useCallback(
@@ -849,7 +1517,7 @@ export default function AdminDashboardClient() {
       setReportTargetError(null);
       try {
         if (report.targetType === "review") {
-          const detail = await getAdminReviewDetail(report.targetId);
+          const detail = await getAdminReviewDetail(report.targetId, lang);
           setReportTargetReviewDetail(detail);
           setReportTargetUserDetail(null);
         } else if (report.targetType === "user") {
@@ -871,12 +1539,13 @@ export default function AdminDashboardClient() {
         setReportTargetLoading(false);
       }
     },
-    [extractErrorMessage, handleAccessError]
+    [extractErrorMessage, handleAccessError, lang]
   );
 
   const refreshAll = () => {
     loadCategories();
     loadReviews();
+    loadProducts();
     loadComments();
     loadReports();
     loadUsers();
@@ -915,6 +1584,20 @@ export default function AdminDashboardClient() {
     if (!ready) {
       return;
     }
+    loadProducts();
+  }, [loadProducts, ready]);
+
+  useEffect(() => {
+    if (!ready || activeTab !== "products" || uploadHealth) {
+      return;
+    }
+    loadUploadHealth();
+  }, [activeTab, loadUploadHealth, ready, uploadHealth]);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
     loadComments();
   }, [loadComments, ready]);
 
@@ -944,6 +1627,29 @@ export default function AdminDashboardClient() {
     loadReviewDetail(activeReviewId);
     loadReviewComments(activeReviewId);
   }, [activeReviewId, loadReviewComments, loadReviewDetail]);
+
+  useEffect(() => {
+    if (!activeProductId) {
+      setProductDetail(null);
+      setProductEdit(null);
+      setProductDetailError(null);
+      setProductTranslationDrafts([]);
+      setProductTranslationError(null);
+      setProductTranslationMessage(null);
+      return;
+    }
+    loadProductDetail(activeProductId);
+  }, [activeProductId, loadProductDetail]);
+
+  useEffect(() => {
+    if (!editCategoryId) {
+      setCategoryTranslationDrafts([]);
+      setCategoryTranslationError(null);
+      setCategoryTranslationMessage(null);
+      return;
+    }
+    loadCategoryTranslations(Number(editCategoryId));
+  }, [editCategoryId, loadCategoryTranslations]);
 
   useEffect(() => {
     if (!activeCommentId) {
@@ -1063,6 +1769,298 @@ export default function AdminDashboardClient() {
     }
   };
 
+  const handleCategoryTranslationChange = (
+    lang: SupportedLanguage,
+    value: string
+  ) => {
+    setCategoryTranslationDrafts((current) =>
+      current.map((item) =>
+        item.lang === lang ? { ...item, name: value } : item
+      )
+    );
+  };
+
+  const handleSaveCategoryTranslations = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCategoryTranslationMessage(null);
+    setCategoryTranslationError(null);
+    const id = Number(editCategoryId);
+    if (!id) {
+      setCategoryTranslationError("Select a category to update translations.");
+      return;
+    }
+
+    const payload = categoryTranslationDrafts
+      .map((item) => ({
+        lang: item.lang,
+        name: item.name.trim(),
+      }))
+      .filter((item) => item.name.length > 0);
+
+    const parsed = z.array(categoryTranslationSchema).min(1).safeParse(payload);
+    if (!parsed.success) {
+      setCategoryTranslationError(
+        parsed.error.issues[0]?.message ?? "Invalid translations."
+      );
+      return;
+    }
+
+    try {
+      const result = await updateAdminCategoryTranslations(id, {
+        translations: parsed.data,
+      });
+      setCategoryTranslationDrafts(buildCategoryTranslationDrafts(result.items));
+      setCategoryTranslationMessage("Category translations updated.");
+      loadCategories();
+    } catch (error) {
+      console.error("Failed to update category translations", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setCategoryTranslationError("Unable to update category translations.");
+    }
+  };
+
+  const handleProductCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setProductMessage(null);
+    setProductError(null);
+
+    const hasUploadingAssets = newProductUploads.some(
+      (upload) => upload.status === "uploading"
+    );
+    if (hasUploadingAssets) {
+      setProductError("Please wait for all uploads to finish.");
+      return;
+    }
+
+    const description = newProductDescription.trim();
+    const manualImageUrls = parseImageUrls(newProductImageUrls);
+    const uploadedImageUrls = newProductUploads
+      .filter(
+        (upload): upload is UploadFile & { publicUrl: string } =>
+          upload.status === "success" && Boolean(upload.publicUrl)
+      )
+      .map((upload) => upload.publicUrl);
+    const imageUrls = Array.from(
+      new Set([...manualImageUrls, ...uploadedImageUrls])
+    );
+    const parsed = productEditSchema.safeParse({
+      name: newProductName,
+      description: description ? description : undefined,
+      categoryIds: newProductCategoryIds,
+      imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+    });
+
+    if (!parsed.success) {
+      setProductError(parsed.error.issues[0]?.message ?? "Invalid product data.");
+      return;
+    }
+
+    try {
+      await createAdminProduct({
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        status: newProductStatus,
+        categoryIds: parsed.data.categoryIds,
+        imageUrls: parsed.data.imageUrls ?? [],
+      }, lang);
+      setNewProductName("");
+      setNewProductDescription("");
+      setNewProductCategoryIds([]);
+      setNewProductImageUrls("");
+      setNewProductUploadError(null);
+      clearNewProductUploads();
+      setNewProductStatus("published");
+      setProductMessage("Product created.");
+      await loadProducts();
+    } catch (error) {
+      console.error("Failed to create product", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setProductError("Unable to create product.");
+    }
+  };
+
+  const handleProductSelect = (productId: string) => {
+    setActiveProductId(productId);
+    setProductDetailError(null);
+    clearProductEditUploads();
+    setProductEditUploadError(null);
+  };
+
+  const handleProductStatusSave = async () => {
+    if (!productDetail) {
+      return;
+    }
+    if (productStatusEdit === "deleted") {
+      const ok = window.confirm("Delete this product?");
+      if (!ok) {
+        return;
+      }
+    }
+    setProductError(null);
+    try {
+      const updated = await updateAdminProduct(productDetail.id, {
+        status: productStatusEdit,
+      }, lang);
+      const nextStatus = updated.status ?? productStatusEdit;
+      setProductDetail(updated);
+      setProducts((current) =>
+        current.map((item) =>
+          item.id === updated.id ? { ...item, status: nextStatus } : item
+        )
+      );
+      if (productStatusFilter !== "all" && productStatusFilter !== nextStatus) {
+        setProducts((current) => current.filter((item) => item.id !== updated.id));
+        setProductPageInfo((prev) => updatePaginationTotal(prev, -1));
+      }
+      setProductMessage("Product status updated.");
+    } catch (error) {
+      console.error("Failed to update product status", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setProductError("Unable to update product status.");
+    }
+  };
+
+  const handleProductSave = async () => {
+    if (!productDetail || !productEdit) {
+      return;
+    }
+    const hasUploadingAssets = productEditUploads.some(
+      (upload) => upload.status === "uploading"
+    );
+    if (hasUploadingAssets) {
+      setProductDetailError("Please wait for all uploads to finish.");
+      return;
+    }
+    setProductDetailError(null);
+    const description = productEdit.description.trim();
+    const imageUrls = parseImageUrls(productEdit.imageUrls);
+    const parsed = productEditSchema.safeParse({
+      name: productEdit.name,
+      description: description ? description : undefined,
+      categoryIds: productEdit.categoryIds,
+      imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+    });
+
+    if (!parsed.success) {
+      setProductDetailError(
+        parsed.error.issues[0]?.message ?? "Invalid product data."
+      );
+      return;
+    }
+
+    try {
+      const updated = await updateAdminProduct(productDetail.id, {
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        categoryIds: parsed.data.categoryIds,
+        imageUrls: parsed.data.imageUrls ?? [],
+      }, lang);
+      setProductDetail(updated);
+      setProducts((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item))
+      );
+      setProductMessage("Product updated.");
+      clearProductEditUploads();
+      setProductEditUploadError(null);
+    } catch (error) {
+      console.error("Failed to update product", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setProductDetailError("Unable to update product.");
+    }
+  };
+
+  const handleProductTranslationFieldChange = (
+    lang: SupportedLanguage,
+    field: "name" | "description",
+    value: string
+  ) => {
+    setProductTranslationDrafts((current) =>
+      current.map((item) =>
+        item.lang === lang ? { ...item, [field]: value } : item
+      )
+    );
+  };
+
+  const handleSaveProductTranslations = async () => {
+    if (!productDetail) {
+      return;
+    }
+    setProductTranslationMessage(null);
+    setProductTranslationError(null);
+
+    const payload = productTranslationDrafts
+      .map((item) => ({
+        lang: item.lang,
+        name: item.name.trim(),
+        description: item.description?.trim() || undefined,
+      }))
+      .filter((item) => item.name.length > 0);
+
+    const parsed = z.array(productTranslationSchema).min(1).safeParse(payload);
+    if (!parsed.success) {
+      setProductTranslationError(
+        parsed.error.issues[0]?.message ?? "Invalid translations."
+      );
+      return;
+    }
+
+    try {
+      const result = await updateAdminProductTranslations(productDetail.id, {
+        translations: parsed.data,
+      });
+      setProductTranslationDrafts(
+        buildProductTranslationDrafts(result.items, {
+          name: productDetail.name,
+          description: productDetail.description ?? "",
+        })
+      );
+      setProductTranslationMessage("Product translations updated.");
+      await loadProductDetail(productDetail.id);
+    } catch (error) {
+      console.error("Failed to update product translations", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setProductTranslationError("Unable to update product translations.");
+    }
+  };
+
+  const handleBulkProductStatus = async () => {
+    if (selectedProductIds.length === 0) {
+      return;
+    }
+    if (productBulkStatus === "deleted") {
+      const ok = window.confirm("Delete selected products?");
+      if (!ok) {
+        return;
+      }
+    }
+    setProductError(null);
+    try {
+      const result = await bulkUpdateAdminProductStatus(
+        selectedProductIds,
+        productBulkStatus,
+        lang
+      );
+      await loadProducts();
+      const successCount = result.succeeded.length;
+      const failureCount = result.failed.length;
+      if (failureCount > 0) {
+        setProductError(`Updated ${successCount} products. ${failureCount} failed.`);
+      } else {
+        setProductMessage(`Updated ${successCount} products.`);
+      }
+    } catch (error) {
+      console.error("Failed to bulk update products", error);
+      const message = extractErrorMessage(error);
+      handleAccessError(message);
+      setProductError("Unable to update selected products.");
+    }
+  };
+
   const handleReviewSelect = (reviewId: string) => {
     setActiveReviewId(reviewId);
     setReviewDetailError(null);
@@ -1111,6 +2109,16 @@ export default function AdminDashboardClient() {
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
+    const prosList = reviewEdit.pros
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+    const consList = reviewEdit.cons
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 20);
     const parsed = reviewEditSchema.safeParse({
       title: reviewEdit.title,
       excerpt: reviewEdit.excerpt,
@@ -1120,6 +2128,10 @@ export default function AdminDashboardClient() {
       subCategoryId: reviewEdit.subCategoryId
         ? Number(reviewEdit.subCategoryId)
         : null,
+      productId: reviewEdit.productId ? reviewEdit.productId : null,
+      recommend: reviewEdit.recommend,
+      pros: prosList.length > 0 ? prosList : undefined,
+      cons: consList.length > 0 ? consList : undefined,
     });
 
     if (!parsed.success) {
@@ -1144,7 +2156,11 @@ export default function AdminDashboardClient() {
         photoUrls: parsed.data.photoUrls,
         categoryId: parsed.data.categoryId,
         subCategoryId: parsed.data.subCategoryId ?? null,
-      });
+        productId: parsed.data.productId ?? null,
+        recommend: parsed.data.recommend,
+        pros: parsed.data.pros,
+        cons: parsed.data.cons,
+      }, lang);
       setReviewDetail(updated);
       setReviews((current) =>
         current.map((item) => (item.id === updated.id ? updated : item))
@@ -1520,6 +2536,7 @@ export default function AdminDashboardClient() {
   };
 
   const categoryCount = categoryPageInfo?.totalItems ?? categories.length;
+  const productTotal = productPageInfo?.totalItems ?? products.length;
   const reviewTotal = reviewPageInfo?.totalItems ?? reviews.length;
   const commentTotal = commentPageInfo?.totalItems ?? comments.length;
   const reportTotal = reportPageInfo?.totalItems ?? reports.length;
@@ -1540,6 +2557,13 @@ export default function AdminDashboardClient() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <LanguageSwitcher
+                currentLang={lang}
+                label="Content language"
+                className="flex items-center gap-2"
+                labelClassName="text-[10px] uppercase tracking-wide text-slate-400"
+                selectClassName="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+              />
               <button
                 type="button"
                 className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -1554,13 +2578,20 @@ export default function AdminDashboardClient() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
               <p className="text-xs uppercase tracking-wide text-slate-400">Reviews ({reviewFilterLabel})</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white">
                 {formatCompactNumber(reviewTotal)}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Active moderation queue</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-400">Products ({productFilterLabel})</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                {formatCompactNumber(productTotal)}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Catalog inventory</p>
             </div>
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
               <p className="text-xs uppercase tracking-wide text-slate-400">Comments ({commentFilterLabel})</p>
@@ -1617,6 +2648,7 @@ export default function AdminDashboardClient() {
                     <span>{tab.label}</span>
                     <span className={`text-xs ${activeTab === tab.key ? "text-white" : "text-slate-400"}`}>
                       {tab.key === "reviews" && formatCompactNumber(reviewTotal)}
+                      {tab.key === "products" && formatCompactNumber(productTotal)}
                       {tab.key === "comments" && formatCompactNumber(commentTotal)}
                       {tab.key === "reports" && formatCompactNumber(reportTotal)}
                       {tab.key === "users" && formatCompactNumber(userTotal)}
@@ -2028,6 +3060,73 @@ export default function AdminDashboardClient() {
                                   ))}
                                 </select>
                               </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Product ID
+                                </label>
+                                <input
+                                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                                  placeholder="UUID of the linked product"
+                                  value={reviewEdit.productId}
+                                  onChange={(event) =>
+                                    setReviewEdit({
+                                      ...reviewEdit,
+                                      productId: event.target.value,
+                                    })
+                                  }
+                                />
+                                <p className="text-[11px] text-slate-400">
+                                  Leave blank to unlink from a product.
+                                </p>
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Recommend
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={reviewEdit.recommend}
+                                    onChange={(event) =>
+                                      setReviewEdit({
+                                        ...reviewEdit,
+                                        recommend: event.target.checked,
+                                      })
+                                    }
+                                  />
+                                  Recommended by author
+                                </label>
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Pros (one per line)
+                                </label>
+                                <textarea
+                                  className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono"
+                                  value={reviewEdit.pros}
+                                  onChange={(event) =>
+                                    setReviewEdit({
+                                      ...reviewEdit,
+                                      pros: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Cons (one per line)
+                                </label>
+                                <textarea
+                                  className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono"
+                                  value={reviewEdit.cons}
+                                  onChange={(event) =>
+                                    setReviewEdit({
+                                      ...reviewEdit,
+                                      cons: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
                               <button
                                 type="button"
                                 className="w-full rounded-lg bg-primary text-white text-xs font-semibold py-2 hover:bg-primary-dark"
@@ -2141,6 +3240,1002 @@ export default function AdminDashboardClient() {
                       ) : (
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           Select a review to view full content and edit details.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {activeTab === "products" ? (
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                        Product Management
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Approve, enrich, and organize every catalog item.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="self-start sm:self-auto rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={loadProducts}
+                      disabled={productLoading}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-5 mb-4">
+                    <div className="grid gap-2">
+                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                        Status filter
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        value={productStatusFilter}
+                        onChange={(event) => {
+                          setProductStatusFilter(event.target.value as ProductStatusFilter);
+                          setProductPage(1);
+                        }}
+                      >
+                        {productStatusFilters.map((status) => (
+                          <option key={status} value={status}>
+                            {status === "all" ? "All statuses" : status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                        Search
+                      </label>
+                      <input
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        placeholder="Name, slug, brand, category"
+                        value={productQuery}
+                        onChange={(event) => setProductQuery(event.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                        Page size
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        value={productPageSize}
+                        onChange={(event) => {
+                          setProductPageSize(Number(event.target.value));
+                          setProductPage(1);
+                        }}
+                      >
+                        {PAGE_SIZE_OPTIONS.map((size) => (
+                          <option key={size} value={size}>
+                            {size} per page
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                        Results
+                      </label>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
+                        {formatCompactNumber(filteredProducts.length)} shown
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                        Locale
+                      </label>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
+                        Editing {lang.toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                          Upload health
+                        </h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Checks Cloudflare R2 configuration for product images.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
+                        onClick={loadUploadHealth}
+                        disabled={uploadHealthLoading}
+                      >
+                        {uploadHealthLoading ? "Checking..." : "Run check"}
+                      </button>
+                    </div>
+                    {uploadHealthError ? (
+                      <div className="mt-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                        {uploadHealthError}
+                      </div>
+                    ) : uploadHealthLoading ? (
+                      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                        Checking upload pipeline...
+                      </p>
+                    ) : uploadHealth ? (
+                      <div className="mt-3 grid gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              uploadHealth.checks.r2.configured
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {uploadHealth.checks.r2.configured ? "R2 configured" : "R2 missing"}
+                          </span>
+                          <span className="text-slate-500 dark:text-slate-400">
+                            Uploads rely on R2 presigned URLs.
+                          </span>
+                        </div>
+                        {!uploadHealth.checks.r2.configured ? (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Missing: {uploadHealth.checks.r2.missing.join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                        Run a check to verify the upload pipeline configuration.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+                    <div className="space-y-4">
+                      <form
+                        className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 space-y-3"
+                        onSubmit={handleProductCreate}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                              New product
+                            </h3>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              Add new catalog entries and set the initial status.
+                            </p>
+                          </div>
+                          <select
+                            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-xs"
+                            value={newProductStatus}
+                            onChange={(event) =>
+                              setNewProductStatus(event.target.value as ProductStatus)
+                            }
+                          >
+                            {productStatusOptions.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <label className="text-xs text-slate-500 dark:text-slate-400">
+                            Product name
+                          </label>
+                          <input
+                            className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+                            value={newProductName}
+                            onChange={(event) => setNewProductName(event.target.value)}
+                            placeholder="e.g. Samsung Galaxy Z Flip7"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <label className="text-xs text-slate-500 dark:text-slate-400">
+                            Description
+                          </label>
+                          <textarea
+                            className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+                            value={newProductDescription}
+                            onChange={(event) => setNewProductDescription(event.target.value)}
+                            placeholder="Short summary for the product page"
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <label className="text-xs text-slate-500 dark:text-slate-400">
+                            Categories
+                          </label>
+                          <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs space-y-2">
+                            {topCategories.map((category) => (
+                              <div key={`new-cat-${category.id}`} className="space-y-1">
+                                <label className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={newProductCategoryIds.includes(category.id)}
+                                    onChange={() =>
+                                      setNewProductCategoryIds((current) =>
+                                        toggleNumericSelection(current, category.id)
+                                      )
+                                    }
+                                  />
+                                  {category.name}
+                                </label>
+                                {(subcategoriesByParent.get(category.id) ?? []).map(
+                                  (subcategory) => (
+                                    <label
+                                      key={`new-sub-${subcategory.id}`}
+                                      className="flex items-center gap-2 pl-5 text-slate-600 dark:text-slate-400"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={newProductCategoryIds.includes(subcategory.id)}
+                                        onChange={() =>
+                                          setNewProductCategoryIds((current) =>
+                                            toggleNumericSelection(current, subcategory.id)
+                                          )
+                                        }
+                                      />
+                                      {subcategory.name}
+                                    </label>
+                                  )
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <label className="text-xs text-slate-500 dark:text-slate-400">
+                            Product images
+                          </label>
+                          <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                  Upload files
+                                </p>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                  JPG, PNG, or WebP up to 5MB each.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                onClick={() => newProductFileInputRef.current?.click()}
+                              >
+                                Select files
+                              </button>
+                              <input
+                                ref={newProductFileInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={handleNewProductFileSelect}
+                              />
+                            </div>
+
+                            {newProductUploadError ? (
+                              <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-[11px] px-3 py-2">
+                                {newProductUploadError}
+                              </div>
+                            ) : null}
+
+                            {newProductUploads.length > 0 ? (
+                              <div className="grid gap-2">
+                                {newProductUploads.map((upload) => {
+                                  const statusLabel =
+                                    upload.status === "uploading"
+                                      ? `Uploading ${upload.progress}%`
+                                      : upload.status === "success"
+                                        ? "Uploaded"
+                                        : upload.status === "error"
+                                          ? upload.error ?? "Upload failed."
+                                          : "Queued";
+                                  const statusClass =
+                                    upload.status === "error"
+                                      ? "text-red-600"
+                                      : upload.status === "success"
+                                        ? "text-emerald-600"
+                                        : "text-slate-500 dark:text-slate-400";
+                                  return (
+                                    <div
+                                      key={upload.id}
+                                      className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-2"
+                                    >
+                                      <div
+                                        className="h-10 w-10 rounded-md bg-slate-100 dark:bg-slate-800 bg-cover bg-center"
+                                        style={{ backgroundImage: `url(${upload.previewUrl})` }}
+                                      />
+                                      <div className="flex-1">
+                                        <p className="text-xs text-slate-700 dark:text-slate-200">
+                                          {upload.file.name}
+                                        </p>
+                                        <p className={`text-[11px] ${statusClass}`}>
+                                          {statusLabel}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                                        onClick={() => removeNewProductUpload(upload.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                No uploads yet.
+                              </p>
+                            )}
+
+                            {newProductUploads.length > 0 ? (
+                              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                <span>
+                                  {newProductUploadSummary.success} uploaded
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  {newProductUploadSummary.uploading} uploading
+                                </span>
+                                <span>•</span>
+                                <span>{newProductUploadSummary.error} failed</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <label className="text-xs text-slate-500 dark:text-slate-400">
+                            Image URLs (one per line, optional)
+                          </label>
+                          <textarea
+                            className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-mono"
+                            value={newProductImageUrls}
+                            onChange={(event) => setNewProductImageUrls(event.target.value)}
+                            placeholder="https://.../product.png"
+                          />
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Uploaded files are added automatically.
+                          </p>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="w-full rounded-lg bg-primary text-white text-xs font-semibold py-2 hover:bg-primary-dark"
+                        >
+                          Create product
+                        </button>
+                      </form>
+
+                      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          Bulk actions
+                        </span>
+                        <select
+                          className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs"
+                          value={productBulkStatus}
+                          onChange={(event) =>
+                            setProductBulkStatus(event.target.value as ProductStatus)
+                          }
+                        >
+                          {productStatusOptions.map((status) => (
+                            <option key={status} value={status}>
+                              Set {status}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="rounded-lg bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 hover:bg-slate-800"
+                          onClick={handleBulkProductStatus}
+                          disabled={selectedProductIds.length === 0}
+                        >
+                          Apply to {selectedProductIds.length} selected
+                        </button>
+                      </div>
+
+                      {productError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                          {productError}
+                        </div>
+                      ) : null}
+                      {productMessage ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
+                          {productMessage}
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300"
+                              checked={
+                                selectedProductIds.length === filteredProducts.length &&
+                                filteredProducts.length > 0
+                              }
+                              onChange={() =>
+                                setSelectedProductIds(
+                                  toggleSelectAll(
+                                    selectedProductIds,
+                                    filteredProducts.map((item) => item.id)
+                                  )
+                                )
+                              }
+                            />
+                            Select all
+                          </label>
+                          <span>{formatCompactNumber(filteredProducts.length)} items</span>
+                        </div>
+
+                        {productLoading ? (
+                          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-500 dark:text-slate-400">
+                            Loading products...
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {filteredProducts.map((product) => {
+                              const status = product.status ?? "pending";
+                              const hasProductImages =
+                                (product.images?.length ?? 0) > 0;
+                              const categoryLabel = (product.categoryIds ?? [])
+                                .map((id) => categoryLookup.get(id)?.name)
+                                .filter((name): name is string => Boolean(name))
+                                .join(", ");
+                              return (
+                                <button
+                                  key={product.id}
+                                  type="button"
+                                  onClick={() => handleProductSelect(product.id)}
+                                  className={`w-full text-left rounded-lg border px-3 py-3 transition ${
+                                    activeProductId === product.id
+                                      ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
+                                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <input
+                                      type="checkbox"
+                                      className="mt-1 rounded border-slate-300"
+                                      checked={selectedProductIds.includes(product.id)}
+                                      onChange={(event) => {
+                                        event.stopPropagation();
+                                        setSelectedProductIds((current) =>
+                                          toggleSelection(current, product.id)
+                                        );
+                                      }}
+                                    />
+                                    <div
+                                      className="size-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 bg-cover bg-center"
+                                      style={{
+                                        backgroundImage: product.images?.[0]?.url
+                                          ? `url(${product.images[0].url})`
+                                          : "none",
+                                      }}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                        <span
+                                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                            productStatusStyles[status]
+                                          }`}
+                                        >
+                                          {status}
+                                        </span>
+                                        {!hasProductImages ? (
+                                          <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-700">
+                                            No images
+                                          </span>
+                                        ) : null}
+                                        <span>#{formatId(product.id)}</span>
+                                        <span>
+                                          Reviews {formatNumber(product.stats?.reviewCount)}
+                                        </span>
+                                      </div>
+                                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white mt-1">
+                                        {product.name}
+                                      </h3>
+                                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {product.slug}
+                                      </p>
+                                      {categoryLabel ? (
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                                          {categoryLabel}
+                                        </p>
+                                      ) : null}
+                                      <div className="flex flex-wrap gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                                        <span>
+                                          Rating {product.stats?.ratingAvg ?? "-"}
+                                        </span>
+                                        <span>
+                                          Votes {formatNumber(product.stats?.ratingCount)}
+                                        </span>
+                                        <span>
+                                          Photos {formatNumber(product.stats?.photoCount)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                            {filteredProducts.length === 0 ? (
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                No products found for the current filters.
+                              </p>
+                            ) : null}
+                          </div>
+                        )}
+                        <PaginationControls
+                          pagination={productPageInfo}
+                          onPageChange={setProductPage}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
+                      {productDetailLoading ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Loading product details...
+                        </p>
+                      ) : productDetail ? (
+                        <div className="space-y-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                Product #{formatId(productDetail.id)}
+                              </p>
+                              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                                {productDetail.name}
+                              </h3>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {productDetail.slug}
+                              </p>
+                              {(productDetail.images?.length ?? 0) === 0 ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold px-2 py-0.5 mt-2">
+                                  <span className="material-symbols-outlined text-[14px]">
+                                    warning
+                                  </span>
+                                  No product images
+                                </span>
+                              ) : null}
+                            </div>
+                            <Link
+                              href={localizePath(`/products/${productDetail.slug}`, lang)}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Open
+                            </Link>
+                          </div>
+
+                          {productDetailError ? (
+                            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                              {productDetailError}
+                            </div>
+                          ) : null}
+
+                          <div className="grid gap-2">
+                            <label className="text-xs text-slate-500 dark:text-slate-400">
+                              Status
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <select
+                                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                                value={productStatusEdit}
+                                onChange={(event) =>
+                                  setProductStatusEdit(event.target.value as ProductStatus)
+                                }
+                              >
+                                {productStatusOptions.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                className="rounded-lg bg-emerald-500 text-white text-xs font-semibold px-3 py-2 hover:bg-emerald-600"
+                                onClick={handleProductStatusSave}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+
+                          {productEdit ? (
+                            <div className="space-y-3">
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Name
+                                </label>
+                                <input
+                                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                                  value={productEdit.name}
+                                  onChange={(event) =>
+                                    setProductEdit({
+                                      ...productEdit,
+                                      name: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Description
+                                </label>
+                                <textarea
+                                  className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                                  value={productEdit.description}
+                                  onChange={(event) =>
+                                    setProductEdit({
+                                      ...productEdit,
+                                      description: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Categories
+                                </label>
+                                <div className="max-h-48 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-xs space-y-2">
+                                  {topCategories.map((category) => (
+                                    <div
+                                      key={`edit-cat-${category.id}`}
+                                      className="space-y-1"
+                                    >
+                                      <label className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                                        <input
+                                          type="checkbox"
+                                          checked={productEdit.categoryIds.includes(category.id)}
+                                          onChange={() =>
+                                            setProductEdit({
+                                              ...productEdit,
+                                              categoryIds: toggleNumericSelection(
+                                                productEdit.categoryIds,
+                                                category.id
+                                              ),
+                                            })
+                                          }
+                                        />
+                                        {category.name}
+                                      </label>
+                                      {(subcategoriesByParent.get(category.id) ?? []).map(
+                                        (subcategory) => (
+                                          <label
+                                            key={`edit-sub-${subcategory.id}`}
+                                            className="flex items-center gap-2 pl-5 text-slate-600 dark:text-slate-400"
+                                          >
+                                            <input
+                                              type="checkbox"
+                                              checked={productEdit.categoryIds.includes(
+                                                subcategory.id
+                                              )}
+                                              onChange={() =>
+                                                setProductEdit({
+                                                  ...productEdit,
+                                                  categoryIds: toggleNumericSelection(
+                                                    productEdit.categoryIds,
+                                                    subcategory.id
+                                                  ),
+                                                })
+                                              }
+                                            />
+                                            {subcategory.name}
+                                          </label>
+                                        )
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Product images
+                                </label>
+                                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 space-y-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                        Upload files
+                                      </p>
+                                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        JPG, PNG, or WebP up to 5MB each.
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                      onClick={() =>
+                                        productEditFileInputRef.current?.click()
+                                      }
+                                    >
+                                      Select files
+                                    </button>
+                                    <input
+                                      ref={productEditFileInputRef}
+                                      type="file"
+                                      accept="image/*"
+                                      multiple
+                                      className="hidden"
+                                      onChange={handleProductEditFileSelect}
+                                    />
+                                  </div>
+
+                                  {productEditUploadError ? (
+                                    <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-[11px] px-3 py-2">
+                                      {productEditUploadError}
+                                    </div>
+                                  ) : null}
+
+                                  {productEditUploads.length > 0 ? (
+                                    <div className="grid gap-2">
+                                      {productEditUploads.map((upload) => {
+                                        const statusLabel =
+                                          upload.status === "uploading"
+                                            ? `Uploading ${upload.progress}%`
+                                            : upload.status === "success"
+                                              ? "Uploaded"
+                                              : upload.status === "error"
+                                                ? upload.error ?? "Upload failed."
+                                                : "Queued";
+                                        const statusClass =
+                                          upload.status === "error"
+                                            ? "text-red-600"
+                                            : upload.status === "success"
+                                              ? "text-emerald-600"
+                                              : "text-slate-500 dark:text-slate-400";
+                                        return (
+                                          <div
+                                            key={upload.id}
+                                            className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-2"
+                                          >
+                                            <div
+                                              className="h-10 w-10 rounded-md bg-slate-100 dark:bg-slate-800 bg-cover bg-center"
+                                              style={{
+                                                backgroundImage: `url(${upload.previewUrl})`,
+                                              }}
+                                            />
+                                            <div className="flex-1">
+                                              <p className="text-xs text-slate-700 dark:text-slate-200">
+                                                {upload.file.name}
+                                              </p>
+                                              <p className={`text-[11px] ${statusClass}`}>
+                                                {statusLabel}
+                                              </p>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                                              onClick={() =>
+                                                removeProductEditUpload(upload.id)
+                                              }
+                                            >
+                                              Remove
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                      No uploads yet.
+                                    </p>
+                                  )}
+
+                                  {productEditUploads.length > 0 ? (
+                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                                      <span>
+                                        {productEditUploadSummary.success} uploaded
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {productEditUploadSummary.uploading} uploading
+                                      </span>
+                                      <span>•</span>
+                                      <span>
+                                        {productEditUploadSummary.error} failed
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Current image order
+                                </label>
+                                {productEditImageUrls.length > 0 ? (
+                                  <div className="grid gap-2">
+                                    {productEditImageUrls.map((url, index) => (
+                                      <div
+                                        key={`${url}-${index}`}
+                                        className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-2"
+                                      >
+                                        <div
+                                          className="h-10 w-10 rounded-md bg-slate-100 dark:bg-slate-800 bg-cover bg-center"
+                                          style={{ backgroundImage: `url(${url})` }}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs text-slate-700 dark:text-slate-200 truncate">
+                                            {url}
+                                          </p>
+                                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                            Position {index + 1}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <button
+                                            type="button"
+                                            className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                                            onClick={() =>
+                                              moveProductEditImageUrl(index, "up")
+                                            }
+                                            disabled={index === 0}
+                                          >
+                                            Up
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                                            onClick={() =>
+                                              moveProductEditImageUrl(index, "down")
+                                            }
+                                            disabled={
+                                              index === productEditImageUrls.length - 1
+                                            }
+                                          >
+                                            Down
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                                            onClick={() =>
+                                              removeProductEditImageUrl(index)
+                                            }
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    No images yet.
+                                  </p>
+                                )}
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                  Reorder or remove to control gallery order.
+                                </p>
+                              </div>
+
+                              <div className="grid gap-2">
+                                <label className="text-xs text-slate-500 dark:text-slate-400">
+                                  Image URLs (one per line, optional)
+                                </label>
+                                <textarea
+                                  className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono"
+                                  value={productEdit.imageUrls}
+                                  onChange={(event) =>
+                                    setProductEdit({
+                                      ...productEdit,
+                                      imageUrls: event.target.value,
+                                    })
+                                  }
+                                />
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                  Uploaded files are added automatically.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                className="w-full rounded-lg bg-primary text-white text-xs font-semibold py-2 hover:bg-primary-dark"
+                                onClick={handleProductSave}
+                              >
+                                Save product changes
+                              </button>
+                            </div>
+                          ) : null}
+
+                          <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                                Product Translations
+                              </h4>
+                              <button
+                                type="button"
+                                className="rounded-lg bg-primary text-white text-xs font-semibold px-3 py-2 hover:bg-primary-dark disabled:opacity-60"
+                                onClick={handleSaveProductTranslations}
+                                disabled={productTranslationLoading}
+                              >
+                                Save translations
+                              </button>
+                            </div>
+                            {productTranslationError ? (
+                              <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                                {productTranslationError}
+                              </div>
+                            ) : null}
+                            {productTranslationMessage ? (
+                              <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
+                                {productTranslationMessage}
+                              </div>
+                            ) : null}
+                            {productTranslationLoading ? (
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                Loading translations...
+                              </p>
+                            ) : (
+                              <div className="grid gap-4">
+                                {productTranslationDrafts.map((translation) => (
+                                  <div
+                                    key={translation.lang}
+                                    className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-3 space-y-2"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                        {translation.lang.toUpperCase()}
+                                      </p>
+                                      {translation.slug ? (
+                                        <span className="text-[11px] text-slate-400">
+                                          {translation.slug}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="grid gap-2">
+                                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                                        Name
+                                      </label>
+                                      <input
+                                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                                        value={translation.name}
+                                        onChange={(event) =>
+                                          handleProductTranslationFieldChange(
+                                            translation.lang,
+                                            "name",
+                                            event.target.value
+                                          )
+                                        }
+                                        placeholder={`Name in ${translation.lang.toUpperCase()}`}
+                                      />
+                                    </div>
+                                    <div className="grid gap-2">
+                                      <label className="text-xs text-slate-500 dark:text-slate-400">
+                                        Description
+                                      </label>
+                                      <textarea
+                                        className="min-h-[80px] w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                                        value={translation.description ?? ""}
+                                        onChange={(event) =>
+                                          handleProductTranslationFieldChange(
+                                            translation.lang,
+                                            "description",
+                                            event.target.value
+                                          )
+                                        }
+                                        placeholder="Localized description"
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Select a product to view full content and edit details.
                         </p>
                       )}
                     </div>
@@ -3300,6 +5395,66 @@ export default function AdminDashboardClient() {
                       </button>
                     </form>
                   </div>
+
+                  <form className="mt-6 grid gap-3" onSubmit={handleSaveCategoryTranslations}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Category Translations
+                      </h3>
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-primary text-white text-xs font-semibold px-3 py-2 hover:bg-primary-dark disabled:opacity-60"
+                        disabled={!editCategoryId || categoryTranslationLoading}
+                      >
+                        Save translations
+                      </button>
+                    </div>
+                    {categoryTranslationError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                        {categoryTranslationError}
+                      </div>
+                    ) : null}
+                    {categoryTranslationMessage ? (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
+                        {categoryTranslationMessage}
+                      </div>
+                    ) : null}
+                    {!editCategoryId ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Select a category to edit translations.
+                      </p>
+                    ) : categoryTranslationLoading ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Loading translations...
+                      </p>
+                    ) : (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {categoryTranslationDrafts.map((translation) => (
+                          <div key={translation.lang} className="grid gap-2">
+                            <label className="text-xs text-slate-500 dark:text-slate-400">
+                              {translation.lang.toUpperCase()} name
+                            </label>
+                            <input
+                              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                              value={translation.name}
+                              onChange={(event) =>
+                                handleCategoryTranslationChange(
+                                  translation.lang,
+                                  event.target.value
+                                )
+                              }
+                              placeholder={`Name in ${translation.lang.toUpperCase()}`}
+                            />
+                            {translation.slug ? (
+                              <p className="text-[11px] text-slate-400">
+                                Slug: {translation.slug}
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </form>
 
                   <div className="mt-6">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">

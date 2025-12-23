@@ -17,7 +17,8 @@ export async function GET() {
   const sitemapUrls: string[] = [];
 
   for (const lang of SUPPORTED_LANGUAGES) {
-    let totalPages = 1;
+    let reviewPages = 1;
+    let productPages = 1;
     if (apiBaseUrl) {
       try {
         const response = await fetch(
@@ -29,7 +30,23 @@ export async function GET() {
           const rawTotal = data?.pageInfo?.totalPages ?? 1;
           const parsed =
             typeof rawTotal === "number" ? rawTotal : Number(rawTotal ?? 1);
-          totalPages = Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
+          reviewPages = Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
+        }
+      } catch {
+        // ignore API errors for sitemap index
+      }
+
+      try {
+        const response = await fetch(
+          `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/products?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`,
+          { next: { revalidate: SITEMAP_CACHE_SECONDS } }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const rawTotal = data?.pageInfo?.totalPages ?? 1;
+          const parsed =
+            typeof rawTotal === "number" ? rawTotal : Number(rawTotal ?? 1);
+          productPages = Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
         }
       } catch {
         // ignore API errors for sitemap index
@@ -37,9 +54,15 @@ export async function GET() {
     }
 
     sitemapUrls.push(`${siteUrl}/sitemap-${lang}.xml`);
-    if (totalPages > 1) {
-      for (let part = 2; part <= totalPages; part += 1) {
+    if (reviewPages > 1) {
+      for (let part = 2; part <= reviewPages; part += 1) {
         sitemapUrls.push(`${siteUrl}/sitemap-${lang}-${part}.xml`);
+      }
+    }
+    sitemapUrls.push(`${siteUrl}/sitemap-products-${lang}.xml`);
+    if (productPages > 1) {
+      for (let part = 2; part <= productPages; part += 1) {
+        sitemapUrls.push(`${siteUrl}/sitemap-products-${lang}-${part}.xml`);
       }
     }
   }

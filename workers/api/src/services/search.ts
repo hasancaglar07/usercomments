@@ -15,6 +15,7 @@ type SearchRow = {
   lang: string;
   slug: string;
   title?: string | null;
+  excerpt?: string | null;
   content_html?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
@@ -70,6 +71,7 @@ export async function searchReviews(env: ParsedEnv, options: {
         lang,
         slug,
         title,
+        excerpt,
         content_html,
         meta_title,
         meta_description,
@@ -123,6 +125,7 @@ export async function searchReviews(env: ParsedEnv, options: {
             lang: row.lang,
             slug: row.slug,
             title: row.title ?? "",
+            excerpt: row.excerpt ?? null,
             content_html: row.content_html ?? null,
             meta_title: row.meta_title ?? null,
             meta_description: row.meta_description ?? null,

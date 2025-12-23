@@ -5,10 +5,9 @@ import {
   localizePath,
   type SupportedLanguage,
 } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
-const DEFAULT_SITE_NAME = "UserComments.net";
-const DEFAULT_DESCRIPTION =
-  "Read what real people say before you buy. Thousands of user comments and honest experiences on the latest products.";
+const DEFAULT_SITE_NAME = "UserReview";
 const DEFAULT_OG_IMAGE = "/stitch_assets/images/img-029.png";
 
 export function getSiteUrl(): string {
@@ -63,7 +62,7 @@ function buildAlternates({
 }
 
 export function buildMetadata(options: MetadataOptions): Metadata {
-  const description = options.description ?? DEFAULT_DESCRIPTION;
+  const description = options.description ?? t(options.lang, "seo.defaultDescription");
   const alternates = buildAlternates({
     lang: options.lang,
     path: options.path,
@@ -71,7 +70,8 @@ export function buildMetadata(options: MetadataOptions): Metadata {
   });
   const url = (alternates?.canonical as string) ?? toAbsoluteUrl(options.path);
   const imageUrl = toAbsoluteUrl(options.image ?? DEFAULT_OG_IMAGE);
-  const title = `${options.title} | ${DEFAULT_SITE_NAME} | Real User Reviews & Honest Product Comments`;
+  const titleSuffix = t(options.lang, "seo.titleSuffix");
+  const title = `${options.title} | ${DEFAULT_SITE_NAME} | ${titleSuffix}`;
 
   return {
     title,

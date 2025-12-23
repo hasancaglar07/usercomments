@@ -16,6 +16,8 @@ import CategorySortSelect from "@/components/catalog/CategorySortSelect";
 import EmptyState from "@/components/ui/EmptyState";
 import type { PaginationInfo } from "@/src/types";
 import { Suspense } from "react";
+import { normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type ReviewListCatalogProps = {
   cards: ReviewCardCatalogData[];
@@ -43,6 +45,7 @@ type ReviewListCategoryProps = {
   pagination: PaginationInfo;
   buildHref?: (page: number) => string;
   sort: "latest" | "popular" | "rating";
+  lang: string;
 };
 
 export function ReviewListCategory({
@@ -50,13 +53,17 @@ export function ReviewListCategory({
   pagination,
   buildHref,
   sort,
+  lang,
 }: ReviewListCategoryProps) {
+  const resolvedLang = normalizeLanguage(lang);
   return (
     <div className="lg:col-span-8 flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-[#0d141b] text-2xl font-bold">Latest Reviews</h2>
+        <h2 className="text-[#0d141b] text-2xl font-bold">
+          {t(resolvedLang, "reviewList.category.latestTitle")}
+        </h2>
         <div className="flex items-center gap-2 text-sm text-[#4c739a]">
-          <span>Sort by:</span>
+          <span>{t(resolvedLang, "reviewList.category.sortBy")}</span>
           <Suspense fallback={null}>
             <CategorySortSelect sort={sort} />
           </Suspense>
@@ -68,13 +75,13 @@ export function ReviewListCategory({
         ))
       ) : (
         <EmptyState
-          title="No reviews yet"
-          description="There are no reviews in this category yet. Be the first to share your experience!"
-          ctaLabel="Write first review"
+          title={t(resolvedLang, "reviewList.category.empty.title")}
+          description={t(resolvedLang, "reviewList.category.empty.description")}
+          ctaLabel={t(resolvedLang, "reviewList.category.empty.cta")}
           authenticatedHref="/node/add/review"
         />
       )}
-      <PaginationCategory pagination={pagination} buildHref={buildHref} />
+      <PaginationCategory pagination={pagination} buildHref={buildHref} lang={resolvedLang} />
     </div>
   );
 }
@@ -84,6 +91,7 @@ type ReviewListProfileProps = {
   pagination: PaginationInfo;
   activeTab: "reviews" | "drafts" | "comments" | "saved";
   reviewCount: number;
+  lang: string;
   tabHrefs: {
     reviews: string;
     drafts: string;
@@ -98,32 +106,34 @@ export function ReviewListProfile({
   pagination,
   activeTab,
   reviewCount,
+  lang,
   tabHrefs,
   buildHref,
 }: ReviewListProfileProps) {
+  const resolvedLang = normalizeLanguage(lang);
   const emptyState =
     activeTab === "reviews"
       ? {
-        title: "No reviews yet",
-        description: "Start your profile by sharing your first review.",
-        ctaLabel: "Write first review",
+        title: t(resolvedLang, "reviewList.profile.empty.reviews.title"),
+        description: t(resolvedLang, "reviewList.profile.empty.reviews.description"),
+        ctaLabel: t(resolvedLang, "reviewList.profile.empty.reviews.cta"),
       }
       : activeTab === "drafts"
         ? {
-          title: "No drafts yet",
-          description: "Start a draft to share your experience later.",
-          ctaLabel: "Write review",
+          title: t(resolvedLang, "reviewList.profile.empty.drafts.title"),
+          description: t(resolvedLang, "reviewList.profile.empty.drafts.description"),
+          ctaLabel: t(resolvedLang, "reviewList.profile.empty.drafts.cta"),
         }
         : activeTab === "comments"
           ? {
-            title: "No comments yet",
-            description: "Share your thoughts on others' reviews to see them here.",
-            ctaLabel: "Browse reviews",
+            title: t(resolvedLang, "reviewList.profile.empty.comments.title"),
+            description: t(resolvedLang, "reviewList.profile.empty.comments.description"),
+            ctaLabel: t(resolvedLang, "reviewList.profile.empty.comments.cta"),
           }
           : {
-            title: "No saved items",
-            description: "Bookmark reviews to find them easily later.",
-            ctaLabel: "Explore catalog",
+            title: t(resolvedLang, "reviewList.profile.empty.saved.title"),
+            description: t(resolvedLang, "reviewList.profile.empty.saved.description"),
+            ctaLabel: t(resolvedLang, "reviewList.profile.empty.saved.cta"),
           };
   const activeTabClass =
     "flex items-center justify-center border-b-[3px] border-primary text-text-main-light dark:text-text-main-dark py-4 px-2 whitespace-nowrap";
@@ -139,32 +149,40 @@ export function ReviewListProfile({
             href={tabHrefs.reviews}
           >
             <p className="text-sm font-bold tracking-wide">
-              Reviews ({reviewCount})
+              {t(resolvedLang, "reviewList.profile.tab.reviews", {
+                count: reviewCount,
+              })}
             </p>
           </Link>
           <Link
             className={activeTab === "drafts" ? activeTabClass : inactiveTabClass}
             href={tabHrefs.drafts}
           >
-            <p className="text-sm font-bold tracking-wide">Drafts</p>
+            <p className="text-sm font-bold tracking-wide">
+              {t(resolvedLang, "reviewList.profile.tab.drafts")}
+            </p>
           </Link>
           <Link
             className={activeTab === "comments" ? activeTabClass : inactiveTabClass}
             href={tabHrefs.comments}
           >
-            <p className="text-sm font-bold tracking-wide">Comments</p>
+            <p className="text-sm font-bold tracking-wide">
+              {t(resolvedLang, "reviewList.profile.tab.comments")}
+            </p>
           </Link>
           <Link
             className={activeTab === "saved" ? activeTabClass : inactiveTabClass}
             href={tabHrefs.saved}
           >
-            <p className="text-sm font-bold tracking-wide">Saved Items</p>
+            <p className="text-sm font-bold tracking-wide">
+              {t(resolvedLang, "reviewList.profile.tab.saved")}
+            </p>
           </Link>
         </div>
       </div>
       {cards.length > 0 ? (
         cards.map((card, index) => (
-          <ReviewCardProfile key={`profile-${index}`} {...card} />
+          <ReviewCardProfile key={`profile-${index}`} {...card} lang={resolvedLang} />
         ))
       ) : (
         <EmptyState
@@ -174,7 +192,7 @@ export function ReviewListProfile({
           authenticatedHref="/node/add/review"
         />
       )}
-      <PaginationProfile pagination={pagination} buildHref={buildHref} />
+      <PaginationProfile pagination={pagination} buildHref={buildHref} lang={resolvedLang} />
     </main>
   );
 }

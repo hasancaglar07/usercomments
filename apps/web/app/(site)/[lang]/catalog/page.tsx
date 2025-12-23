@@ -29,6 +29,7 @@ import {
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 import {
   catalogReviewCards,
   catalogPagination,
@@ -41,30 +42,20 @@ const DEFAULT_PAGE_SIZE = 10;
 const POPULAR_LIMIT = 4;
 const DEFAULT_SORT = "latest" as const;
 const SORT_OPTIONS = [
-  { label: "Newest Reviews", value: "latest", apiValue: "latest" },
-  { label: "Highest Rated", value: "rating", apiValue: "rating" },
-  { label: "Most Discussed", value: "popular", apiValue: "popular" },
-  { label: "Trending Now", value: "trending", apiValue: "popular" },
+  { value: "latest", apiValue: "latest", labelKey: "catalog.sort.newest" },
+  { value: "rating", apiValue: "rating", labelKey: "catalog.sort.highestRated" },
+  { value: "popular", apiValue: "popular", labelKey: "catalog.sort.mostDiscussed" },
+  { value: "trending", apiValue: "popular", labelKey: "catalog.sort.trending" },
 ] as const;
 const SORT_PARAM_VALUES = new Set<CatalogSortParam>(
   SORT_OPTIONS.map((option) => option.value)
 );
-const CATEGORY_PILL_LABELS = [
-  "All",
-  "Beauty",
-  "Technology",
-  "Travel",
-  "Automotive",
-  "Books",
-  "Health",
-  "Movies",
-];
 
 export async function generateMetadata({ params }: CatalogPageProps): Promise<Metadata> {
   const lang = normalizeLanguage((await params).lang);
   return buildMetadata({
-    title: "Catalog",
-    description: "Browse the latest reviews across every category.",
+    title: t(lang, "catalog.meta.title"),
+    description: t(lang, "catalog.meta.description"),
     path: "/catalog",
     lang,
     type: "website",
@@ -125,20 +116,33 @@ function mapSortToApi(sort: CatalogSortParam): "latest" | "popular" | "rating" {
   return match ? match.apiValue : DEFAULT_SORT;
 }
 
-function buildCategoryPills(categories: Category[]) {
+function buildCategoryPills(categories: Category[], lang: string) {
+  const resolvedLang = normalizeLanguage(lang);
+  const fallbackLabels = [
+    t(resolvedLang, "catalog.categoryPill.all"),
+    t(resolvedLang, "catalog.categoryPill.beauty"),
+    t(resolvedLang, "catalog.categoryPill.technology"),
+    t(resolvedLang, "catalog.categoryPill.travel"),
+    t(resolvedLang, "catalog.categoryPill.automotive"),
+    t(resolvedLang, "catalog.categoryPill.books"),
+    t(resolvedLang, "catalog.categoryPill.health"),
+    t(resolvedLang, "catalog.categoryPill.movies"),
+  ];
   const topLevel = categories.filter((category) => !category.parentId);
   if (topLevel.length === 0) {
-    return CATEGORY_PILL_LABELS.map((label) => ({
+    return fallbackLabels.map((label, index) => ({
       label,
       id: undefined,
+      isAll: index === 0,
     }));
   }
-  const limit = Math.max(0, CATEGORY_PILL_LABELS.length - 1);
+  const limit = Math.max(0, fallbackLabels.length - 1);
   return [
-    { label: "All", id: undefined },
+    { label: t(resolvedLang, "catalog.categoryPill.all"), id: undefined, isAll: true },
     ...topLevel.slice(0, limit).map((category) => ({
       label: category.name,
       id: category.id,
+      isAll: false,
     })),
   ];
 }
@@ -148,6 +152,7 @@ function buildCatalogCards(
   categories: Category[],
   lang: string
 ): ReviewCardCatalogData[] {
+  const resolvedLang = normalizeLanguage(lang);
   return reviews.map((review, index) => {
     const categoryLabel = getCategoryLabel(categories, review.categoryId);
     const categoryMeta = getCategoryMeta(categoryLabel);
@@ -155,18 +160,22 @@ function buildCatalogCards(
     return {
       review,
       href: localizePath(`/content/${review.slug}`, lang),
-      dateLabel: formatRelativeTime(review.createdAt),
+      dateLabel: formatRelativeTime(review.createdAt, resolvedLang),
       ratingStars: buildRatingStars(review.ratingAvg),
       ratingValue: (review.ratingAvg ?? 0).toFixed(1),
       imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
       imageAlt: review.title,
-      authorAvatarAlt: `${review.author.username} Avatar`,
-      authorAvatarDataAlt: `Avatar of user ${review.author.username}`,
+      authorAvatarAlt: t(resolvedLang, "catalog.avatarAlt", {
+        username: review.author.username,
+      }),
+      authorAvatarDataAlt: t(resolvedLang, "catalog.avatarDataAlt", {
+        username: review.author.username,
+      }),
       authorAvatarUrl:
         review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
       category: categoryMeta,
-      viewsLabel: formatCompactNumber(review.views ?? 0),
-      likesLabel: formatCompactNumber(review.votesUp ?? 0),
+      viewsLabel: formatCompactNumber(review.views ?? 0, resolvedLang),
+      likesLabel: formatCompactNumber(review.votesUp ?? 0, resolvedLang),
       showImageOverlay: Boolean(review.photoCount && review.photoCount > 1),
     };
   });
@@ -174,25 +183,34 @@ function buildCatalogCards(
 
 function buildPopularTopics(
   reviews: Review[],
-  categories: Category[]
+  categories: Category[],
+  lang: string
 ): CatalogPopularTopic[] {
+  const resolvedLang = normalizeLanguage(lang);
   return reviews.map((review, index) => {
-    const categoryLabel = getCategoryLabel(categories, review.categoryId) ?? "General";
+    const categoryLabel =
+      getCategoryLabel(categories, review.categoryId) ??
+      t(resolvedLang, "common.general");
     return {
       slug: review.slug,
       rankLabel: String(index + 1).padStart(2, "0"),
       title: review.title,
-      metaLabel: `${categoryLabel} • ${formatCompactNumber(review.ratingCount ?? 0)} ratings`,
+      metaLabel: t(resolvedLang, "catalog.popularTopicMeta", {
+        category: categoryLabel,
+        count: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
+      }),
     };
   });
 }
 
 function buildTopAuthors(
   reviews: Review[],
-  fallback: CatalogTopAuthor[]
+  fallback: CatalogTopAuthor[],
+  lang: string
 ): CatalogTopAuthor[] {
   const authors: CatalogTopAuthor[] = [];
   const seen = new Set<string>();
+  const resolvedLang = normalizeLanguage(lang);
 
   for (const review of reviews) {
     const username = review.author.username;
@@ -209,12 +227,16 @@ function buildTopAuthors(
       },
       avatarUrl:
         review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, rankIndex),
-      avatarAlt: `${username} Avatar`,
-      avatarDataAlt: `Avatar of user ${username}`,
+      avatarAlt: t(resolvedLang, "catalog.avatarAlt", { username }),
+      avatarDataAlt: t(resolvedLang, "catalog.avatarDataAlt", { username }),
       rankLabel: `#${rankIndex + 1}`,
       rankClassName: TOP_AUTHOR_RANKS[rankIndex] ?? TOP_AUTHOR_RANKS[0],
-      reviewsLabel: `${formatCompactNumber(review.ratingCount ?? 0)} reviews`,
-      karmaLabel: `${formatCompactNumber(review.votesUp ?? 0)} karma`,
+      reviewsLabel: t(resolvedLang, "catalog.topAuthorReviews", {
+        count: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
+      }),
+      karmaLabel: t(resolvedLang, "catalog.topAuthorKarma", {
+        count: formatCompactNumber(review.votesUp ?? 0, resolvedLang),
+      }),
     });
 
     if (authors.length >= 3) {
@@ -256,27 +278,30 @@ export default async function Page(props: CatalogPageProps) {
       categories = categoryItems;
       cards = buildCatalogCards(catalogResult.items, categories, lang);
       pagination = catalogResult.pageInfo;
-      popularTopics = buildPopularTopics(popularReviews, categories);
+      popularTopics = buildPopularTopics(popularReviews, categories, lang);
       topAuthors = buildTopAuthors(
         popularReviews,
-        allowMockFallback ? catalogTopAuthors : []
+        allowMockFallback ? catalogTopAuthors : [],
+        lang
       );
     } catch (error) {
       console.error("Failed to load catalog API data", error);
       if (!allowMockFallback) {
-        errorMessage = "Unable to load catalog data. Please try again later.";
+        errorMessage = t(lang, "catalog.error.loadFailed");
       }
     }
   } else if (!allowMockFallback) {
-    errorMessage = "API base URL is not configured.";
+    errorMessage = t(lang, "catalog.error.apiNotConfigured");
   }
 
-  const categoryPills = buildCategoryPills(categories);
+  const categoryPills = buildCategoryPills(categories, lang);
   const totalReviews = pagination.totalItems ?? 0;
   const catalogSubtitle =
     totalReviews > 0
-      ? `Discover ${formatCompactNumber(totalReviews)} reviews from our community.`
-      : "Discover honest reviews from our community.";
+      ? t(lang, "catalog.subtitle.withCount", {
+          count: formatCompactNumber(totalReviews, lang),
+        })
+      : t(lang, "catalog.subtitle.empty");
   const baseParams = new URLSearchParams();
   if (searchParams?.pageSize) {
     baseParams.set("pageSize", String(pageSize));
@@ -314,14 +339,14 @@ export default async function Page(props: CatalogPageProps) {
                 <span className="material-symbols-outlined text-[18px] mr-1">
                   home
                 </span>
-                Home
+                {t(lang, "catalog.breadcrumb.home")}
               </Link>
             </li>
             <li>
               <span className="mx-1">/</span>
             </li>
             <li className="font-medium text-slate-900 dark:text-slate-200">
-              Catalog
+              {t(lang, "catalog.breadcrumb.catalog")}
             </li>
           </ol>
         </nav>
@@ -329,7 +354,7 @@ export default async function Page(props: CatalogPageProps) {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
               <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-2">
-                Review Catalog
+                {t(lang, "catalog.heading")}
               </h2>
               <p className="text-slate-500 dark:text-slate-400">
                 {catalogSubtitle}
@@ -338,8 +363,8 @@ export default async function Page(props: CatalogPageProps) {
             <Suspense fallback={null}>
               <CatalogSortSelect
                 sort={sort}
-                options={SORT_OPTIONS.map(({ label, value }) => ({
-                  label,
+                options={SORT_OPTIONS.map(({ labelKey, value }) => ({
+                  label: t(lang, labelKey),
                   value,
                 }))}
               />
@@ -359,9 +384,9 @@ export default async function Page(props: CatalogPageProps) {
           ) : (
             <div className="lg:col-span-8">
               <EmptyState
-                title="No reviews yet"
-                description="There are no reviews yet in this category. Be the first to write one!"
-                ctaLabel="Write the first review"
+                title={t(lang, "catalog.empty.title")}
+                description={t(lang, "catalog.empty.description")}
+                ctaLabel={t(lang, "catalog.empty.cta")}
                 authenticatedHref="/node/add/review"
               />
             </div>

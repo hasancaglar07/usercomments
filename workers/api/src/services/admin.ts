@@ -10,7 +10,9 @@ import type {
   ReviewStatus,
   UserRole,
 } from "../types";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n";
 import { buildPaginationInfo } from "../utils/pagination";
+import { slugify } from "../utils/slug";
 
 type ReviewListResult = {
   items: AdminReview[];
@@ -33,6 +35,15 @@ type DbAdminReview = {
   title: string;
   excerpt: string | null;
   content_html?: string | null;
+  review_translations?:
+    | {
+        lang: string;
+        slug: string;
+        title?: string | null;
+        excerpt?: string | null;
+        content_html?: string | null;
+      }[]
+    | null;
   status: string | null;
   created_at: string;
   updated_at: string | null;
@@ -44,8 +55,12 @@ type DbAdminReview = {
   photo_urls?: unknown;
   photo_count?: number | string | null;
   comment_count?: number | string | null;
+  recommend?: boolean | null;
+  pros?: unknown;
+  cons?: unknown;
   category_id?: number | string | null;
   sub_category_id?: number | string | null;
+  product_id?: string | null;
   profiles?:
     | {
         username: string | null;
@@ -54,6 +69,18 @@ type DbAdminReview = {
     | {
         username: string | null;
         profile_pic_url?: string | null;
+      }[]
+    | null;
+  products?:
+    | {
+        id: string | null;
+        slug: string | null;
+        name: string | null;
+      }
+    | {
+        id: string | null;
+        slug: string | null;
+        name: string | null;
       }[]
     | null;
 };
@@ -118,9 +145,15 @@ const adminReviewSelect = `
   photo_urls,
   photo_count,
   comment_count,
+  recommend,
+  pros,
+  cons,
   category_id,
   sub_category_id,
-  profiles(username, profile_pic_url)
+  product_id,
+  review_translations(lang, slug, title, excerpt, content_html),
+  profiles(username, profile_pic_url),
+  products(id, slug, name)
 `;
 
 const adminReviewDetailSelect = `
@@ -206,8 +239,24 @@ function normalizeUserRole(value: string | null | undefined): UserRole {
   return "user";
 }
 
-function mapAdminReviewRow(row: DbAdminReview): AdminReview {
+function pickAdminTranslation(
+  translations: DbAdminReview["review_translations"],
+  lang: SupportedLanguage
+) {
+  if (!Array.isArray(translations)) {
+    return null;
+  }
+  return (
+    translations.find((translation) => translation.lang === lang) ??
+    translations.find((translation) => translation.lang === DEFAULT_LANGUAGE) ??
+    null
+  );
+}
+
+function mapAdminReviewRow(row: DbAdminReview, lang: SupportedLanguage): AdminReview {
   const profile = pickRelation(row.profiles);
+  const product = pickRelation(row.products);
+  const translation = pickAdminTranslation(row.review_translations, lang);
   const ratingAvg = normalizeNumber(row.rating_avg);
   const ratingCount = normalizeNumber(row.rating_count);
   const views = normalizeNumber(row.views);
@@ -218,13 +267,15 @@ function mapAdminReviewRow(row: DbAdminReview): AdminReview {
   const categoryId = normalizeNumber(row.category_id);
   const subCategoryId = normalizeNumber(row.sub_category_id);
   const photoUrls = normalizeStringArray(row.photo_urls);
+  const pros = normalizeStringArray(row.pros);
+  const cons = normalizeStringArray(row.cons);
 
   return {
     id: row.id,
-    slug: row.slug,
-    title: row.title,
-    excerpt: row.excerpt ?? "",
-    contentHtml: row.content_html ?? undefined,
+    slug: translation?.slug ?? row.slug,
+    title: translation?.title ?? row.title,
+    excerpt: translation?.excerpt ?? row.excerpt ?? "",
+    contentHtml: translation?.content_html ?? row.content_html ?? undefined,
     status: normalizeReviewStatus(row.status),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? undefined,
@@ -241,8 +292,19 @@ function mapAdminReviewRow(row: DbAdminReview): AdminReview {
     photoUrls,
     photoCount,
     commentCount,
+    recommend: row.recommend ?? undefined,
+    pros,
+    cons,
     categoryId: categoryId ?? undefined,
     subCategoryId: subCategoryId ?? undefined,
+    productId: row.product_id ?? undefined,
+    product: product?.id
+      ? {
+          id: product.id,
+          slug: product.slug ?? "",
+          name: product.name ?? "",
+        }
+      : undefined,
   };
 }
 
@@ -292,16 +354,58 @@ function mapAdminUserDetailRow(row: DbAdminUserDetail): AdminUserDetail {
   };
 }
 
+async function ensureUniqueSlug(
+  env: ParsedEnv,
+  baseSlug: string
+): Promise<string> {
+  const supabase = getSupabaseClient(env);
+  let candidate = baseSlug;
+  let suffix = 1;
+
+  // eslint-disable-next-line no-constant-condition -- intentional loop until slug is unique
+  while (true) {
+    const { data: translation, error: translationError } = await supabase
+      .from("review_translations")
+      .select("review_id")
+      .eq("slug", candidate)
+      .maybeSingle();
+
+    if (translationError) {
+      throw translationError;
+    }
+
+    if (!translation) {
+      const { data: review, error: reviewError } = await supabase
+        .from("reviews")
+        .select("id")
+        .eq("slug", candidate)
+        .maybeSingle();
+
+      if (reviewError) {
+        throw reviewError;
+      }
+
+      if (!review) {
+        return candidate;
+      }
+    }
+
+    suffix += 1;
+    candidate = `${baseSlug}-${suffix}`;
+  }
+}
+
 export async function fetchAdminReviews(
   env: ParsedEnv,
   options: {
     status?: ReviewStatus;
     page: number;
     pageSize: number;
+    lang: SupportedLanguage;
   }
 ): Promise<ReviewListResult> {
   const supabase = getSupabaseClient(env);
-  const { status, page, pageSize } = options;
+  const { status, page, pageSize, lang } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -321,14 +425,15 @@ export async function fetchAdminReviews(
   }
 
   return {
-    items: (data ?? []).map((row) => mapAdminReviewRow(row as DbAdminReview)),
+    items: (data ?? []).map((row) => mapAdminReviewRow(row as DbAdminReview, lang)),
     pageInfo: buildPaginationInfo(page, pageSize, count ?? 0),
   };
 }
 
 export async function fetchAdminReviewDetail(
   env: ParsedEnv,
-  id: string
+  id: string,
+  lang: SupportedLanguage
 ): Promise<AdminReview | null> {
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
@@ -345,7 +450,7 @@ export async function fetchAdminReviewDetail(
     return null;
   }
 
-  return mapAdminReviewRow(data as DbAdminReview);
+  return mapAdminReviewRow(data as DbAdminReview, lang);
 }
 
 export async function updateAdminReview(
@@ -356,25 +461,50 @@ export async function updateAdminReview(
     excerpt?: string;
     contentHtml?: string;
     photoUrls?: string[];
+    recommend?: boolean;
+    pros?: string[];
+    cons?: string[];
     categoryId?: number | null;
     subCategoryId?: number | null;
-  }
+    productId?: string | null;
+  },
+  lang: SupportedLanguage
 ): Promise<AdminReview | null> {
   const supabase = getSupabaseClient(env);
   const updates: Record<string, unknown> = {};
+  const translationUpdates: Record<string, unknown> = {};
+  const shouldUpdateBase = lang === DEFAULT_LANGUAGE;
 
   if (payload.title !== undefined) {
-    updates.title = payload.title;
+    if (shouldUpdateBase) {
+      updates.title = payload.title;
+    }
+    translationUpdates.title = payload.title;
   }
   if (payload.excerpt !== undefined) {
-    updates.excerpt = payload.excerpt;
+    if (shouldUpdateBase) {
+      updates.excerpt = payload.excerpt;
+    }
+    translationUpdates.excerpt = payload.excerpt;
   }
   if (payload.contentHtml !== undefined) {
-    updates.content_html = payload.contentHtml;
+    if (shouldUpdateBase) {
+      updates.content_html = payload.contentHtml;
+    }
+    translationUpdates.content_html = payload.contentHtml;
   }
   if (payload.photoUrls !== undefined) {
     updates.photo_urls = payload.photoUrls;
     updates.photo_count = payload.photoUrls.length;
+  }
+  if (payload.recommend !== undefined) {
+    updates.recommend = payload.recommend;
+  }
+  if (payload.pros !== undefined) {
+    updates.pros = payload.pros;
+  }
+  if (payload.cons !== undefined) {
+    updates.cons = payload.cons;
   }
   if (payload.categoryId !== undefined) {
     updates.category_id = payload.categoryId;
@@ -382,12 +512,98 @@ export async function updateAdminReview(
   if (payload.subCategoryId !== undefined) {
     updates.sub_category_id = payload.subCategoryId;
   }
+  if (payload.productId !== undefined) {
+    updates.product_id = payload.productId;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabase.from("reviews").update(updates).eq("id", id);
+    if (error) {
+      throw error;
+    }
+  }
+
+  if (
+    payload.categoryId !== undefined ||
+    payload.subCategoryId !== undefined ||
+    payload.productId !== undefined
+  ) {
+    const { data: reviewRow, error: reviewError } = await supabase
+      .from("reviews")
+      .select("product_id, category_id, sub_category_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (reviewError) {
+      throw reviewError;
+    }
+
+    if (reviewRow?.product_id) {
+      const categoryIds = [reviewRow.category_id, reviewRow.sub_category_id]
+        .map((value) => (value !== null && value !== undefined ? Number(value) : null))
+        .filter((value): value is number => Number.isFinite(value));
+      if (categoryIds.length > 0) {
+        const { error: categoryError } = await supabase
+          .from("product_categories")
+          .upsert(
+            categoryIds.map((categoryId) => ({
+              product_id: reviewRow.product_id,
+              category_id: categoryId,
+            })),
+            { onConflict: "product_id,category_id" }
+          );
+        if (categoryError) {
+          throw categoryError;
+        }
+      }
+    }
+  }
+
+  if (Object.keys(translationUpdates).length > 0) {
+    const { data: existingTranslation, error: existingError } = await supabase
+      .from("review_translations")
+      .select("slug")
+      .eq("review_id", id)
+      .eq("lang", lang)
+      .maybeSingle();
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (existingTranslation) {
+      const { error: updateError } = await supabase
+        .from("review_translations")
+        .update(translationUpdates)
+        .eq("review_id", id)
+        .eq("lang", lang);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } else if (translationUpdates.title !== undefined) {
+      const baseSlug =
+        slugify(translationUpdates.title as string) || `review-${Date.now()}`;
+      const slug = await ensureUniqueSlug(env, baseSlug);
+      const { error: insertError } = await supabase
+        .from("review_translations")
+        .insert({
+          review_id: id,
+          lang,
+          slug,
+          ...translationUpdates,
+        });
+
+      if (insertError) {
+        throw insertError;
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from("reviews")
-    .update(updates)
-    .eq("id", id)
     .select(adminReviewDetailSelect)
+    .eq("id", id)
     .maybeSingle();
 
   if (error) {
@@ -398,7 +614,7 @@ export async function updateAdminReview(
     return null;
   }
 
-  return mapAdminReviewRow(data as DbAdminReview);
+  return mapAdminReviewRow(data as DbAdminReview, lang);
 }
 
 export async function fetchAdminComments(

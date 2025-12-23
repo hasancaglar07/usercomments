@@ -11,20 +11,19 @@ export type PresignResult = {
 
 function getS3Client(): S3Client {
   if (
-    !env.B2_S3_ENDPOINT ||
-    !env.B2_S3_REGION ||
-    !env.B2_S3_ACCESS_KEY_ID ||
-    !env.B2_S3_SECRET_ACCESS_KEY
+    !env.R2_ENDPOINT ||
+    !env.R2_ACCESS_KEY_ID ||
+    !env.R2_SECRET_ACCESS_KEY
   ) {
-    throw new Error("Backblaze B2 S3 env vars are not configured");
+    throw new Error("Cloudflare R2 S3 env vars are not configured");
   }
 
   return new S3Client({
-    region: env.B2_S3_REGION,
-    endpoint: env.B2_S3_ENDPOINT,
+    region: env.R2_REGION,
+    endpoint: env.R2_ENDPOINT,
     credentials: {
-      accessKeyId: env.B2_S3_ACCESS_KEY_ID,
-      secretAccessKey: env.B2_S3_SECRET_ACCESS_KEY,
+      accessKeyId: env.R2_ACCESS_KEY_ID,
+      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
     },
     forcePathStyle: true,
   });
@@ -40,8 +39,8 @@ export async function createPresignedUploadUrl(
   filename: string,
   contentType: string
 ): Promise<PresignResult> {
-  if (!env.B2_S3_BUCKET || !env.B2_PUBLIC_BASE_URL) {
-    throw new Error("Backblaze B2 bucket env vars are not configured");
+  if (!env.R2_BUCKET || !env.R2_PUBLIC_BASE_URL) {
+    throw new Error("Cloudflare R2 bucket env vars are not configured");
   }
 
   const safeFilename = sanitizeFilename(filename);
@@ -53,13 +52,13 @@ export async function createPresignedUploadUrl(
 
   const client = getS3Client();
   const command = new PutObjectCommand({
-    Bucket: env.B2_S3_BUCKET,
+    Bucket: env.R2_BUCKET,
     Key: objectKey,
     ContentType: contentType,
   });
 
   const uploadUrl = await getSignedUrl(client, command, { expiresIn: 60 * 5 });
-  const publicUrl = `${env.B2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${objectKey}`;
+  const publicUrl = `${env.R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${objectKey}`;
 
   return { uploadUrl, publicUrl };
 }

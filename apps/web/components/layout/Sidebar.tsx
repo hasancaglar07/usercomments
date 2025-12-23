@@ -5,7 +5,8 @@ import {
   UserProfileShareLink,
 } from "@/components/user/UserProfileActionsClient";
 import type { Category, Review, UserProfile } from "@/src/types";
-import { localizePath } from "@/src/lib/i18n";
+import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 export type HomepageTopReviewer = {
   profile: UserProfile;
@@ -26,6 +27,8 @@ export function SidebarHomepage({
   topReviewers,
   popularCategories,
 }: SidebarHomepageProps) {
+  const resolvedLang = normalizeLanguage(lang);
+  const leaderboardHref = localizePath("/catalog?sort=popular", lang);
   return (
     <div className="w-full lg:w-1/3 flex flex-col gap-6">
       <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
@@ -33,7 +36,7 @@ export function SidebarHomepage({
           <span className="material-symbols-outlined text-secondary">
             workspace_premium
           </span>
-          Top Reviewers
+          {t(resolvedLang, "sidebar.topReviewers")}
         </h3>
         <div className="flex flex-col gap-4">
           {topReviewers.map((reviewer) => (
@@ -66,9 +69,12 @@ export function SidebarHomepage({
             </Link>
           ))}
         </div>
-        <button className="w-full mt-4 py-2 text-xs font-bold text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition-colors">
-          View Leaderboard
-        </button>
+        <Link
+          className="mt-4 block w-full py-2 text-xs font-bold text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition-colors text-center"
+          href={leaderboardHref}
+        >
+          {t(resolvedLang, "sidebar.viewLeaderboard")}
+        </Link>
       </div>
       <div className="bg-gradient-to-br from-primary to-blue-600 rounded-xl p-6 text-white text-center shadow-lg">
         <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -76,18 +82,19 @@ export function SidebarHomepage({
             campaign
           </span>
         </div>
-        <h3 className="font-bold text-lg mb-2">Join the Community</h3>
+        <h3 className="font-bold text-lg mb-2">
+          {t(resolvedLang, "sidebar.joinCommunity")}
+        </h3>
         <p className="text-sm text-blue-100 mb-4">
-          Share your experiences and help millions of people make better
-          choices.
+          {t(resolvedLang, "sidebar.joinCommunityDescription")}
         </p>
         <AuthCtaButton className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-sm">
-          Start Writing Now
+          {t(resolvedLang, "sidebar.startWriting")}
         </AuthCtaButton>
       </div>
       <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
         <h3 className="text-lg font-bold text-text-main dark:text-white mb-4">
-          Popular Categories
+          {t(resolvedLang, "sidebar.popularCategories")}
         </h3>
         <div className="flex flex-wrap gap-2">
           {popularCategories.map((category) => (
@@ -130,12 +137,14 @@ export type SidebarCatalogProps = {
 };
 
 export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatalogProps) {
+  const resolvedLang = normalizeLanguage(lang);
+  const leaderboardHref = localizePath("/catalog?sort=popular", lang);
   return (
     <div className="lg:col-span-4 space-y-8">
       <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-slate-900 dark:text-white">
-            Popular Right Now
+            {t(resolvedLang, "sidebar.popularRightNow")}
           </h3>
           <span className="material-symbols-outlined text-secondary">
             local_fire_department
@@ -164,7 +173,7 @@ export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatal
       </div>
       <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
         <h3 className="font-bold text-slate-900 dark:text-white mb-4">
-          Top Authors of the Week
+          {t(resolvedLang, "sidebar.topAuthorsWeek")}
         </h3>
         <div className="space-y-4">
           {topAuthors.map((author) => (
@@ -208,9 +217,12 @@ export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatal
             </div>
           ))}
         </div>
-        <button className="w-full mt-4 text-xs font-bold text-primary hover:underline">
-          View Leaderboard
-        </button>
+        <Link
+          className="mt-4 block w-full text-xs font-bold text-primary hover:underline text-center"
+          href={leaderboardHref}
+        >
+          {t(resolvedLang, "sidebar.viewLeaderboard")}
+        </Link>
       </div>
       <div className="bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-lg p-6 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10">
@@ -219,16 +231,18 @@ export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatal
           </span>
         </div>
         <div className="relative z-10">
-          <h3 className="font-bold text-xl mb-2">Join the Community</h3>
+          <h3 className="font-bold text-xl mb-2">
+            {t(resolvedLang, "sidebar.joinCommunity")}
+          </h3>
           <p className="text-blue-100 text-sm mb-4">
-            Share your experiences and help millions make better choices.
+            {t(resolvedLang, "sidebar.joinCommunityDescription")}
           </p>
           <AuthCtaButton
             className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-50 transition-colors w-full"
             authenticatedHref="/node/add/review"
             guestHref="/user/register"
           >
-            Sign Up Free
+            {t(resolvedLang, "sidebar.signUpFree")}
           </AuthCtaButton>
         </div>
       </div>
@@ -267,6 +281,7 @@ export function SidebarCategory({
   popularTags,
   baseCategoryId,
 }: SidebarCategoryProps) {
+  const resolvedLang = normalizeLanguage(lang);
   return (
     <aside className="lg:col-span-4 flex flex-col gap-6">
       <div className="bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3]">
@@ -274,7 +289,7 @@ export function SidebarCategory({
           <span className="material-symbols-outlined text-primary">
             trophy
           </span>
-          Best in Category
+          {t(resolvedLang, "sidebar.bestInCategory")}
         </h3>
         <div className="flex flex-col gap-4">
           {bestItems.map((item) => (
@@ -311,12 +326,12 @@ export function SidebarCategory({
           ))}
         </div>
         <button className="w-full mt-5 py-2 text-sm font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors">
-          View Top 100
+          {t(resolvedLang, "sidebar.viewTop100")}
         </button>
       </div>
       <div className="bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3]">
         <h3 className="text-[#0d141b] text-lg font-bold mb-4">
-          Top Authors
+          {t(resolvedLang, "sidebar.topAuthors")}
         </h3>
         <div className="flex flex-col gap-4">
           {topAuthors.map((author) => (
@@ -356,7 +371,7 @@ export function SidebarCategory({
       </div>
       <div className="bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3]">
         <h3 className="text-[#0d141b] text-lg font-bold mb-4">
-          Popular Tags
+          {t(resolvedLang, "sidebar.popularTags")}
         </h3>
         <div className="flex flex-wrap gap-2">
           {popularTags.map((tag) => {
@@ -395,15 +410,16 @@ export type SidebarProfileProps = {
 };
 
 export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfileProps) {
+  const resolvedLang = normalizeLanguage(lang);
   const bio =
     profile.bio && profile.bio.trim().length > 0
       ? profile.bio
-      : "This user has not added a bio yet.";
+      : t(resolvedLang, "sidebar.noBio");
   return (
     <aside className="w-full lg:w-1/3 flex flex-col gap-6 order-2 lg:order-1">
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
         <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-3">
-          About Me
+          {t(resolvedLang, "sidebar.aboutMe")}
         </h3>
         <p className="text-text-sub-light dark:text-text-sub-dark text-sm leading-relaxed mb-4">
           {bio}
@@ -412,7 +428,7 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
           <UserProfileShareLink
             className="flex items-center justify-center w-8 h-8 rounded-full bg-background-light dark:bg-background-dark text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors"
             href={localizePath(`/users/${profile.username}`, lang)}
-            aria-label="Copy profile link"
+            aria-label={t(resolvedLang, "sidebar.copyProfileLink")}
           >
             <span className="material-symbols-outlined text-[18px]">link</span>
           </UserProfileShareLink>
@@ -426,27 +442,27 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
       </div>
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
         <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-4 flex items-center justify-between">
-          Achievements
+          {t(resolvedLang, "sidebar.achievements")}
           <UserProfileAchievementsTrigger className="text-xs font-normal text-primary cursor-pointer hover:underline">
-            View All
+            {t(resolvedLang, "sidebar.viewAll")}
           </UserProfileAchievementsTrigger>
         </h3>
         <div className="grid grid-cols-4 gap-2">
           <div
             className="aspect-square rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400"
-            title="Gold Reviewer"
+            title={t(resolvedLang, "sidebar.achievementGoldReviewer")}
           >
             <span className="material-symbols-outlined">military_tech</span>
           </div>
           <div
             className="aspect-square rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400"
-            title="Consistent Writer"
+            title={t(resolvedLang, "sidebar.achievementConsistentWriter")}
           >
             <span className="material-symbols-outlined">history_edu</span>
           </div>
           <div
             className="aspect-square rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400"
-            title="Helpful Hero"
+            title={t(resolvedLang, "sidebar.achievementHelpfulHero")}
           >
             <span className="material-symbols-outlined">thumb_up</span>
           </div>
@@ -457,7 +473,7 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
       </div>
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm sticky top-24">
         <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-4">
-          Popular Reviews
+          {t(resolvedLang, "sidebar.popularReviews")}
         </h3>
         <div className="flex flex-col gap-4">
           {popularReviews.map((item) => (

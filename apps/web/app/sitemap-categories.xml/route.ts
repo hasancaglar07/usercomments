@@ -27,6 +27,7 @@ export async function GET() {
   const urls: string[] = [
     `${siteUrl}${localizePath("/", lang)}`,
     `${siteUrl}${localizePath("/catalog", lang)}`,
+    `${siteUrl}${localizePath("/products", lang)}`,
     `${siteUrl}${localizePath("/contact", lang)}`,
     `${siteUrl}${localizePath("/privacy-policy", lang)}`,
     `${siteUrl}${localizePath("/terms-of-use", lang)}`,
@@ -44,6 +45,9 @@ export async function GET() {
         for (const category of categories) {
           urls.push(
             `${siteUrl}${localizePath(`/catalog/reviews/${category.id}`, lang)}`
+          );
+          urls.push(
+            `${siteUrl}${localizePath(`/catalog/list/${category.id}`, lang)}`
           );
         }
       }
