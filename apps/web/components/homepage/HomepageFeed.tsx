@@ -21,17 +21,18 @@ import {
   getCategoryLabel,
   pickFrom,
 } from "@/src/lib/review-utils";
-import { getLatestReviews } from "@/src/lib/api";
+import { getCatalogPage, getLatestReviews } from "@/src/lib/api";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
-type FilterKey = "all" | "photos" | "verified";
+type FeedTab = "all" | "newest" | "popular" | "photos";
 
 type HomepageFeedProps = {
   initialCards: ReviewCardHomepageData[];
   initialNextCursor: string | null;
   categories: Category[];
   pageSize: number;
+  initialPopularCards?: ReviewCardHomepageData[];
 };
 
 type PrefetchState = {
@@ -44,15 +45,15 @@ const ACTIVE_FILTER_CLASS =
   "px-3 py-1 text-xs font-medium bg-primary text-white rounded-full";
 const INACTIVE_FILTER_CLASS =
   "px-3 py-1 text-xs font-medium bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50";
-const FILTER_KEYS: FilterKey[] = ["all", "photos", "verified"];
+const FEED_TABS: FeedTab[] = ["all", "newest", "popular", "photos"];
 
-function parseFilter(value?: string | null): FilterKey {
+function parseTab(value?: string | null): FeedTab {
   if (!value) {
     return "all";
   }
   const normalized = value.toLowerCase();
-  return FILTER_KEYS.includes(normalized as FilterKey)
-    ? (normalized as FilterKey)
+  return FEED_TABS.includes(normalized as FeedTab)
+    ? (normalized as FeedTab)
     : "all";
 }
 
@@ -115,9 +116,25 @@ export default function HomepageFeed({
   initialNextCursor,
   categories,
   pageSize,
+  initialPopularCards,
 }: HomepageFeedProps) {
-  const [cards, setCards] = useState<ReviewCardHomepageData[]>(initialCards);
-  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
+  const [latestCards, setLatestCards] = useState<ReviewCardHomepageData[]>(
+    initialCards
+  );
+  const [latestNextCursor, setLatestNextCursor] =
+    useState<string | null>(initialNextCursor);
+  const [popularCards, setPopularCards] = useState<ReviewCardHomepageData[]>(
+    initialPopularCards ?? []
+  );
+  const [popularPage, setPopularPage] = useState(
+    initialPopularCards && initialPopularCards.length > 0 ? 1 : 0
+  );
+  const [popularHasMore, setPopularHasMore] = useState(() => {
+    if (initialPopularCards && initialPopularCards.length > 0) {
+      return initialPopularCards.length >= pageSize;
+    }
+    return true;
+  });
   const [prefetchState, setPrefetchState] = useState<PrefetchState | null>(null);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -128,29 +145,31 @@ export default function HomepageFeed({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [filter, setFilter] = useState<FilterKey>(
-    parseFilter(searchParams.get("filter"))
-  );
+  const [tab, setTab] = useState<FeedTab>(parseTab(searchParams.get("filter")));
   const seenIds = useRef(new Set(initialCards.map((card) => card.review.id)));
+  const popularSeenIdsRef = useRef(
+    new Set((initialPopularCards ?? []).map((card) => card.review.id))
+  );
   const pendingIdsRef = useRef(new Set<string>());
-  const autoLoadCursorRef = useRef<string | null>(null);
+  const autoLoadKeyRef = useRef<string | null>(null);
   const prefetchTimerRef = useRef<number | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const filters = [
+  const tabs = [
     { key: "all", label: t(lang, "homepage.filters.all") },
+    { key: "newest", label: t(lang, "homepage.filters.newest") },
+    { key: "popular", label: t(lang, "homepage.filters.popular") },
     { key: "photos", label: t(lang, "homepage.filters.photos") },
-    { key: "verified", label: t(lang, "homepage.filters.verified") },
   ] as const;
 
-  const updateFilter = useCallback(
-    (nextFilter: FilterKey) => {
-      setFilter(nextFilter);
+  const updateTab = useCallback(
+    (nextTab: FeedTab) => {
+      setTab(nextTab);
       const params = new URLSearchParams(searchParams.toString());
-      if (nextFilter === "all") {
+      if (nextTab === "all") {
         params.delete("filter");
       } else {
-        params.set("filter", nextFilter);
+        params.set("filter", nextTab);
       }
       const query = params.toString();
       router.replace(query ? `${pathname}?${query}` : pathname, {
@@ -161,22 +180,25 @@ export default function HomepageFeed({
   );
 
   useEffect(() => {
-    const nextFilter = parseFilter(searchParams.get("filter"));
-    setFilter((prev) => (prev === nextFilter ? prev : nextFilter));
+    const nextTab = parseTab(searchParams.get("filter"));
+    setTab((prev) => (prev === nextTab ? prev : nextTab));
   }, [searchParams]);
 
   const visibleCards = useMemo(() => {
-    if (filter === "photos") {
-      return cards.filter((card) => hasPhotos(card.review));
+    if (tab === "popular") {
+      return popularCards;
     }
-    if (filter === "verified") {
-      return cards.filter((card) => card.badge === "verified");
+    if (tab === "newest") {
+      return latestCards.slice(0, pageSize);
     }
-    return cards;
-  }, [cards, filter]);
+    if (tab === "photos") {
+      return latestCards.filter((card) => hasPhotos(card.review));
+    }
+    return latestCards;
+  }, [latestCards, pageSize, popularCards, tab]);
 
   useEffect(() => {
-    if (cards.length === 0) {
+    if (latestCards.length === 0) {
       setPendingReviews([]);
       pendingIdsRef.current.clear();
       return;
@@ -239,10 +261,14 @@ export default function HomepageFeed({
         window.clearTimeout(pollTimerRef.current);
       }
     };
-  }, [cards.length, lang, pageSize]);
+  }, [latestCards.length, lang, pageSize]);
 
   useEffect(() => {
-    if (!nextCursor) {
+    if (tab === "popular" || tab === "newest") {
+      setPrefetchState(null);
+      return;
+    }
+    if (!latestNextCursor) {
       setPrefetchState(null);
       return;
     }
@@ -254,12 +280,12 @@ export default function HomepageFeed({
 
     prefetchTimerRef.current = window.setTimeout(async () => {
       try {
-        const result = await getLatestReviews(pageSize, nextCursor, lang);
+        const result = await getLatestReviews(pageSize, latestNextCursor, lang);
         if (cancelled) {
           return;
         }
         setPrefetchState({
-          cursor: nextCursor,
+          cursor: latestNextCursor,
           items: result.items,
           nextCursor: result.nextCursor,
         });
@@ -277,21 +303,89 @@ export default function HomepageFeed({
         window.clearTimeout(prefetchTimerRef.current);
       }
     };
-  }, [lang, nextCursor, pageSize]);
+  }, [lang, latestNextCursor, pageSize, tab]);
+
+  const loadPopularPage = useCallback(
+    async (page: number) => {
+      const result = await getCatalogPage(page, pageSize, "popular", undefined, lang);
+      if (page === 1) {
+        popularSeenIdsRef.current.clear();
+      }
+      setPopularCards((prev) => {
+        const startIndex = page === 1 ? 0 : prev.length;
+        const nextCards = result.items
+          .map((review, index) =>
+            buildHomepageCard(review, categories, startIndex + index, lang)
+          )
+          .filter((card) => {
+            const id = card.review.id;
+            if (!id || popularSeenIdsRef.current.has(id)) {
+              return false;
+            }
+            popularSeenIdsRef.current.add(id);
+            return true;
+          });
+        if (page === 1) {
+          return nextCards;
+        }
+        if (nextCards.length > 0) {
+          return [...prev, ...nextCards];
+        }
+        return prev;
+      });
+      setPopularPage(page);
+      const totalPages = result.pageInfo.totalPages ?? page;
+      setPopularHasMore(page < totalPages && result.items.length > 0);
+    },
+    [categories, lang, pageSize]
+  );
+
+  useEffect(() => {
+    if (tab !== "popular") {
+      return;
+    }
+    if (popularPage === 0 || popularCards.length === 0) {
+      setIsLoading(true);
+      loadPopularPage(1)
+        .catch((error) => {
+          console.error("Failed to load popular reviews", error);
+          setPopularHasMore(false);
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [loadPopularPage, popularCards.length, popularPage, tab]);
 
   const handleLoadMore = useCallback(async () => {
-    if (!nextCursor || isLoading) {
+    if (isLoading) {
+      return;
+    }
+    if (tab === "popular") {
+      if (!popularHasMore) {
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await loadPopularPage(popularPage + 1);
+      } catch (error) {
+        console.error("Failed to load more popular reviews", error);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    if (tab === "newest" || !latestNextCursor) {
       return;
     }
     setIsLoading(true);
     try {
       const prefetched =
-        prefetchState && prefetchState.cursor === nextCursor
+        prefetchState && prefetchState.cursor === latestNextCursor
           ? prefetchState
           : null;
-      const result = prefetched ?? (await getLatestReviews(pageSize, nextCursor, lang));
+      const result =
+        prefetched ?? (await getLatestReviews(pageSize, latestNextCursor, lang));
       setPrefetchState(null);
-      setCards((prev) => {
+      setLatestCards((prev) => {
         const startIndex = prev.length;
         const nextCards = result.items
           .map((review, index) =>
@@ -310,19 +404,29 @@ export default function HomepageFeed({
         }
         return prev;
       });
-      setNextCursor(result.nextCursor);
+      setLatestNextCursor(result.nextCursor);
     } catch (error) {
       console.error("Failed to load more reviews", error);
     } finally {
       setIsLoading(false);
     }
-  }, [categories, isLoading, lang, nextCursor, pageSize, prefetchState]);
+  }, [
+    categories,
+    isLoading,
+    lang,
+    latestNextCursor,
+    loadPopularPage,
+    pageSize,
+    popularHasMore,
+    popularPage,
+    prefetchState,
+    tab,
+  ]);
 
   const handleApplyNewReviews = useCallback(() => {
     if (pendingReviews.length === 0) {
       return;
     }
-    updateFilter("all");
     const nextCards = pendingReviews.map((review, index) =>
       buildHomepageCard(review, categories, index, lang)
     );
@@ -331,28 +435,54 @@ export default function HomepageFeed({
         seenIds.current.add(card.review.id);
       }
     });
-    setCards((prev) => [...nextCards, ...prev]);
+    setLatestCards((prev) => [...nextCards, ...prev]);
     pendingIdsRef.current.clear();
     setPendingReviews([]);
-  }, [categories, lang, pendingReviews, updateFilter]);
+  }, [categories, lang, pendingReviews]);
 
   useEffect(() => {
-    if (!sentinelRef.current) {
+    if (pendingReviews.length === 0 || tab === "popular") {
+      return;
+    }
+    if (typeof window !== "undefined" && window.scrollY < 160) {
+      handleApplyNewReviews();
+    }
+  }, [handleApplyNewReviews, pendingReviews.length, tab]);
+
+  useEffect(() => {
+    autoLoadKeyRef.current = null;
+  }, [tab]);
+
+  const hasCards = (tab === "popular" ? popularCards : latestCards).length > 0;
+  const hasVisibleCards = visibleCards.length > 0;
+  const hasMore =
+    tab === "popular"
+      ? popularHasMore
+      : tab === "newest"
+        ? false
+        : Boolean(latestNextCursor);
+
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore) {
       return;
     }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting || !nextCursor || isLoading) {
+        if (!entry.isIntersecting || isLoading) {
           return;
         }
-        if (autoLoadCursorRef.current === nextCursor) {
+        const loadKey =
+          tab === "popular"
+            ? `popular-${popularPage}`
+            : latestNextCursor ?? null;
+        if (!loadKey || autoLoadKeyRef.current === loadKey) {
           return;
         }
-        autoLoadCursorRef.current = nextCursor;
+        autoLoadKeyRef.current = loadKey;
         handleLoadMore();
       },
-      { rootMargin: "200px" }
+      { rootMargin: "320px" }
     );
 
     observer.observe(sentinelRef.current);
@@ -360,11 +490,14 @@ export default function HomepageFeed({
     return () => {
       observer.disconnect();
     };
-  }, [handleLoadMore, isLoading, nextCursor]);
-
-  const hasCards = cards.length > 0;
-  const hasVisibleCards = visibleCards.length > 0;
-  const hasMore = Boolean(nextCursor);
+  }, [
+    handleLoadMore,
+    hasMore,
+    isLoading,
+    latestNextCursor,
+    popularPage,
+    tab,
+  ]);
 
   return (
     <>
@@ -373,14 +506,14 @@ export default function HomepageFeed({
           {t(lang, "homepage.recentReviews")}
         </h2>
         <div className="flex gap-2">
-          {filters.map((item) => {
-            const isActive = item.key === filter;
+          {tabs.map((item) => {
+            const isActive = item.key === tab;
             return (
               <button
                 key={item.key}
                 className={isActive ? ACTIVE_FILTER_CLASS : INACTIVE_FILTER_CLASS}
                 type="button"
-                onClick={() => updateFilter(item.key)}
+                onClick={() => updateTab(item.key)}
               >
                 {item.label}
               </button>
@@ -388,7 +521,7 @@ export default function HomepageFeed({
           })}
         </div>
       </div>
-      {pendingReviews.length > 0 ? (
+      {pendingReviews.length > 0 && tab !== "popular" ? (
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
           <span className="font-medium">
             {t(lang, "homepage.newReviews", { count: pendingReviews.length })}
@@ -415,7 +548,7 @@ export default function HomepageFeed({
             <button
               className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-text-main hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               type="button"
-              onClick={() => updateFilter("all")}
+              onClick={() => updateTab("all")}
             >
               {t(lang, "homepage.empty.clearFilters")}
             </button>

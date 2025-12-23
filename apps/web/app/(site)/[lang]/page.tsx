@@ -28,8 +28,8 @@ import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
 
 
-const HOMEPAGE_LIMIT = 3;
-const POPULAR_LIMIT = 6;
+const HOMEPAGE_LIMIT = 9;
+const POPULAR_LIMIT = 9;
 const TRENDING_LIMIT = 3;
 const TRENDING_BADGES = [
   "bg-blue-100 text-blue-800",
@@ -104,6 +104,32 @@ function getHomepageBadge(review: Review): "verified" | null {
   return null;
 }
 
+function hasReviewImage(review: Review): boolean {
+  return Array.isArray(review.photoUrls) && review.photoUrls.length > 0;
+}
+
+function mergeTrendingReviews(primary: Review[], fallback: Review[]): Review[] {
+  const seen = new Set<string>();
+  const combined: Review[] = [];
+
+  const add = (review: Review) => {
+    if (!hasReviewImage(review)) {
+      return;
+    }
+    const key = review.id || review.slug;
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    combined.push(review);
+  };
+
+  primary.forEach(add);
+  fallback.forEach(add);
+
+  return combined;
+}
+
 function buildTopReviewers(
   reviews: Review[],
   fallback: HomepageTopReviewer[],
@@ -158,26 +184,29 @@ function buildTrendingCards(
   lang: string
 ): TrendingCard[] {
   const resolvedLang = normalizeLanguage(lang);
-  return reviews.slice(0, TRENDING_LIMIT).map((review, index) => {
-    const categoryLabel =
-      getCategoryLabel(categories, review.categoryId) ??
-      t(resolvedLang, "homepage.trendingCategoryFallback");
-    const excerpt =
-      review.excerpt?.trim() ||
-      t(resolvedLang, "homepage.trendingExcerptFallback");
+  return reviews
+    .filter(hasReviewImage)
+    .slice(0, TRENDING_LIMIT)
+    .map((review, index) => {
+      const categoryLabel =
+        getCategoryLabel(categories, review.categoryId) ??
+        t(resolvedLang, "homepage.trendingCategoryFallback");
+      const excerpt =
+        review.excerpt?.trim() ||
+        t(resolvedLang, "homepage.trendingExcerptFallback");
 
-    return {
-      review,
-      href: localizePath(`/content/${review.slug}`, lang),
-      categoryLabel,
-      badgeClassName: pickFrom(TRENDING_BADGES, index),
-      imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
-      imageAlt: review.title,
-      excerpt,
-      ratingStars: buildRatingStars(review.ratingAvg),
-      ratingCountLabel: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
-    };
-  });
+      return {
+        review,
+        href: localizePath(`/content/${review.slug}`, lang),
+        categoryLabel,
+        badgeClassName: pickFrom(TRENDING_BADGES, index),
+        imageUrl: review.photoUrls?.[0] ?? "",
+        imageAlt: review.title,
+        excerpt,
+        ratingStars: buildRatingStars(review.ratingAvg),
+        ratingCountLabel: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
+      };
+    });
 }
 
 export default async function Page(props: HomePageProps) {
@@ -185,6 +214,7 @@ export default async function Page(props: HomePageProps) {
   const lang = normalizeLanguage(params.lang);
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
   let recentCards = allowMockFallback ? homepageReviewCards : [];
+  let popularFeedCards = allowMockFallback ? homepageReviewCards : [];
   let topReviewers = allowMockFallback ? homepageTopReviewers : [];
   let popularCategories = allowMockFallback ? homepagePopularCategories : [];
   let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
@@ -204,13 +234,18 @@ export default async function Page(props: HomePageProps) {
 
       categories = categoryItems;
       recentCards = buildHomepageCards(latestResult.items, categories, lang);
+      popularFeedCards = buildHomepageCards(popularReviews, categories, lang);
       nextCursor = latestResult.nextCursor;
       topReviewers = buildTopReviewers(
         popularReviews,
         allowMockFallback ? homepageTopReviewers : [],
         lang
       );
-      trendingCards = buildTrendingCards(popularReviews, categories, lang);
+      const trendingSource = mergeTrendingReviews(
+        popularReviews,
+        latestResult.items
+      );
+      trendingCards = buildTrendingCards(trendingSource, categories, lang);
       popularCategories = categories.slice(0, 7);
     } catch (error) {
       console.error("Failed to load homepage API data", error);
@@ -307,6 +342,7 @@ export default async function Page(props: HomePageProps) {
             <HomepageFeed
               initialCards={recentCards}
               initialNextCursor={nextCursor}
+              initialPopularCards={popularFeedCards}
               categories={categories}
               pageSize={HOMEPAGE_LIMIT}
             />

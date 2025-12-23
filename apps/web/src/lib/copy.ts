@@ -76,6 +76,8 @@ export const TRANSLATIONS = {
     "homepage.meta.description":
       "Discover honest reviews, trending products, and trusted recommendations.",
     "homepage.filters.all": "All",
+    "homepage.filters.newest": "Newest",
+    "homepage.filters.popular": "Popular",
     "homepage.filters.photos": "Photos Only",
     "homepage.filters.verified": "Verified",
     "homepage.loadMore": "Load More Reviews",
@@ -780,6 +782,8 @@ export const TRANSLATIONS = {
     "homepage.meta.description":
       "Dürüst yorumları, trend ürünleri ve güvenilir önerileri keşfedin.",
     "homepage.filters.all": "Tümü",
+    "homepage.filters.newest": "En Yeni",
+    "homepage.filters.popular": "Popüler",
     "homepage.filters.photos": "Sadece Fotoğraflı",
     "homepage.filters.verified": "Doğrulanmış",
     "homepage.loadMore": "Daha Fazla Yorum Yükle",
@@ -1484,6 +1488,8 @@ export const TRANSLATIONS = {
     "homepage.meta.description":
       "Descubre reseñas honestas, productos en tendencia y recomendaciones confiables.",
     "homepage.filters.all": "Todas",
+    "homepage.filters.newest": "Más recientes",
+    "homepage.filters.popular": "Populares",
     "homepage.filters.photos": "Solo con fotos",
     "homepage.filters.verified": "Verificadas",
     "homepage.loadMore": "Cargar más reseñas",
@@ -2203,6 +2209,8 @@ export const TRANSLATIONS = {
     "homepage.meta.description":
       "Entdecke ehrliche Bewertungen, trendige Produkte und vertrauenswürdige Empfehlungen.",
     "homepage.filters.all": "Alle",
+    "homepage.filters.newest": "Neueste",
+    "homepage.filters.popular": "Beliebt",
     "homepage.filters.photos": "Nur Fotos",
     "homepage.filters.verified": "Verifiziert",
     "homepage.loadMore": "Mehr Bewertungen laden",
@@ -2513,6 +2521,8 @@ export const TRANSLATIONS = {
     "homepage.meta.description":
       "اكتشف مراجعات صادقة ومنتجات رائجة وتوصيات موثوقة.",
     "homepage.filters.all": "الكل",
+    "homepage.filters.newest": "الأحدث",
+    "homepage.filters.popular": "الأكثر شعبية",
     "homepage.filters.photos": "صور فقط",
     "homepage.filters.verified": "موثّق",
     "homepage.loadMore": "تحميل المزيد من المراجعات",
