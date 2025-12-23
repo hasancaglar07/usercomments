@@ -8,47 +8,9 @@ import { t } from "@/src/lib/copy";
 
 type HeaderProps = {
   lang: string;
-  categories?: Category[];
 };
 
-type HeaderNavItem = {
-  key: string;
-  label: string;
-  href: string;
-};
-
-function buildHeaderNavItems(
-  categories: Category[] | undefined,
-  lang: SupportedLanguage,
-  catalogHref: string
-): HeaderNavItem[] {
-  const fallbackItems: HeaderNavItem[] = [
-    { key: "beauty", label: t(lang, "header.nav.beauty"), href: catalogHref },
-    { key: "tech", label: t(lang, "header.nav.tech"), href: catalogHref },
-    { key: "travel", label: t(lang, "header.nav.travel"), href: catalogHref },
-    { key: "health", label: t(lang, "header.nav.health"), href: catalogHref },
-    { key: "auto", label: t(lang, "header.nav.auto"), href: catalogHref },
-    { key: "books", label: t(lang, "header.nav.books"), href: catalogHref },
-    { key: "kids", label: t(lang, "header.nav.kids"), href: catalogHref },
-    { key: "finance", label: t(lang, "header.nav.finance"), href: catalogHref },
-    { key: "movies", label: t(lang, "header.nav.movies"), href: catalogHref },
-  ];
-
-  const topLevel = (categories ?? []).filter(
-    (category) => category.parentId == null && category.name.trim().length > 0
-  );
-  if (topLevel.length === 0) {
-    return fallbackItems;
-  }
-
-  return topLevel.slice(0, fallbackItems.length).map((category) => ({
-    key: `category-${category.id}`,
-    label: category.name,
-    href: localizePath(`/catalog?categoryId=${category.id}`, lang),
-  }));
-}
-
-export default function Header({ lang, categories }: HeaderProps) {
+export default function Header({ lang }: HeaderProps) {
   const { user, loading, isAuthenticated } = useAuth();
   const resolvedLang = normalizeLanguage(lang);
 
@@ -65,7 +27,6 @@ export default function Header({ lang, categories }: HeaderProps) {
     `/users/${encodeURIComponent(username.toLowerCase())}`,
     resolvedLang
   );
-  const navItems = buildHeaderNavItems(categories, resolvedLang, catalogHref);
 
   return (
     <header className="bg-background-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
@@ -130,15 +91,60 @@ export default function Header({ lang, categories }: HeaderProps) {
           </div>
         </div>
         <nav className="hidden md:flex gap-8 py-3 overflow-x-auto hide-scrollbar border-t border-gray-100 dark:border-gray-800">
-          {navItems.map((item) => (
-            <Link
-              key={item.key}
-              className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-              href={item.href}
-            >
-              {item.label}
-            </Link>
-          ))}
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.beauty")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.tech")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.travel")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.health")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.auto")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.books")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.kids")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.finance")}
+          </Link>
+          <Link
+            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+            href={catalogHref}
+          >
+            {t(resolvedLang, "header.nav.movies")}
+          </Link>
         </nav>
       </div>
     </header>
