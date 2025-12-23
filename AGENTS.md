@@ -83,6 +83,7 @@ If no new rule is detected → do not update the file.
 \- Quality: iRecommend ile 1:1 fonksiyonel/UX parite hedefle, çünkü kullanıcı profesyonel birebir klon istiyor
 \- Product flow: auto-match products by review title; if none, create a new product and keep it published so products are always public, while manual user reviews require approval for quality control
 \- Preserve pixel-perfect markup and class names; do not change UI markup unless explicitly requested
+\- UI: Header kategori isimleri doğru; API ile dinamikleştirme veya isimleri değiştirme, çünkü kullanıcı doğruladı
 \- Web changes stay in App Router (`apps/web/app`) and shared layout in `apps/web/components/layout`
 \- API lives in `workers/api` and uses Supabase server-side client
 \- Cache-first for read endpoints; rate-limit write endpoints

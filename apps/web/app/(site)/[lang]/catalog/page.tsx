@@ -128,7 +128,7 @@ function buildCategoryPills(categories: Category[], lang: string) {
     t(resolvedLang, "catalog.categoryPill.health"),
     t(resolvedLang, "catalog.categoryPill.movies"),
   ];
-  const topLevel = categories.filter((category) => !category.parentId);
+  const topLevel = categories.filter((category) => category.parentId == null);
   if (topLevel.length === 0) {
     return fallbackLabels.map((label, index) => ({
       label,

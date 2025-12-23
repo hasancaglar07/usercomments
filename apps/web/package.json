@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "postinstall": "node scripts/ensure-lightningcss.mjs",
-    "prebuild": "node scripts/ensure-lightningcss.mjs",
-    "build": "opennextjs-cloudflare build",
+    "build:next": "next build",
+    "build": "npm run build:next && opennextjs-cloudflare build --skip-build",
     "start": "next start",
     "lint": "eslint"
   },

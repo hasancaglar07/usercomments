@@ -662,14 +662,14 @@ export default function AdminDashboardClient() {
   }, [categories]);
 
   const topCategories = useMemo(
-    () => categories.filter((category) => !category.parentId),
+    () => categories.filter((category) => category.parentId == null),
     [categories]
   );
 
   const subcategoriesByParent = useMemo(() => {
     const map = new Map<number, Category[]>();
     categories.forEach((category) => {
-      if (!category.parentId) {
+      if (category.parentId == null) {
         return;
       }
       const list = map.get(category.parentId) ?? [];
@@ -1721,7 +1721,9 @@ export default function AdminDashboardClient() {
     const selected = categoryLookup.get(id);
     if (selected) {
       setEditCategoryName(selected.name);
-      setEditCategoryParentId(selected.parentId ? String(selected.parentId) : "");
+      setEditCategoryParentId(
+        selected.parentId != null ? String(selected.parentId) : ""
+      );
     } else {
       setEditCategoryName("");
       setEditCategoryParentId("");

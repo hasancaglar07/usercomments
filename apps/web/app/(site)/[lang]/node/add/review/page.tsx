@@ -18,7 +18,7 @@ export default async function Page(props: AddReviewPageProps) {
   if (apiConfigured) {
     try {
       const allCategories = await getCategories(lang);
-      categories = allCategories.filter((category) => !category.parentId);
+      categories = allCategories.filter((category) => category.parentId == null);
     } catch {
       if (!allowMockFallback) {
         errorMessage = "Unable to load categories. Please try again later.";

@@ -376,7 +376,7 @@ export function SidebarCategory({
         <div className="flex flex-wrap gap-2">
           {popularTags.map((tag) => {
             const href =
-              tag.parentId && baseCategoryId
+              tag.parentId != null && baseCategoryId
                 ? `/catalog/reviews/${baseCategoryId}?subCategoryId=${tag.id}`
                 : `/catalog/reviews/${tag.id}`;
             return (
