@@ -42,7 +42,7 @@ export function RatingStarsCatalog({ stars, valueText }: RatingStarsProps) {
     <div className="flex items-center gap-1 mb-3">
       {stars.map((star, index) => {
         const filledClass =
-          "material-symbols-outlined text-secondary text-[20px] fill-current";
+          "material-symbols-outlined filled text-secondary text-[20px] fill-current";
         const emptyClass =
           "material-symbols-outlined text-slate-300 text-[20px] fill-current";
         if (star === "full") {
@@ -81,14 +81,14 @@ export function RatingStarsCategory({ stars }: RatingStarsProps) {
         const baseClass = "material-symbols-outlined text-[20px]";
         if (star === "full") {
           return (
-            <span key={index} className={`${baseClass} fill-current`}>
+            <span key={index} className={`${baseClass} filled fill-current`}>
               star
             </span>
           );
         }
         if (star === "half") {
           return (
-            <span key={index} className={`${baseClass} fill-current`}>
+            <span key={index} className={`${baseClass} filled fill-current`}>
               star_half
             </span>
           );

@@ -247,12 +247,12 @@ html {
   scroll-behavior: smooth;
 }
 
-.star-filled {
+.material-symbols-outlined.star-filled {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   color: #ff9800;
 }
 
-.star-empty {
+.material-symbols-outlined.star-empty {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   color: #d1d5db;
 }
@@ -310,7 +310,7 @@ textarea::-webkit-scrollbar-thumb {
 }
 
 .material-symbols-outlined.filled {
-  font-variation-settings: 'FILL' 1;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
 .material-symbols-filled {

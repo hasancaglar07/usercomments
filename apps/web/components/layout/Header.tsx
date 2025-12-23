@@ -6,11 +6,25 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+type HeaderCategoryKey =
+  | "beauty"
+  | "tech"
+  | "travel"
+  | "health"
+  | "auto"
+  | "books"
+  | "kids"
+  | "finance"
+  | "movies";
+
+export type HeaderCategoryLinks = Partial<Record<HeaderCategoryKey, string>>;
+
 type HeaderProps = {
   lang: string;
+  categoryLinks?: HeaderCategoryLinks;
 };
 
-export default function Header({ lang }: HeaderProps) {
+export default function Header({ lang, categoryLinks }: HeaderProps) {
   const { user, loading, isAuthenticated } = useAuth();
   const resolvedLang = normalizeLanguage(lang);
 
@@ -27,6 +41,7 @@ export default function Header({ lang }: HeaderProps) {
     `/users/${encodeURIComponent(username.toLowerCase())}`,
     resolvedLang
   );
+  const resolvedCategoryLinks = categoryLinks ?? {};
 
   return (
     <header className="bg-background-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
@@ -93,55 +108,55 @@ export default function Header({ lang }: HeaderProps) {
         <nav className="hidden md:flex gap-8 py-3 overflow-x-auto hide-scrollbar border-t border-gray-100 dark:border-gray-800">
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.beauty ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.beauty")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.tech ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.tech")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.travel ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.travel")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.health ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.health")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.auto ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.auto")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.books ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.books")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.kids ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.kids")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.finance ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.finance")}
           </Link>
           <Link
             className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={catalogHref}
+            href={resolvedCategoryLinks.movies ?? catalogHref}
           >
             {t(resolvedLang, "header.nav.movies")}
           </Link>
