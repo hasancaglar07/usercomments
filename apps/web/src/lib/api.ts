@@ -24,7 +24,7 @@ type FetchOptions = RequestInit & {
   };
 };
 
-const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://irecommend-api.usercomments.workers.dev";
 const BASE_URL = RAW_BASE_URL?.replace(/\/$/, "");
 
 function getBaseUrl(): string {
