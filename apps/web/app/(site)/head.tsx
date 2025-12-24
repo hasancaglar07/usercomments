@@ -11,6 +11,17 @@ function getOrigin(value?: string): string | null {
 
 export default function Head() {
   const origins = new Set<string>();
+  const fontPreloads = [
+    {
+      href: "/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
+      type: "font/woff2",
+    },
+    {
+      href:
+        "/stitch_assets/fonts/kJEPBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzBwG-RpA6RzaxHMPdY40KH8nGzv3fzfVJO1Q.woff2",
+      type: "font/woff2",
+    },
+  ];
   const apiOrigin = getOrigin(process.env.NEXT_PUBLIC_API_BASE_URL);
   const imageCdnOrigin = getOrigin(process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL);
   const optimizer = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "none";
@@ -39,6 +50,16 @@ export default function Head() {
           key={`${origin}-preconnect`}
           rel="preconnect"
           href={origin}
+          crossOrigin="anonymous"
+        />
+      ))}
+      {fontPreloads.map((font) => (
+        <link
+          key={font.href}
+          rel="preload"
+          href={font.href}
+          as="font"
+          type={font.type}
           crossOrigin="anonymous"
         />
       ))}

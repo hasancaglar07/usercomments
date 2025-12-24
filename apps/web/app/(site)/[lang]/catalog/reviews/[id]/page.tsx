@@ -6,7 +6,10 @@ import type {
   CategoryBestItem,
   CategoryTopAuthor,
 } from "@/components/layout/Sidebar";
-import type { ReviewCardCategoryData } from "@/components/cards/ReviewCard";
+import {
+  ReviewCardCategory,
+  type ReviewCardCategoryData,
+} from "@/components/cards/ReviewCard";
 import type { Category, Review } from "@/src/types";
 import {
   FALLBACK_AVATARS,
@@ -39,6 +42,7 @@ import { categoryPopularTags } from "@/data/mock/categories";
 export const revalidate = 60;
 
 const DEFAULT_PAGE_SIZE = 10;
+const POPULAR_REVIEWS_LIMIT = 3;
 
 const SORT_OPTIONS = new Set(["latest", "popular", "rating"]);
 
@@ -240,6 +244,7 @@ export default async function Page(props: CategoryPageProps) {
   let categoryLabel = fallbackCategoryLabel;
   let categoryDescription = fallbackDescription;
   let cards = allowMockFallback ? categoryReviewCards : [];
+  let popularCards: ReviewCardCategoryData[] = [];
   let pagination = allowMockFallback
     ? categoryPagination
     : { page, pageSize, totalPages: 0, totalItems: 0 };
@@ -251,11 +256,24 @@ export default async function Page(props: CategoryPageProps) {
 
   if (apiConfigured && Number.isFinite(categoryId)) {
     try {
-      const [categoryResult, categories, subcategories] = await Promise.all([
-        getCategoryPage(categoryId, page, pageSize, sort, subCategoryId, lang),
-        getCategories(lang),
-        getSubcategories(categoryId, lang),
-      ]);
+      const popularResultPromise =
+        sort === "popular"
+          ? Promise.resolve(null)
+          : getCategoryPage(
+              categoryId,
+              1,
+              POPULAR_REVIEWS_LIMIT,
+              "popular",
+              undefined,
+              lang
+            ).catch(() => null);
+      const [categoryResult, categories, subcategories, popularResult] =
+        await Promise.all([
+          getCategoryPage(categoryId, page, pageSize, sort, subCategoryId, lang),
+          getCategories(lang),
+          getSubcategories(categoryId, lang),
+          popularResultPromise,
+        ]);
 
       cards = buildCategoryCards(categoryResult.items, categories, subcategories, lang);
       pagination = categoryResult.pageInfo;
@@ -273,6 +291,16 @@ export default async function Page(props: CategoryPageProps) {
       subcategoryTags = subcategories;
       popularTags =
         subcategories.length > 0 ? subcategories : categories.slice(0, 6);
+      const popularReviews =
+        sort === "popular"
+          ? categoryResult.items.slice(0, POPULAR_REVIEWS_LIMIT)
+          : popularResult?.items ?? [];
+      popularCards = buildCategoryCards(
+        popularReviews,
+        categories,
+        subcategories,
+        lang
+      );
     } catch (error) {
       console.error("Failed to load category API data", error);
       if (!allowMockFallback) {
@@ -308,6 +336,8 @@ export default async function Page(props: CategoryPageProps) {
     }
     return localizePath(`/catalog/reviews/${categoryId}?${params.toString()}`, lang);
   };
+  const popularCategoryLabel = categoryLabel ?? t(lang, "common.general");
+  const popularCategoryHref = localizePath(`/catalog/reviews/${categoryId}`, lang);
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -453,6 +483,33 @@ export default async function Page(props: CategoryPageProps) {
               baseCategoryId={categoryId}
             />
           </div>
+          {popularCards.length > 0 ? (
+            <section className="mt-10">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#0d141b]">
+                    {t(lang, "category.popular.title")}
+                  </h2>
+                  <p className="text-sm text-[#4c739a]">
+                    {t(lang, "category.popular.subtitle", {
+                      category: popularCategoryLabel,
+                    })}
+                  </p>
+                </div>
+                <Link
+                  href={popularCategoryHref}
+                  className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+                >
+                  {t(lang, "category.popular.viewAll")}
+                </Link>
+              </div>
+              <div className="mt-6 flex flex-col gap-4">
+                {popularCards.map((card) => (
+                  <ReviewCardCategory key={card.review.id} {...card} />
+                ))}
+              </div>
+            </section>
+          ) : null}
         </main>
       </div>
     </div>

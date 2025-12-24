@@ -160,6 +160,9 @@ export const TRANSLATIONS = {
     "category.sort.newest": "Newest",
     "category.sort.mostHelpful": "Most Helpful",
     "category.sort.highestRated": "Highest Rated",
+    "category.popular.title": "Popular reviews",
+    "category.popular.subtitle": "Top reviews in {category}.",
+    "category.popular.viewAll": "View all reviews",
     "reviewList.category.latestTitle": "Latest Reviews",
     "reviewList.category.sortBy": "Sort by:",
     "reviewList.category.empty.title": "No reviews yet",
@@ -224,6 +227,9 @@ export const TRANSLATIONS = {
     "productList.empty.description":
       "There are no products in this category yet. Add the first one and share a review.",
     "productList.empty.cta": "Add a review",
+    "productList.popular.title": "Popular products",
+    "productList.popular.subtitle": "Top picks in {category}.",
+    "productList.popular.viewAll": "View all products",
     "productFilters.actions": "Actions",
     "products.meta.title": "Product Catalog",
     "products.meta.description":
@@ -251,6 +257,11 @@ export const TRANSLATIONS = {
     "productDetail.cta.browseAll": "Browse all products",
     "productDetail.community.title": "Community reviews",
     "productDetail.community.subtitle": "{count} reviews from verified members.",
+    "productDetail.related.title": "Similar products and reviews",
+    "productDetail.related.productsTitle": "Similar products",
+    "productDetail.related.productsSubtitle": "Popular products in {category}.",
+    "productDetail.related.reviewsTitle": "Related reviews",
+    "productDetail.related.reviewsSubtitle": "Popular reviews in {category}.",
     "productDetail.sortBy": "Sort by:",
     "productDetail.empty.title": "No reviews yet",
     "productDetail.empty.description":
@@ -867,6 +878,9 @@ export const TRANSLATIONS = {
     "category.sort.newest": "En Yeni",
     "category.sort.mostHelpful": "En Faydalı",
     "category.sort.highestRated": "En Yüksek Puanlı",
+    "category.popular.title": "Popüler yorumlar",
+    "category.popular.subtitle": "{category} kategorisindeki öne çıkan yorumlar.",
+    "category.popular.viewAll": "Tüm yorumları gör",
     "reviewList.category.latestTitle": "En Yeni Yorumlar",
     "reviewList.category.sortBy": "Sırala:",
     "reviewList.category.empty.title": "Henüz yorum yok",
@@ -931,6 +945,9 @@ export const TRANSLATIONS = {
     "productList.empty.description":
       "Bu kategoride henüz ürün yok. İlkini ekleyin ve bir yorum paylaşın.",
     "productList.empty.cta": "Yorum ekle",
+    "productList.popular.title": "Popüler ürünler",
+    "productList.popular.subtitle": "{category} kategorisindeki öne çıkan ürünler.",
+    "productList.popular.viewAll": "Tüm ürünleri gör",
     "productFilters.actions": "İşlemler",
     "products.meta.title": "Ürün Kataloğu",
     "products.meta.description":
@@ -958,6 +975,11 @@ export const TRANSLATIONS = {
     "productDetail.cta.browseAll": "Tüm ürünlere göz at",
     "productDetail.community.title": "Topluluk yorumları",
     "productDetail.community.subtitle": "Doğrulanmış üyelerden {count} yorum.",
+    "productDetail.related.title": "Benzer ürünler ve incelemeler",
+    "productDetail.related.productsTitle": "Benzer ürünler",
+    "productDetail.related.productsSubtitle": "{category} kategorisindeki popüler ürünler.",
+    "productDetail.related.reviewsTitle": "İlgili incelemeler",
+    "productDetail.related.reviewsSubtitle": "{category} kategorisindeki popüler yorumlar.",
     "productDetail.sortBy": "Sırala:",
     "productDetail.empty.title": "Henüz yorum yok",
     "productDetail.empty.description":
@@ -1580,6 +1602,9 @@ export const TRANSLATIONS = {
     "category.sort.newest": "Más recientes",
     "category.sort.mostHelpful": "Más útiles",
     "category.sort.highestRated": "Mejor valoradas",
+    "category.popular.title": "Reseñas populares",
+    "category.popular.subtitle": "Reseñas destacadas en {category}.",
+    "category.popular.viewAll": "Ver todas las reseñas",
     "reviewList.category.latestTitle": "Reseñas más recientes",
     "reviewList.category.sortBy": "Ordenar por:",
     "reviewList.category.empty.title": "Aún no hay reseñas",
@@ -1644,6 +1669,9 @@ export const TRANSLATIONS = {
     "productList.empty.description":
       "Todavía no hay productos en esta categoría. Añade el primero y comparte una reseña.",
     "productList.empty.cta": "Agregar reseña",
+    "productList.popular.title": "Productos populares",
+    "productList.popular.subtitle": "Productos destacados en {category}.",
+    "productList.popular.viewAll": "Ver todos los productos",
     "productFilters.actions": "Acciones",
     "products.meta.title": "Catálogo de productos",
     "products.meta.description":
@@ -1671,6 +1699,11 @@ export const TRANSLATIONS = {
     "productDetail.cta.browseAll": "Ver todos los productos",
     "productDetail.community.title": "Reseñas de la comunidad",
     "productDetail.community.subtitle": "{count} reseñas de miembros verificados.",
+    "productDetail.related.title": "Productos y reseñas similares",
+    "productDetail.related.productsTitle": "Productos similares",
+    "productDetail.related.productsSubtitle": "Productos populares en {category}.",
+    "productDetail.related.reviewsTitle": "Reseñas relacionadas",
+    "productDetail.related.reviewsSubtitle": "Reseñas populares en {category}.",
     "productDetail.sortBy": "Ordenar por:",
     "productDetail.empty.title": "Aún no hay reseñas",
     "productDetail.empty.description":
@@ -2308,6 +2341,9 @@ export const TRANSLATIONS = {
     "category.sort.newest": "Neueste",
     "category.sort.mostHelpful": "Hilfreichste",
     "category.sort.highestRated": "Am besten bewertet",
+    "category.popular.title": "Beliebte Bewertungen",
+    "category.popular.subtitle": "Top-Bewertungen in {category}.",
+    "category.popular.viewAll": "Alle Bewertungen ansehen",
     "reviewList.category.latestTitle": "Neueste Bewertungen",
     "reviewList.category.sortBy": "Sortieren nach:",
     "reviewList.category.empty.title": "Noch keine Bewertungen",
@@ -2372,6 +2408,9 @@ export const TRANSLATIONS = {
     "productList.empty.description":
       "In dieser Kategorie gibt es noch keine Produkte. Füge das erste hinzu und teile eine Bewertung.",
     "productList.empty.cta": "Bewertung hinzufügen",
+    "productList.popular.title": "Beliebte Produkte",
+    "productList.popular.subtitle": "Top-Produkte in {category}.",
+    "productList.popular.viewAll": "Alle Produkte ansehen",
     "productFilters.actions": "Aktionen",
     "products.meta.title": "Produktkatalog",
     "products.meta.description":
@@ -2402,6 +2441,11 @@ export const TRANSLATIONS = {
     "productDetail.community.title": "Community-Bewertungen",
     "productDetail.community.subtitle":
       "{count} Bewertungen von verifizierten Mitgliedern.",
+    "productDetail.related.title": "Ähnliche Produkte und Bewertungen",
+    "productDetail.related.productsTitle": "Ähnliche Produkte",
+    "productDetail.related.productsSubtitle": "Beliebte Produkte in {category}.",
+    "productDetail.related.reviewsTitle": "Ähnliche Bewertungen",
+    "productDetail.related.reviewsSubtitle": "Beliebte Bewertungen in {category}.",
     "productDetail.sortBy": "Sortieren nach:",
     "productDetail.empty.title": "Noch keine Bewertungen",
     "productDetail.empty.description":
@@ -2624,6 +2668,9 @@ export const TRANSLATIONS = {
     "category.sort.newest": "الأحدث",
     "category.sort.mostHelpful": "الأكثر فائدة",
     "category.sort.highestRated": "الأعلى تقييماً",
+    "category.popular.title": "مراجعات شائعة",
+    "category.popular.subtitle": "أفضل المراجعات في {category}.",
+    "category.popular.viewAll": "عرض جميع المراجعات",
     "reviewList.category.latestTitle": "أحدث المراجعات",
     "reviewList.category.sortBy": "ترتيب حسب:",
     "reviewList.category.empty.title": "لا توجد مراجعات بعد",
@@ -2688,6 +2735,9 @@ export const TRANSLATIONS = {
     "productList.empty.description":
       "لا توجد منتجات في هذه الفئة بعد. أضف أول منتج وشارك مراجعة.",
     "productList.empty.cta": "أضف مراجعة",
+    "productList.popular.title": "منتجات شائعة",
+    "productList.popular.subtitle": "أفضل المنتجات في {category}.",
+    "productList.popular.viewAll": "عرض جميع المنتجات",
     "productFilters.actions": "الإجراءات",
     "products.meta.title": "كتالوج المنتجات",
     "products.meta.description":
@@ -2716,6 +2766,11 @@ export const TRANSLATIONS = {
     "productDetail.community.title": "مراجعات المجتمع",
     "productDetail.community.subtitle":
       "{count} مراجعات من أعضاء موثَّقين.",
+    "productDetail.related.title": "منتجات ومراجعات مشابهة",
+    "productDetail.related.productsTitle": "منتجات مشابهة",
+    "productDetail.related.productsSubtitle": "منتجات شائعة في {category}.",
+    "productDetail.related.reviewsTitle": "مراجعات ذات صلة",
+    "productDetail.related.reviewsSubtitle": "مراجعات شائعة في {category}.",
     "productDetail.sortBy": "ترتيب حسب:",
     "productDetail.empty.title": "لا توجد مراجعات بعد",
     "productDetail.empty.description":

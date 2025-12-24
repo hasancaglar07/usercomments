@@ -33,6 +33,7 @@ type MetadataOptions = {
   type?: "website" | "article";
   image?: string;
   languagePaths?: Partial<Record<SupportedLanguage, string>>;
+  robots?: Metadata["robots"];
 };
 
 function buildAlternates({
@@ -110,5 +111,6 @@ export function buildMetadata(options: MetadataOptions): Metadata {
       description,
       images: [imageUrl],
     },
+    robots: options.robots,
   };
 }

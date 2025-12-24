@@ -511,6 +511,7 @@ export default async function Page(props: PageProps) {
                       src={productImage}
                       alt={productName}
                       className="w-28 h-28 object-contain object-center rounded-xl bg-slate-100 dark:bg-slate-700 shrink-0"
+                      decoding="async"
                     />
                     <div className="flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -705,6 +706,8 @@ export default async function Page(props: PageProps) {
                             alt={t(lang, "reviewDetail.gallery")}
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"
+                            decoding="async"
+                            loading="lazy"
                           />
                         </div>
                       ))}
@@ -862,6 +865,7 @@ export default async function Page(props: PageProps) {
                     alt={productName}
                     referrerPolicy="no-referrer"
                     className="w-40 h-40 object-contain object-center mb-4 rounded-lg bg-slate-50 dark:bg-slate-900/50"
+                    decoding="async"
                   />
                   <h3 className="text-center font-bold text-slate-900 dark:text-white mb-2">
                     {productName}

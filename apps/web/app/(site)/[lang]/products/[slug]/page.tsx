@@ -2,13 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import ProductCard from "@/components/cards/ProductCard";
+import {
+  ReviewCardCategory,
+  type ReviewCardCategoryData,
+} from "@/components/cards/ReviewCard";
 import { ReviewListCatalog } from "@/components/lists/ReviewList";
 import CategorySortSelect from "@/components/catalog/CategorySortSelect";
 import EmptyState from "@/components/ui/EmptyState";
 import { RatingStarsCatalog } from "@/components/ui/RatingStars";
-import type { Category, Review } from "@/src/types";
+import type { Category, Product, Review } from "@/src/types";
 import {
+  getCategoryPage,
   getCategories,
+  getProducts,
   getProductBySlug,
   getProductReviews,
 } from "@/src/lib/api";
@@ -38,6 +45,9 @@ import { t } from "@/src/lib/copy";
 export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 8;
+const RELATED_FETCH_LIMIT = 8;
+const RELATED_PRODUCTS_LIMIT = 3;
+const RELATED_REVIEWS_LIMIT = 3;
 
 const SORT_OPTIONS = new Set(["latest", "popular", "rating"]);
 
@@ -97,6 +107,38 @@ function buildReviewCards(reviews: Review[], categories: Category[], lang: strin
   });
 }
 
+function buildRelatedReviewCards(
+  reviews: Review[],
+  categories: Category[],
+  lang: string
+): ReviewCardCategoryData[] {
+  const resolvedLang = normalizeLanguage(lang);
+  return reviews.map((review, index) => {
+    const subCategoryLabel = getCategoryLabel(categories, review.subCategoryId);
+    const categoryLabel = getCategoryLabel(categories, review.categoryId);
+
+    return {
+      review,
+      href: localizePath(`/content/${review.slug}`, lang),
+      dateLabel: formatRelativeTime(review.createdAt, resolvedLang),
+      ratingStars: buildRatingStars(review.ratingAvg),
+      imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
+      imageAlt: review.title,
+      avatarUrl:
+        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
+      avatarAlt: t(resolvedLang, "category.card.avatarAlt", {
+        username: review.author.username,
+      }),
+      tagLabel:
+        subCategoryLabel ??
+        categoryLabel ??
+        t(resolvedLang, "common.general"),
+      likesLabel: formatCompactNumber(review.votesUp ?? 0, resolvedLang),
+      commentsLabel: formatCompactNumber(review.commentCount ?? 0, resolvedLang),
+    };
+  });
+}
+
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
@@ -113,15 +155,18 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
   const languagePaths = product.translations
     ? Object.fromEntries(
-        product.translations
-          .filter((translation) => isSupportedLanguage(translation.lang))
-          .map((translation) => [translation.lang, `/products/${translation.slug}`])
-      )
+      product.translations
+        .filter((translation) => isSupportedLanguage(translation.lang))
+        .map((translation) => [translation.lang, `/products/${translation.slug}`])
+    )
     : undefined;
   const resolvedLang =
     product.translationLang && product.translationLang !== lang
       ? product.translationLang
       : lang;
+
+  const reviewCount = product.stats?.reviewCount ?? 0;
+  const shouldIndex = reviewCount > 0;
 
   return buildMetadata({
     title: product.name,
@@ -133,7 +178,13 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     type: "website",
     image: product.images?.[0]?.url,
     languagePaths,
-  });
+    robots: shouldIndex
+      ? undefined
+      : {
+        index: false,
+        follow: true,
+      },
+  } as any);
 }
 
 export default async function Page(props: PageProps) {
@@ -172,12 +223,45 @@ export default async function Page(props: PageProps) {
     redirect(localizePath(`/products/${fallbackSlug}`, DEFAULT_LANGUAGE));
   }
 
-  const [categories, reviewsResult] = await Promise.all([
-    getCategories(lang),
-    getProductReviews(product.id, page, pageSize, sort, lang),
-  ]);
+  const primaryCategoryId = product.categoryIds?.[0];
+  const relatedProductsPromise = primaryCategoryId
+    ? getProducts(1, RELATED_FETCH_LIMIT, "popular", primaryCategoryId, lang).catch(
+      () => null
+    )
+    : Promise.resolve(null);
+  const relatedReviewsPromise = primaryCategoryId
+    ? getCategoryPage(
+      primaryCategoryId,
+      1,
+      RELATED_FETCH_LIMIT,
+      "popular",
+      undefined,
+      lang
+    ).catch(() => null)
+    : Promise.resolve(null);
+
+  const [categories, reviewsResult, relatedProductsResult, relatedReviewsResult] =
+    await Promise.all([
+      getCategories(lang),
+      getProductReviews(product.id, page, pageSize, sort, lang),
+      relatedProductsPromise,
+      relatedReviewsPromise,
+    ]);
 
   const cards = buildReviewCards(reviewsResult.items, categories, lang);
+  const categoryMap = new Map<number, Category>();
+  categories.forEach((category) => categoryMap.set(category.id, category));
+  const relatedProducts = (relatedProductsResult?.items ?? [])
+    .filter((item) => item.id !== product.id)
+    .slice(0, RELATED_PRODUCTS_LIMIT);
+  const relatedReviews = (relatedReviewsResult?.items ?? [])
+    .filter((item) => item.productId !== product.id)
+    .slice(0, RELATED_REVIEWS_LIMIT);
+  const relatedReviewCards = buildRelatedReviewCards(
+    relatedReviews,
+    categories,
+    lang
+  );
   const basePath = localizePath(`/products/${product.slug}`, lang);
   const buildHref = (nextPage: number) => {
     const params = new URLSearchParams();
@@ -197,6 +281,8 @@ export default async function Page(props: PageProps) {
   const categoryLabels = (product.categoryIds ?? [])
     .map((id) => getCategoryLabel(categories, id))
     .filter((label): label is string => Boolean(label));
+  const primaryCategoryLabel =
+    categoryLabels[0] ?? t(lang, "common.general");
   const ratingAvg = product.stats?.ratingAvg ?? 0;
   const ratingCount = product.stats?.ratingCount ?? product.stats?.reviewCount ?? 0;
   const reviewCount = product.stats?.reviewCount ?? 0;
@@ -216,6 +302,16 @@ export default async function Page(props: PageProps) {
     product.slug
   )}`;
   const productUrl = toAbsoluteUrl(localizePath(`/products/${product.slug}`, lang));
+  const relatedProductsHref = primaryCategoryId
+    ? localizePath(`/catalog/list/${primaryCategoryId}`, lang)
+    : localizePath("/products", lang);
+  const relatedReviewsHref = primaryCategoryId
+    ? localizePath(`/catalog/reviews/${primaryCategoryId}`, lang)
+    : localizePath("/catalog", lang);
+  const resolveProductCategoryLabel = (item: Product) => {
+    const firstCategoryId = item.categoryIds?.[0];
+    return firstCategoryId ? categoryMap.get(firstCategoryId)?.name : undefined;
+  };
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -253,20 +349,20 @@ export default async function Page(props: PageProps) {
     dateModified: product.updatedAt ?? undefined,
     brand: product.brand?.name
       ? {
-          "@type": "Brand",
-          name: product.brand.name,
-        }
+        "@type": "Brand",
+        name: product.brand.name,
+      }
       : undefined,
     aggregateRating:
       ratingCount > 0
         ? {
-            "@type": "AggregateRating",
-            ratingValue: ratingValue ?? ratingAvg,
-            ratingCount,
-            reviewCount,
-            bestRating: 5,
-            worstRating: 1,
-          }
+          "@type": "AggregateRating",
+          ratingValue: ratingValue ?? ratingAvg,
+          ratingCount,
+          reviewCount,
+          bestRating: 5,
+          worstRating: 1,
+        }
         : undefined,
     url: productUrl,
   };
@@ -393,6 +489,79 @@ export default async function Page(props: PageProps) {
             )}`}
           />
         )}
+
+        {relatedProducts.length > 0 || relatedReviewCards.length > 0 ? (
+          <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {t(lang, "productDetail.related.title")}
+                </h2>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-8 lg:grid-cols-2">
+              {relatedProducts.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {t(lang, "productDetail.related.productsTitle")}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {t(lang, "productDetail.related.productsSubtitle", {
+                          category: primaryCategoryLabel,
+                        })}
+                      </p>
+                    </div>
+                    <Link
+                      href={relatedProductsHref}
+                      className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+                    >
+                      {t(lang, "productDetail.cta.browseAll")}
+                    </Link>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    {relatedProducts.map((item) => (
+                      <ProductCard
+                        key={item.id}
+                        product={item}
+                        lang={lang}
+                        categoryLabel={resolveProductCategoryLabel(item)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {relatedReviewCards.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {t(lang, "productDetail.related.reviewsTitle")}
+                      </h3>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {t(lang, "productDetail.related.reviewsSubtitle", {
+                          category: primaryCategoryLabel,
+                        })}
+                      </p>
+                    </div>
+                    <Link
+                      href={relatedReviewsHref}
+                      className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+                    >
+                      {t(lang, "reviewDetail.related.viewAll")}
+                    </Link>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    {relatedReviewCards.map((card) => (
+                      <ReviewCardCategory key={card.review.id} {...card} />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );

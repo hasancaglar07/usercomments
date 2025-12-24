@@ -13,6 +13,7 @@ import { t } from "@/src/lib/copy";
 export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 12;
+const POPULAR_PRODUCTS_LIMIT = 3;
 const SORT_VALUES = new Set(["latest", "popular", "rating"]);
 
 type SortValue = "latest" | "popular" | "rating";
@@ -123,6 +124,12 @@ export default async function Page(props: ProductsPageProps) {
 
   const categoryMap = new Map<number, Category>();
   categories.forEach((category) => categoryMap.set(category.id, category));
+  const popularProducts =
+    sort === "popular" && page === 1
+      ? productsResult.items.slice(0, POPULAR_PRODUCTS_LIMIT)
+      : (await getProducts(1, POPULAR_PRODUCTS_LIMIT, "popular", categoryId, lang).catch(
+          () => null
+        ))?.items ?? [];
 
   const categoryLabel = categoryId
     ? categoryMap.get(categoryId)?.name ?? t(lang, "category.fallback.label")
@@ -133,6 +140,10 @@ export default async function Page(props: ProductsPageProps) {
   const description = categoryId
     ? t(lang, "products.description.withCategory", { label: categoryLabel })
     : t(lang, "products.description.default");
+  const popularCategoryLabel = categoryLabel ?? t(lang, "common.general");
+  const popularProductsHref = categoryId
+    ? localizePath(`/catalog/list/${categoryId}`, lang)
+    : localizePath("/products", lang);
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -214,6 +225,43 @@ export default async function Page(props: ProductsPageProps) {
             authenticatedHref="/node/add/review"
           />
         )}
+        {popularProducts.length > 0 ? (
+          <section className="mt-10">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {t(lang, "productList.popular.title")}
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {t(lang, "productList.popular.subtitle", {
+                    category: popularCategoryLabel,
+                  })}
+                </p>
+              </div>
+              <Link
+                href={popularProductsHref}
+                className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+              >
+                {t(lang, "productList.popular.viewAll")}
+              </Link>
+            </div>
+            <div className="mt-6 space-y-4">
+              {popularProducts.map((product) => {
+                const categoryLabel = product.categoryIds?.length
+                  ? categoryMap.get(product.categoryIds[0])?.name
+                  : undefined;
+                return (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    lang={lang}
+                    categoryLabel={categoryLabel}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
   );
