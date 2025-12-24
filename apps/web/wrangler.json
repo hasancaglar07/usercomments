@@ -7,12 +7,6 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
-	"r2_buckets": [
-		{
-			"binding": "NEXT_INC_CACHE_R2_BUCKET",
-			"bucket_name": "cache"
-		}
-	],
 	"vars": {
 		"R2_ENDPOINT": "https://25959c8efbcfc8ab377dd8d8d07df1de.r2.cloudflarestorage.com",
 		"R2_BUCKET": "userreviewbudget",
