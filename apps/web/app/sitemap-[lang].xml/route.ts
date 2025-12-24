@@ -3,15 +3,11 @@ import {
   buildUrlset,
   SITEMAP_CACHE_SECONDS,
 } from "@/src/lib/sitemap";
-import { isSupportedLanguage, SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
+import { isSupportedLanguage } from "@/src/lib/i18n";
 
 export const runtime = "edge";
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const revalidate = 1800;
-
-export function generateStaticParams() {
-  return SUPPORTED_LANGUAGES.map((lang) => ({ lang }));
-}
 
 export async function GET(
   _request: Request,

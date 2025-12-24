@@ -1,14 +1,10 @@
 import { buildUrlset, SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
-import { isSupportedLanguage, localizePath, SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
+import { isSupportedLanguage, localizePath } from "@/src/lib/i18n";
 import { getSiteUrl } from "@/src/lib/seo";
 
 export const runtime = "edge";
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const revalidate = 1800;
-
-export function generateStaticParams() {
-  return SUPPORTED_LANGUAGES.map((lang) => ({ lang }));
-}
 
 export async function GET(
   _request: Request,
