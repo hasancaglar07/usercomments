@@ -15,7 +15,9 @@ export function getSiteUrl(): string {
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.SITE_URL ||
-    "http://localhost:3000";
+    (process.env.NODE_ENV === "development"
+      ? "http://localhost:3000"
+      : "https://userreview.net");
   return base.replace(/\/$/, "");
 }
 
