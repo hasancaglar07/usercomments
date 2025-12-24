@@ -86,6 +86,11 @@ const productListSelectBase = `
   product_categories(category_id)
 `;
 
+const productListSelectWithStats = `
+  ${productListSelectBase},
+  product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count)
+`;
+
 const adminProductSelect = productListSelect;
 
 const productTranslationSelect = `
@@ -163,7 +168,7 @@ export async function fetchProducts(
   const visibleStatuses: ProductStatus[] = ["published", "hidden", "pending"];
   let query = supabase
     .from("products")
-    .select(productListSelectBase)
+    .select(productListSelectWithStats)
     .in("status", visibleStatuses);
 
   if (categoryId) {
