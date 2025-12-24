@@ -81,6 +81,8 @@ If no new rule is detected → do not update the file.
 \- Süreç: En hızlı, en stabil ve en düzgün sonuç için önce düşün, araştır, planla; ardından uygula
 \- Localization: Çeviri işlerinde tüm siteyi eksiksiz, sayfa sayfa sırayla çevir; parçalı bırakma, çünkü kullanıcı tam kapsam bekliyor
 \- Quality: iRecommend ile 1:1 fonksiyonel/UX parite hedefle, çünkü kullanıcı profesyonel birebir klon istiyor
+\- Performance: prioritize speed and perceived performance; add skeleton loading for async content lists so pages feel fast (especially homepage and subpages)
+\- Pagination: never leave users stuck on a "loading" state; load more items or end gracefully when there is no more data
 \- Product flow: auto-match products by review title; if none, create a new product and keep it published so products are always public, while manual user reviews require approval for quality control
 \- Preserve pixel-perfect markup and class names; do not change UI markup unless explicitly requested
 \- UI: Header kategori isimleri sabit kalmalı; linkler isimlerle uyumlu kategori sayfalarına bağlanmalı, yanlış ID eşleştirmesi yapılmamalı
