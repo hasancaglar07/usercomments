@@ -45,6 +45,45 @@ type ReviewListProfileClientProps = {
 };
 
 const DEFAULT_PAGE_SIZE = 10;
+const PROFILE_SKELETON_COUNT = 3;
+
+function ProfileListSkeleton({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <article
+          key={`profile-skeleton-${index}`}
+          className="flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm animate-pulse"
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+            <div className="h-5 w-5 bg-slate-200 dark:bg-slate-700 rounded" />
+          </div>
+          <div className="flex gap-4 sm:gap-6 flex-col sm:flex-row">
+            <div className="w-full sm:w-32 h-48 sm:h-32 rounded-lg bg-slate-200 dark:bg-slate-700" />
+            <div className="flex flex-col flex-1 gap-3">
+              <div className="h-5 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-5 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-3 w-2/3 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-4 w-28 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="mt-auto pt-4 border-t border-border-light dark:border-border-dark flex items-center justify-between">
+                <div className="flex gap-4">
+                  <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+                  <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+                </div>
+                <div className="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            </div>
+          </div>
+        </article>
+      ))}
+    </>
+  );
+}
 
 function buildProfileCards(
   reviews: Review[],
@@ -88,6 +127,7 @@ export default function ReviewListProfileClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [ownerResolved, setOwnerResolved] = useState(false);
+  const skeletonCount = Math.min(pageSize, PROFILE_SKELETON_COUNT);
   const {
     onReviewComment,
     onReviewReport,
@@ -363,9 +403,7 @@ export default function ReviewListProfileClient({
       ) : null}
 
       {loading ? (
-        <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-sm text-slate-500 dark:text-slate-400">
-          {t(lang, "profileClient.loading")}
-        </div>
+        <ProfileListSkeleton count={skeletonCount} />
       ) : cards.length > 0 ? (
         cards.map((card, index) => (
           <ReviewCardProfile

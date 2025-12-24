@@ -98,9 +98,9 @@ export default async function SiteLayout({
   params,
 }: Readonly<{
   children: React.ReactNode;
-  params?: Promise<{ lang?: string }>;
+  params: Promise<{ lang?: string }>;
 }>) {
-  const resolvedParams = await (params ?? Promise.resolve({} as { lang?: string }));
+  const resolvedParams = await params;
   const lang = normalizeLanguage(resolvedParams?.lang);
   let headerCategoryLinks: HeaderCategoryLinks = {};
 

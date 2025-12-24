@@ -46,6 +46,7 @@ const ACTIVE_FILTER_CLASS =
 const INACTIVE_FILTER_CLASS =
   "px-3 py-1 text-xs font-medium bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50";
 const FEED_TABS: FeedTab[] = ["all", "newest", "popular", "photos"];
+const LOAD_MORE_SKELETON_COUNT = 3;
 
 function parseTab(value?: string | null): FeedTab {
   if (!value) {
@@ -108,6 +109,45 @@ function buildHomepageCard(
 function hasPhotos(review: Review): boolean {
   return Boolean(
     (review.photoCount ?? 0) > 0 || (review.photoUrls?.length ?? 0) > 0
+  );
+}
+
+function HomepageFeedSkeleton({ count }: { count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <article
+          key={`homepage-skeleton-${index}`}
+          className="flex flex-col sm:flex-row bg-background-light dark:bg-surface-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden animate-pulse"
+        >
+          <div className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 bg-slate-200 dark:bg-slate-700" />
+          <div className="flex-1 p-5 flex flex-col justify-between gap-4">
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+                    <div className="h-2 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+                  </div>
+                </div>
+                <div className="h-4 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+              <div className="h-4 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-3 w-1/3 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+            <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700 pt-3">
+              <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+              <div className="flex items-center gap-4">
+                <div className="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            </div>
+          </div>
+        </article>
+      ))}
+    </>
   );
 }
 
@@ -404,7 +444,11 @@ export default function HomepageFeed({
         }
         return prev;
       });
-      setLatestNextCursor(result.nextCursor);
+      const isExhausted =
+        result.nextCursor === null ||
+        result.nextCursor === latestNextCursor ||
+        result.items.length < pageSize;
+      setLatestNextCursor(isExhausted ? null : result.nextCursor);
     } catch (error) {
       console.error("Failed to load more reviews", error);
     } finally {
@@ -461,6 +505,7 @@ export default function HomepageFeed({
       : tab === "newest"
         ? false
         : Boolean(latestNextCursor);
+  const skeletonCount = Math.min(pageSize, LOAD_MORE_SKELETON_COUNT);
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore) {
@@ -536,35 +581,44 @@ export default function HomepageFeed({
         </div>
       ) : null}
       {!hasCards ? (
-        <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark p-6 text-center text-sm text-text-muted">
-          {t(lang, "homepage.empty.noReviews")}
-        </div>
-      ) : !hasVisibleCards ? (
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark p-6 text-center">
-          <p className="text-sm text-text-muted">
-            {t(lang, "homepage.empty.noFilterResults")}
-          </p>
-          <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
-            <button
-              className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-text-main hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              type="button"
-              onClick={() => updateTab("all")}
-            >
-              {t(lang, "homepage.empty.clearFilters")}
-            </button>
-            <button
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              type="button"
-              onClick={handleLoadMore}
-              disabled={!hasMore || isLoading}
-            >
-              {isLoading
-                ? t(lang, "homepage.loading")
-                : hasMore
-                  ? t(lang, "homepage.loadMore")
-                  : t(lang, "homepage.empty.caughtUp")}
-            </button>
+        isLoading ? (
+          <div className="space-y-6">
+            <HomepageFeedSkeleton count={skeletonCount} />
           </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark p-6 text-center text-sm text-text-muted">
+            {t(lang, "homepage.empty.noReviews")}
+          </div>
+        )
+      ) : !hasVisibleCards ? (
+        <div className="space-y-6">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark p-6 text-center">
+            <p className="text-sm text-text-muted">
+              {t(lang, "homepage.empty.noFilterResults")}
+            </p>
+            <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-text-main hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                type="button"
+                onClick={() => updateTab("all")}
+              >
+                {t(lang, "homepage.empty.clearFilters")}
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                type="button"
+                onClick={handleLoadMore}
+                disabled={!hasMore || isLoading}
+              >
+                {isLoading
+                  ? t(lang, "homepage.loading")
+                  : hasMore
+                    ? t(lang, "homepage.loadMore")
+                    : t(lang, "homepage.empty.caughtUp")}
+              </button>
+            </div>
+          </div>
+          {isLoading ? <HomepageFeedSkeleton count={skeletonCount} /> : null}
         </div>
       ) : (
         <div className="space-y-6">
@@ -576,6 +630,7 @@ export default function HomepageFeed({
               imagePriority={index === 0}
             />
           ))}
+          {isLoading ? <HomepageFeedSkeleton count={skeletonCount} /> : null}
           <div className="space-y-2">
             <button
               className="w-full py-3 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg text-primary font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-60"

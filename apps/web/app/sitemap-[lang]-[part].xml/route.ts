@@ -9,9 +9,9 @@ export const revalidate = 1800;
 
 export async function GET(
   _request: Request,
-  context: { params?: Promise<{ lang?: string; part?: string } | undefined> }
+  context: { params: Promise<{ lang?: string; part?: string }> }
 ) {
-  const rawParams = context.params ? await context.params : undefined;
+  const rawParams = await context.params;
   const langValue = typeof rawParams?.lang === "string" ? rawParams.lang : "";
   const partValue = typeof rawParams?.part === "string" ? rawParams.part : "";
   const part = Number(partValue);

@@ -9,9 +9,9 @@ export const revalidate = 1800;
 
 export async function GET(
   _request: Request,
-  context: { params?: Promise<{ lang?: string } | undefined> }
+  context: { params: Promise<{ lang?: string }> }
 ) {
-  const rawParams = context.params ? await context.params : undefined;
+  const rawParams = await context.params;
   const langValue = typeof rawParams?.lang === "string" ? rawParams.lang : "";
 
   if (!isSupportedLanguage(langValue)) {
