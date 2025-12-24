@@ -36,6 +36,8 @@ import {
 import { categoryTopAuthors } from "@/data/mock/users";
 import { categoryPopularTags } from "@/data/mock/categories";
 
+export const revalidate = 60;
+
 const DEFAULT_PAGE_SIZE = 10;
 
 const SORT_OPTIONS = new Set(["latest", "popular", "rating"]);
@@ -296,12 +298,39 @@ export default async function Page(props: CategoryPageProps) {
       url: toAbsoluteUrl(card.href),
     })),
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: t(lang, "category.breadcrumb.home"),
+        item: toAbsoluteUrl(localizePath("/", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: t(lang, "category.breadcrumb.reviews"),
+        item: toAbsoluteUrl(localizePath("/catalog", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: categoryLabel,
+        item: toAbsoluteUrl(localizePath(`/catalog/reviews/${categoryId}`, lang)),
+      },
+    ],
+  };
 
   return (
     <div
       className="bg-background-light dark:bg-background-dark text-[#0d141b] font-display antialiased overflow-x-hidden"
       data-page="category-page"
     >
+      <script type="application/ld+json">
+        {JSON.stringify(breadcrumbJsonLd)}
+      </script>
       <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
       <div className="flex min-h-screen flex-col">
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-6">

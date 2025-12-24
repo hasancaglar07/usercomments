@@ -22,10 +22,12 @@ type FetchOptions = RequestInit & {
   next?: {
     revalidate?: number;
   };
+  timeoutMs?: number;
 };
 
 // Hardcoded fallback for production environment where env vars might be missing in client bundle
 const FALLBACK_API_URL = "https://irecommend-api.usercomments.workers.dev";
+const DEFAULT_TIMEOUT_MS = 8000;
 
 const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API_URL;
 const BASE_URL = RAW_BASE_URL?.replace(/\/$/, "");
@@ -43,11 +45,27 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
   const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
   const method = init?.method ?? "GET";
   let response: Response;
+  const { timeoutMs, signal, ...fetchInit } = init ?? {};
+  const controller = new AbortController();
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+  }
+  const resolvedTimeout =
+    typeof timeoutMs === "number" ? timeoutMs : DEFAULT_TIMEOUT_MS;
+  const timeoutId =
+    resolvedTimeout > 0
+      ? setTimeout(() => controller.abort(), resolvedTimeout)
+      : null;
 
   try {
     response = await fetch(url, {
-      ...init,
+      ...fetchInit,
       cache: init?.cache ?? "no-store",
+      signal: controller.signal,
       headers: {
         ...(init?.headers ?? {}),
       },
@@ -58,6 +76,10 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
         ? String(error.message)
         : "Network error.";
     throw new Error(`API request failed (${method} ${url}): ${message}`);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 
   const contentType = response.headers.get("content-type") ?? "";
@@ -110,7 +132,7 @@ export async function getPopularReviews(
     lang,
   });
   const options: FetchOptions = {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 60 },
     ...fetchOptions,
   };
@@ -131,7 +153,7 @@ export async function getLatestReviews(
     searchParams.set("cursor", cursor);
   }
   const options: FetchOptions = {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 60 },
     ...fetchOptions,
   };
@@ -158,7 +180,7 @@ export async function getCatalogPage(
     searchParams.set("categoryId", String(categoryId));
   }
   return fetchJson<PaginatedResult<Review>>(`/api/reviews?${searchParams}`, {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 60 },
   });
 }
@@ -182,14 +204,14 @@ export async function getCategoryPage(
     searchParams.set("subCategoryId", String(subCategoryId));
   }
   return fetchJson<PaginatedResult<Review>>(`/api/reviews?${searchParams}`, {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 60 },
   });
 }
 
 export async function getUserProfile(username: string): Promise<UserProfile> {
   return fetchJson<UserProfile>(`/api/users/${encodeURIComponent(username)}`, {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 60 },
   });
 }
@@ -208,7 +230,7 @@ export async function getUserReviews(
   return fetchJson<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/reviews?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
       next: { revalidate: 60 },
     }
   );
@@ -228,7 +250,7 @@ export async function getUserComments(
   return fetchJson<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/comments?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
       next: { revalidate: 60 },
     }
   );
@@ -240,7 +262,11 @@ export async function getReviewBySlug(
 ): Promise<Review> {
   const searchParams = new URLSearchParams({ lang });
   return fetchJson<Review>(
-    `/api/reviews/slug/${encodeURIComponent(slug)}?${searchParams}`
+    `/api/reviews/slug/${encodeURIComponent(slug)}?${searchParams}`,
+    {
+      cache: "force-cache",
+      next: { revalidate: 90 },
+    }
   );
 }
 
@@ -262,7 +288,7 @@ export async function getProducts(
     searchParams.set("categoryId", String(categoryId));
   }
   const options: FetchOptions = {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 300 },
     ...fetchOptions,
   };
@@ -277,7 +303,7 @@ export async function getProductBySlug(
   return fetchJson<Product>(
     `/api/products/slug/${encodeURIComponent(slug)}?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
       next: { revalidate: 300 },
     }
   );
@@ -299,7 +325,7 @@ export async function getProductReviews(
   return fetchJson<PaginatedResult<Review>>(
     `/api/products/${encodeURIComponent(productId)}/reviews?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
       next: { revalidate: 60 },
     }
   );
@@ -322,7 +348,8 @@ export async function searchProducts(
   return fetchJson<PaginatedResult<Product>>(
     `/api/products/search?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
+      next: { revalidate: 30 },
     }
   );
 }
@@ -346,7 +373,11 @@ export async function getReviewComments(
     searchParams.set("cursor", cursor);
   }
   return fetchJson<CursorResult<Comment>>(
-    `/api/reviews/${reviewId}/comments?${searchParams}`
+    `/api/reviews/${reviewId}/comments?${searchParams}`,
+    {
+      cache: "force-cache",
+      next: { revalidate: 30 },
+    }
   );
 }
 
@@ -367,7 +398,7 @@ export async function searchReviews(
     searchParams.set("categoryId", String(categoryId));
   }
   return fetchJson<PaginatedResult<Review>>(`/api/search?${searchParams}`, {
-    cache: "no-store",
+    cache: "force-cache",
     next: { revalidate: 30 },
   });
 }
@@ -379,7 +410,7 @@ export async function getCategories(
   return fetchJson<PaginatedResult<Category>>(
     `/api/categories?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
       next: { revalidate: 3600 },
     }
   ).then((result) => result.items);
@@ -393,7 +424,7 @@ export async function getSubcategories(
   return fetchJson<PaginatedResult<Category>>(
     `/api/categories/${id}/subcategories?${searchParams}`,
     {
-      cache: "no-store",
+      cache: "force-cache",
       next: { revalidate: 3600 },
     }
   ).then((result) => result.items);

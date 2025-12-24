@@ -26,7 +26,7 @@ import {
   getCategories,
   getPopularReviews,
 } from "@/src/lib/api";
-import { buildMetadata } from "@/src/lib/seo";
+import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
@@ -37,6 +37,7 @@ import {
 } from "@/data/mock/reviews";
 import { catalogTopAuthors } from "@/data/mock/users";
 
+export const revalidate = 60;
 
 const DEFAULT_PAGE_SIZE = 10;
 const POPULAR_LIMIT = 4;
@@ -118,33 +119,17 @@ function mapSortToApi(sort: CatalogSortParam): "latest" | "popular" | "rating" {
 
 function buildCategoryPills(categories: Category[], lang: string) {
   const resolvedLang = normalizeLanguage(lang);
-  const fallbackLabels = [
-    t(resolvedLang, "catalog.categoryPill.all"),
-    t(resolvedLang, "catalog.categoryPill.beauty"),
-    t(resolvedLang, "catalog.categoryPill.technology"),
-    t(resolvedLang, "catalog.categoryPill.travel"),
-    t(resolvedLang, "catalog.categoryPill.automotive"),
-    t(resolvedLang, "catalog.categoryPill.books"),
-    t(resolvedLang, "catalog.categoryPill.health"),
-    t(resolvedLang, "catalog.categoryPill.movies"),
-  ];
   const topLevel = categories.filter((category) => category.parentId == null);
-  if (topLevel.length === 0) {
-    return fallbackLabels.map((label, index) => ({
-      label,
-      id: undefined,
-      isAll: index === 0,
-    }));
-  }
-  const limit = Math.max(0, fallbackLabels.length - 1);
-  return [
+
+  const pills = [
     { label: t(resolvedLang, "catalog.categoryPill.all"), id: undefined, isAll: true },
-    ...topLevel.slice(0, limit).map((category) => ({
+    ...topLevel.map((category) => ({
       label: category.name,
       id: category.id,
       isAll: false,
     })),
   ];
+  return pills;
 }
 
 function buildCatalogCards(
@@ -299,8 +284,8 @@ export default async function Page(props: CatalogPageProps) {
   const catalogSubtitle =
     totalReviews > 0
       ? t(lang, "catalog.subtitle.withCount", {
-          count: formatCompactNumber(totalReviews, lang),
-        })
+        count: formatCompactNumber(totalReviews, lang),
+      })
       : t(lang, "catalog.subtitle.empty");
   const baseParams = new URLSearchParams();
   if (searchParams?.pageSize) {
@@ -317,6 +302,36 @@ export default async function Page(props: CatalogPageProps) {
     params.set("page", String(targetPage));
     return localizePath(`/catalog?${params.toString()}`, lang);
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: t(lang, "catalog.breadcrumb.home"),
+        item: toAbsoluteUrl(localizePath("/", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: t(lang, "catalog.breadcrumb.catalog"),
+        item: toAbsoluteUrl(localizePath("/catalog", lang)),
+      },
+    ],
+  };
+  const itemListJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: t(lang, "catalog.meta.title"),
+    itemListOrder: "https://schema.org/ItemListOrderDescending",
+    numberOfItems: cards.length,
+    itemListElement: cards.map((card, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: toAbsoluteUrl(card.href),
+    })),
+  };
 
   return (
     <div
@@ -324,6 +339,10 @@ export default async function Page(props: CatalogPageProps) {
       data-page="catalog-page"
     >
       <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+        <script type="application/ld+json">
+          {JSON.stringify(breadcrumbJsonLd)}
+        </script>
+        <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
         {errorMessage ? (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
             {errorMessage}

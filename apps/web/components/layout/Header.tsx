@@ -5,26 +5,14 @@ import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
-
-type HeaderCategoryKey =
-  | "beauty"
-  | "tech"
-  | "travel"
-  | "health"
-  | "auto"
-  | "books"
-  | "kids"
-  | "finance"
-  | "movies";
-
-export type HeaderCategoryLinks = Partial<Record<HeaderCategoryKey, string>>;
+import type { Category } from "@/src/types";
 
 type HeaderProps = {
   lang: string;
-  categoryLinks?: HeaderCategoryLinks;
+  categories: Category[];
 };
 
-export default function Header({ lang, categoryLinks }: HeaderProps) {
+export default function Header({ lang, categories }: HeaderProps) {
   const { user, loading, isAuthenticated } = useAuth();
   const resolvedLang = normalizeLanguage(lang);
 
@@ -34,14 +22,12 @@ export default function Header({ lang, categoryLinks }: HeaderProps) {
     t(resolvedLang, "header.accountFallback");
   const homeHref = localizePath("/", resolvedLang);
   const searchAction = localizePath("/search", resolvedLang);
-  const catalogHref = localizePath("/catalog", resolvedLang);
   const loginHref = localizePath("/user/login", resolvedLang);
   const addReviewHref = localizePath("/node/add/review", resolvedLang);
   const profileHref = localizePath(
     `/users/${encodeURIComponent(username.toLowerCase())}`,
     resolvedLang
   );
-  const resolvedCategoryLinks = categoryLinks ?? {};
 
   return (
     <header className="bg-background-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
@@ -106,60 +92,15 @@ export default function Header({ lang, categoryLinks }: HeaderProps) {
           </div>
         </div>
         <nav className="hidden md:flex gap-8 py-3 overflow-x-auto hide-scrollbar border-t border-gray-100 dark:border-gray-800">
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.beauty ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.beauty")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.tech ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.tech")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.travel ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.travel")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.health ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.health")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.auto ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.auto")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.books ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.books")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.kids ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.kids")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.finance ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.finance")}
-          </Link>
-          <Link
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
-            href={resolvedCategoryLinks.movies ?? catalogHref}
-          >
-            {t(resolvedLang, "header.nav.movies")}
-          </Link>
+          {categories.map((category) => (
+            <Link
+              key={category.id}
+              className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary whitespace-nowrap"
+              href={localizePath(`/catalog/reviews/${category.id}`, resolvedLang)}
+            >
+              {category.name}
+            </Link>
+          ))}
         </nav>
       </div>
     </header>

@@ -21,6 +21,7 @@ import {
   formatRelativeTime,
   getCategoryLabel,
 } from "@/src/lib/review-utils";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { homepageReviewCards } from "@/data/mock/reviews";
@@ -34,10 +35,14 @@ import {
 } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const revalidate = 120;
+
 
 type PageProps = {
   params: Promise<{ lang: string; slug: string }>;
 };
+
+const SITE_NAME = "UserReview";
 
 const mockReviewDetail = homepageReviewCards[0].review;
 const mockComments: Comment[] = [];
@@ -215,8 +220,14 @@ export default async function Page(props: PageProps) {
   const dateLabel = formatRelativeTime(review.createdAt, lang);
   const categoryLabel = getCategoryLabel(categories, review.categoryId);
   const subCategoryLabel = getCategoryLabel(categories, review.subCategoryId);
-  const authorPic = review.author.profilePicUrl ?? DEFAULT_AVATAR;
-  const productImg = review.photoUrls?.[0] ?? DEFAULT_REVIEW_IMAGE;
+  const authorPic = getOptimizedImageUrl(
+    review.author.profilePicUrl ?? DEFAULT_AVATAR,
+    160
+  );
+  const productImg = getOptimizedImageUrl(
+    review.photoUrls?.[0] ?? DEFAULT_REVIEW_IMAGE,
+    900
+  );
   const productSlug =
     productDetail?.translations?.find((translation) => translation.lang === lang)
       ?.slug ?? productDetail?.slug ?? review.product?.slug ?? "";
@@ -225,8 +236,10 @@ export default async function Page(props: PageProps) {
     : null;
   const productName =
     productDetail?.name ?? review.product?.name ?? review.title;
-  const productImage =
-    productDetail?.images?.[0]?.url ?? productImg ?? DEFAULT_REVIEW_IMAGE;
+  const productImage = getOptimizedImageUrl(
+    productDetail?.images?.[0]?.url ?? productImg ?? DEFAULT_REVIEW_IMAGE,
+    900
+  );
   const productRatingAvg =
     productDetail?.stats?.ratingAvg ?? review.ratingAvg ?? 0;
   const productRatingCount =
@@ -241,9 +254,58 @@ export default async function Page(props: PageProps) {
   );
   const votesUp = review.votesUp ?? 0;
   const reviewUrl = toAbsoluteUrl(localizePath(`/content/${review.slug}`, lang));
+  const breadcrumbItems = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: t(lang, "reviewDetail.breadcrumb.home"),
+      item: toAbsoluteUrl(localizePath("/", lang)),
+    },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: t(lang, "reviewDetail.breadcrumb.catalog"),
+      item: toAbsoluteUrl(localizePath("/catalog", lang)),
+    },
+  ];
+  if (categoryLabel) {
+    breadcrumbItems.push({
+      "@type": "ListItem",
+      position: breadcrumbItems.length + 1,
+      name: categoryLabel,
+      item: toAbsoluteUrl(localizePath(`/catalog/reviews/${review.categoryId}`, lang)),
+    });
+  }
+  if (subCategoryLabel && review.subCategoryId) {
+    breadcrumbItems.push({
+      "@type": "ListItem",
+      position: breadcrumbItems.length + 1,
+      name: subCategoryLabel,
+      item: toAbsoluteUrl(
+        localizePath(
+          `/catalog/reviews/${review.categoryId}?subCategoryId=${review.subCategoryId}`,
+          lang
+        )
+      ),
+    });
+  }
+  breadcrumbItems.push({
+    "@type": "ListItem",
+    position: breadcrumbItems.length + 1,
+    name: review.title,
+    item: reviewUrl,
+  });
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems,
+  };
   const reviewJsonLd = {
     "@context": "https://schema.org",
     "@type": "Review",
+    "@id": `${reviewUrl}#review`,
+    name: review.title,
+    headline: review.title,
     author: {
       "@type": "Person",
       name: authorName,
@@ -265,11 +327,19 @@ export default async function Page(props: PageProps) {
         : undefined,
     reviewBody: review.excerpt ?? undefined,
     datePublished: review.createdAt,
+    inLanguage: lang,
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+    },
     url: reviewUrl,
   };
 
   return (
     <>
+      <script type="application/ld+json">
+        {JSON.stringify(breadcrumbJsonLd)}
+      </script>
       <script type="application/ld+json">{JSON.stringify(reviewJsonLd)}</script>
       <ReviewDetailClient reviewId={review.id} />
 
@@ -583,43 +653,50 @@ export default async function Page(props: PageProps) {
 
                 {/* Comments List */}
                 <div className="flex flex-col gap-8">
-                  {comments.length > 0 ? comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-4">
-                      <Link
-                        href={localizePath(`/users/${comment.author.username}`, lang)}
-                        className="shrink-0"
-                      >
-                        <div
-                          className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-slate-100 dark:border-slate-700"
-                          style={{ backgroundImage: `url("${comment.author.profilePicUrl || DEFAULT_AVATAR}")` }}
-                        />
-                      </Link>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <Link
-                            href={localizePath(`/users/${comment.author.username}`, lang)}
-                            className="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors"
-                          >
-                            {comment.author.displayName || comment.author.username}
-                          </Link>
-                          <span className="text-xs text-slate-400">
-                            {formatRelativeTime(comment.createdAt, lang)}
-                          </span>
-                        </div>
-                        <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
-                          {comment.text}
-                        </p>
-                        <div className="flex items-center gap-4 mt-2">
-                          <button className="text-slate-400 hover:text-primary text-xs font-medium flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[16px]">thumb_up</span> 0
-                          </button>
-                          <button className="text-slate-400 hover:text-primary text-xs font-medium">
-                            {t(lang, "reviewDetail.comments.reply")}
-                          </button>
+                  {comments.length > 0 ? comments.map((comment) => {
+                    const commentAvatarUrl = getOptimizedImageUrl(
+                      comment.author.profilePicUrl ?? DEFAULT_AVATAR,
+                      80
+                    );
+
+                    return (
+                      <div key={comment.id} className="flex gap-4">
+                        <Link
+                          href={localizePath(`/users/${comment.author.username}`, lang)}
+                          className="shrink-0"
+                        >
+                          <div
+                            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-slate-100 dark:border-slate-700"
+                            style={{ backgroundImage: `url("${commentAvatarUrl}")` }}
+                          />
+                        </Link>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <Link
+                              href={localizePath(`/users/${comment.author.username}`, lang)}
+                              className="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors"
+                            >
+                              {comment.author.displayName || comment.author.username}
+                            </Link>
+                            <span className="text-xs text-slate-400">
+                              {formatRelativeTime(comment.createdAt, lang)}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                            {comment.text}
+                          </p>
+                          <div className="flex items-center gap-4 mt-2">
+                            <button className="text-slate-400 hover:text-primary text-xs font-medium flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[16px]">thumb_up</span> 0
+                            </button>
+                            <button className="text-slate-400 hover:text-primary text-xs font-medium">
+                              {t(lang, "reviewDetail.comments.reply")}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )) : (
+                    );
+                  }) : (
                     <p className="text-center text-slate-400 py-8 italic">
                       {t(lang, "reviewDetail.comments.empty")}
                     </p>

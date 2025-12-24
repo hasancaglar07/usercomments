@@ -40,6 +40,9 @@ export async function buildLanguageSitemapXml(
     entries.push({ loc: `${siteUrl}${localizePath("/", lang)}` });
     entries.push({ loc: `${siteUrl}${localizePath("/catalog", lang)}` });
     entries.push({ loc: `${siteUrl}${localizePath("/products", lang)}` });
+    entries.push({ loc: `${siteUrl}${localizePath("/contact", lang)}` });
+    entries.push({ loc: `${siteUrl}${localizePath("/privacy-policy", lang)}` });
+    entries.push({ loc: `${siteUrl}${localizePath("/terms-of-use", lang)}` });
   }
 
   if (!apiBaseUrl) {

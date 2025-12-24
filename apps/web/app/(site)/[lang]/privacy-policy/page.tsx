@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { buildMetadata } from "@/src/lib/seo";
 
+export const revalidate = 86400;
+
 type PrivacyPolicyPageProps = {
     params: Promise<{ lang: string }>;
 };

@@ -12,6 +12,8 @@ import { formatNumber, getCategoryLabel } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const revalidate = 300;
+
 const DEFAULT_PAGE_SIZE = 12;
 const SORT_OPTIONS = new Set(["latest", "popular", "rating"]);
 
@@ -116,10 +118,37 @@ export default async function Page(props: PageProps) {
       url: toAbsoluteUrl(localizePath(`/products/${product.slug}`, lang)),
     })),
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: t(lang, "category.breadcrumb.home"),
+        item: toAbsoluteUrl(localizePath("/", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: t(lang, "category.breadcrumb.reviews"),
+        item: toAbsoluteUrl(localizePath("/catalog", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: categoryLabel,
+        item: toAbsoluteUrl(localizePath(`/catalog/list/${categoryId}`, lang)),
+      },
+    ],
+  };
 
   return (
     <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
       <div className="layout-content-container flex flex-col max-w-6xl w-full gap-6">
+        <script type="application/ld+json">
+          {JSON.stringify(breadcrumbJsonLd)}
+        </script>
         <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
         <div className="flex flex-wrap gap-2 pb-4">
           <Link

@@ -24,6 +24,7 @@ import {
   getCategoryMeta,
   pickFrom,
 } from "@/src/lib/review-utils";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import {
   DEFAULT_LANGUAGE,
@@ -33,6 +34,8 @@ import {
   type SupportedLanguage,
 } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
+
+export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 8;
 
@@ -202,17 +205,45 @@ export default async function Page(props: PageProps) {
   const recommendTotal = recommendUp + recommendDown;
   const recommendRate =
     recommendTotal > 0 ? Math.round((recommendUp / recommendTotal) * 100) : null;
-  const productImage = product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE;
+  const productImage = getOptimizedImageUrl(
+    product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE,
+    900
+  );
   const reviewHref = `${localizePath("/node/add/review", lang)}?productSlug=${encodeURIComponent(
     product.slug
   )}`;
   const productUrl = toAbsoluteUrl(localizePath(`/products/${product.slug}`, lang));
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: t(lang, "catalog.breadcrumb.home"),
+        item: toAbsoluteUrl(localizePath("/", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: t(lang, "products.meta.title"),
+        item: toAbsoluteUrl(localizePath("/products", lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.name,
+        item: productUrl,
+      },
+    ],
+  };
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${productUrl}#product`,
     name: product.name,
     description: product.description ?? undefined,
-    image: product.images?.map((image) => image.url),
+    image: product.images?.map((image) => toAbsoluteUrl(image.url)),
     brand: product.brand?.name
       ? {
           "@type": "Brand",
@@ -224,7 +255,10 @@ export default async function Page(props: PageProps) {
         ? {
             "@type": "AggregateRating",
             ratingValue: ratingAvg.toFixed(1),
-            reviewCount: ratingCount,
+            ratingCount,
+            reviewCount,
+            bestRating: "5",
+            worstRating: "1",
           }
         : undefined,
     url: productUrl,
@@ -234,6 +268,9 @@ export default async function Page(props: PageProps) {
     <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
       <div className="layout-content-container flex flex-col max-w-6xl w-full gap-8">
         <script type="application/ld+json">{JSON.stringify(productJsonLd)}</script>
+        <script type="application/ld+json">
+          {JSON.stringify(breadcrumbJsonLd)}
+        </script>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
           <div className="grid gap-6 md:grid-cols-[220px_1fr]">
             <div

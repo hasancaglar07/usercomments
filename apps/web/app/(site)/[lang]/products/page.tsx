@@ -9,6 +9,8 @@ import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const revalidate = 300;
+
 const DEFAULT_PAGE_SIZE = 12;
 const SORT_VALUES = new Set(["latest", "popular", "rating"]);
 

@@ -28,6 +28,7 @@ import { homepageTopReviewers } from "@/data/mock/users";
 import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
 
+export const revalidate = 60;
 
 const HOMEPAGE_LIMIT = 9;
 const POPULAR_LIMIT = 9;
@@ -38,10 +39,6 @@ const TRENDING_BADGES = [
   "bg-pink-100 text-pink-800",
   "bg-purple-100 text-purple-800",
 ];
-const HOMEPAGE_FETCH_OPTIONS = {
-  cache: "no-store" as const,
-  headers: { "Cache-Control": "no-store" },
-};
 const ACTIVE_TRENDING_TAB_CLASS =
   "px-2.5 py-1 text-[10px] font-semibold rounded-full bg-primary text-white";
 const INACTIVE_TRENDING_TAB_CLASS =
@@ -194,6 +191,8 @@ type TrendingProductCard = {
   ratingCountLabel: string;
 };
 
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
+
 function buildTrendingProductCards(
   products: Product[],
   categories: Category[],
@@ -214,12 +213,15 @@ function buildTrendingProductCards(
       const reviewCount =
         product.stats?.reviewCount ?? product.stats?.ratingCount ?? 0;
 
+      const rawImageUrl = product.images?.[0]?.url ?? "";
+      const optimizedImageUrl = getOptimizedImageUrl(rawImageUrl, 800);
+
       return {
         product,
         href: localizePath(`/products/${product.slug}`, lang),
         categoryLabel,
         badgeClassName: pickFrom(TRENDING_BADGES, index),
-        imageUrl: product.images?.[0]?.url ?? "",
+        imageUrl: optimizedImageUrl,
         imageAlt: product.name,
         excerpt,
         ratingStars: buildRatingStars(product.stats?.ratingAvg),
@@ -263,16 +265,15 @@ export default async function Page(props: HomePageProps) {
     try {
       const [latestResult, popularReviews, categoryItems, trendingProducts] =
         await Promise.all([
-          getLatestReviews(HOMEPAGE_LIMIT, null, lang, HOMEPAGE_FETCH_OPTIONS),
-          getPopularReviews(POPULAR_LIMIT, lang, HOMEPAGE_FETCH_OPTIONS),
+          getLatestReviews(HOMEPAGE_LIMIT, null, lang),
+          getPopularReviews(POPULAR_LIMIT, lang),
           getCategories(lang),
           getProducts(
             1,
             TRENDING_FETCH_LIMIT,
             trendingTab,
             undefined,
-            lang,
-            HOMEPAGE_FETCH_OPTIONS
+            lang
           ),
         ]);
 
@@ -384,8 +385,8 @@ export default async function Page(props: HomePageProps) {
                           star === "empty"
                             ? "material-symbols-outlined star-empty text-[18px]"
                             : star === "half"
-                              ? "material-symbols-outlined star-half text-secondary text-[18px]"
-                              : "material-symbols-outlined star-filled text-secondary text-[18px]";
+                              ? "material-symbols-outlined star-half text-yellow-400 text-[18px]"
+                              : "material-symbols-outlined star-filled text-yellow-400 text-[18px]";
                         return (
                           <span key={`${card.product.id}-star-${starIndex}`} className={className}>
                             {icon}

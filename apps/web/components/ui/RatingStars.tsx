@@ -7,9 +7,9 @@ type RatingStarsProps = {
 
 export function RatingStarsHomepage({ stars, valueText }: RatingStarsProps) {
   const baseClass = "material-symbols-outlined text-[20px]";
-  const fullClass = `${baseClass} star-filled text-secondary`;
-  const halfClass = `${baseClass} star-half text-secondary`;
-  const emptyClass = `${baseClass} star-empty`;
+  const fullClass = `${baseClass} star-filled text-yellow-400`;
+  const halfClass = `${baseClass} star-half text-yellow-400`;
+  const emptyClass = `${baseClass} star-empty text-gray-300`;
 
   return (
     <div className="flex items-center gap-1 mb-2">
@@ -43,9 +43,9 @@ export function RatingStarsHomepage({ stars, valueText }: RatingStarsProps) {
 
 export function RatingStarsCatalog({ stars, valueText }: RatingStarsProps) {
   const fullClass =
-    "material-symbols-outlined star-filled text-secondary text-[20px] fill-current";
+    "material-symbols-outlined star-filled text-yellow-400 text-[20px] fill-current";
   const halfClass =
-    "material-symbols-outlined star-half text-secondary text-[20px] fill-current";
+    "material-symbols-outlined star-half text-yellow-400 text-[20px] fill-current";
   const emptyClass =
     "material-symbols-outlined star-empty text-slate-300 text-[20px] fill-current";
 
@@ -83,7 +83,7 @@ export function RatingStarsCatalog({ stars, valueText }: RatingStarsProps) {
 
 export function RatingStarsCategory({ stars }: RatingStarsProps) {
   return (
-    <div className="flex text-primary">
+    <div className="flex text-yellow-400">
       {stars.map((star, index) => {
         const baseClass = "material-symbols-outlined text-[20px]";
         if (star === "full") {

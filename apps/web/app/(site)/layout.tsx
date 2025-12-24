@@ -1,98 +1,22 @@
 import "../../styles/globals.css";
+import type { Metadata } from "next";
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import { AuthProvider } from "../../components/auth/AuthProvider";
-import { DEFAULT_LANGUAGE, localizePath, normalizeLanguage, type SupportedLanguage } from "@/src/lib/i18n";
+import { isRtlLanguage, localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { getCategories } from "@/src/lib/api";
-import { t } from "@/src/lib/copy";
+import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
-import type { HeaderCategoryLinks } from "../../components/layout/Header";
 
-export const runtime = "edge";
-const HEADER_CATEGORY_ENTRIES = [
-  { key: "beauty", labelKey: "header.nav.beauty", pillKey: "catalog.categoryPill.beauty" },
-  { key: "tech", labelKey: "header.nav.tech", pillKey: "catalog.categoryPill.technology" },
-  { key: "travel", labelKey: "header.nav.travel", pillKey: "catalog.categoryPill.travel" },
-  { key: "health", labelKey: "header.nav.health", pillKey: "catalog.categoryPill.health" },
-  { key: "auto", labelKey: "header.nav.auto", pillKey: "catalog.categoryPill.automotive" },
-  { key: "books", labelKey: "header.nav.books", pillKey: "catalog.categoryPill.books" },
-  { key: "kids", labelKey: "header.nav.kids", pillKey: undefined },
-  { key: "finance", labelKey: "header.nav.finance", pillKey: undefined },
-  { key: "movies", labelKey: "header.nav.movies", pillKey: "catalog.categoryPill.movies" },
-] as const;
-
-function normalizeCategoryName(value: string, lang: SupportedLanguage): string {
-  return value
-    .toLocaleLowerCase(lang)
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function resolveCategoryId(
-  categories: Array<{ id: number; name: string }>,
-  candidates: string[],
-  lang: SupportedLanguage
-): number | undefined {
-  const normalizedCandidates = candidates
-    .map((candidate) => normalizeCategoryName(candidate, lang))
-    .filter(Boolean);
-
-  if (normalizedCandidates.length === 0) {
-    return undefined;
-  }
-
-  const exactMap = new Map<string, number | null>();
-  categories.forEach((category) => {
-    if (!exactMap.has(category.name)) {
-      exactMap.set(category.name, category.id);
-    } else {
-      exactMap.set(category.name, null);
-    }
-  });
-
-  for (const candidate of normalizedCandidates) {
-    const exact = exactMap.get(candidate);
-    if (typeof exact === "number") {
-      return exact;
-    }
-  }
-
-  return undefined;
-}
-
-function buildHeaderCategoryLinks(
-  categories: Category[],
-  lang: SupportedLanguage
-): HeaderCategoryLinks {
-  const topLevel = categories.filter((category) => category.parentId == null);
-  if (topLevel.length === 0) {
-    return {};
-  }
-
-  const normalized = topLevel.map((category) => ({
-    id: category.id,
-    name: normalizeCategoryName(category.name, lang),
-  }));
-
-  const links: HeaderCategoryLinks = {};
-  HEADER_CATEGORY_ENTRIES.forEach((entry) => {
-    const candidates = new Set<string>();
-    candidates.add(t(lang, entry.labelKey));
-    candidates.add(t(DEFAULT_LANGUAGE, entry.labelKey));
-    if (entry.pillKey) {
-      candidates.add(t(lang, entry.pillKey));
-      candidates.add(t(DEFAULT_LANGUAGE, entry.pillKey));
-    }
-    const id = resolveCategoryId(normalized, Array.from(candidates), lang);
-    if (id) {
-      links[entry.key] = localizePath(`/catalog/reviews/${id}`, lang);
-    }
-  });
-
-  return links;
-}
+const SITE_NAME = "UserReview";
+export const metadata: Metadata = {
+  title: "UserReview | Real User Reviews & Honest Product Insights",
+  description:
+    "Read what real people say before you buy. Thousands of user reviews and honest experiences on the latest products.",
+  icons: {
+    icon: "/favicon.png",
+  },
+};
 
 export default async function SiteLayout({
   children,
@@ -103,22 +27,58 @@ export default async function SiteLayout({
 }>) {
   const resolvedParams = await params;
   const lang = normalizeLanguage(resolvedParams?.lang);
-  let headerCategoryLinks: HeaderCategoryLinks = {};
+  const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
+  let categories: Category[] = [];
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
-      const categories = await getCategories(lang);
-      headerCategoryLinks = buildHeaderCategoryLinks(categories, lang);
+      const allCategories = await getCategories(lang);
+      // Filter for top-level categories only
+      categories = allCategories.filter((category) => category.parentId == null);
     } catch (error) {
-      console.error("Failed to load header category links", error);
+      console.error("Failed to load header categories", error);
     }
   }
 
+  const localizedSiteUrl = toAbsoluteUrl(localizePath("/", lang));
+  const searchTarget = toAbsoluteUrl(
+    localizePath("/search?q={search_term_string}", lang)
+  );
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${localizedSiteUrl}#website`,
+    name: SITE_NAME,
+    url: localizedSiteUrl,
+    inLanguage: lang,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: searchTarget,
+      "query-input": "required name=search_term_string",
+    },
+  };
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${localizedSiteUrl}#organization`,
+    name: SITE_NAME,
+    url: localizedSiteUrl,
+    logo: toAbsoluteUrl("/favicon.png"),
+  };
+
   return (
-    <AuthProvider>
-      <Header lang={lang} categoryLinks={headerCategoryLinks} />
-      {children}
-      <Footer lang={lang} />
-    </AuthProvider>
+    <html lang={lang} dir={dir} className="light">
+      <body>
+        <AuthProvider>
+          <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
+          <script type="application/ld+json">
+            {JSON.stringify(organizationJsonLd)}
+          </script>
+          <Header lang={lang} categories={categories} />
+          {children}
+          <Footer lang={lang} />
+        </AuthProvider>
+      </body>
+    </html>
   );
 }

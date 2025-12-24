@@ -28,6 +28,8 @@ export type ReviewCardHomepageData = {
   photoCountLabel?: string;
 };
 
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
+
 type ReviewCardHomepageProps = ReviewCardHomepageData & {
   lang: SupportedLanguage;
   imagePriority?: boolean;
@@ -52,6 +54,8 @@ export function ReviewCardHomepage({
   imagePriority = false,
 }: ReviewCardHomepageProps) {
   const authorName = review.author.displayName ?? review.author.username;
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
 
   return (
     <article className="flex flex-col sm:flex-row bg-background-light dark:bg-surface-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow">
@@ -64,7 +68,7 @@ export function ReviewCardHomepage({
           decoding="async"
           fetchPriority={imagePriority ? "high" : "auto"}
           loading={imagePriority ? "eager" : "lazy"}
-          src={imageUrl}
+          src={optimizedImageUrl}
         />
       </div>
       <div className="flex-1 p-5 flex flex-col justify-between">
@@ -79,7 +83,7 @@ export function ReviewCardHomepage({
                   data-alt={avatarAlt}
                   decoding="async"
                   loading="lazy"
-                  src={avatarUrl}
+                  src={optimizedAvatarUrl}
                 />
               </div>
               <div>
@@ -104,6 +108,7 @@ export function ReviewCardHomepage({
             <Link
               className="hover:underline decoration-primary"
               href={href}
+              prefetch={false}
             >
               {review.title}
             </Link>
@@ -180,6 +185,8 @@ export function ReviewCardCatalog({
   photoCountLabel,
 }: ReviewCardCatalogData) {
   const authorName = review.author.displayName ?? review.author.username;
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
+  const optimizedAvatarUrl = getOptimizedImageUrl(authorAvatarUrl, 100);
 
   return (
     <article className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow">
@@ -188,7 +195,7 @@ export function ReviewCardCatalog({
           <div
             className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 rounded-lg bg-cover bg-center relative overflow-hidden group"
             data-alt={imageAlt}
-            style={{ backgroundImage: `url(${imageUrl})` }}
+            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
           >
             {showImageOverlay ? (
               <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -208,6 +215,7 @@ export function ReviewCardCatalog({
             <Link
               className="hover:underline"
               href={href}
+              prefetch={false}
             >
               {review.title}
             </Link>
@@ -223,7 +231,7 @@ export function ReviewCardCatalog({
                 alt={authorAvatarAlt}
                 className="w-6 h-6 rounded-full"
                 data-alt={authorAvatarDataAlt}
-                src={authorAvatarUrl}
+                src={optimizedAvatarUrl}
               />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 {authorName}
@@ -285,6 +293,8 @@ export function ReviewCardCategory({
   photoCountLabel,
 }: ReviewCardCategoryData) {
   const authorName = review.author.displayName ?? review.author.username;
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
 
   return (
     <article className="flex flex-col md:flex-row gap-5 bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3] hover:shadow-md transition-shadow">
@@ -292,7 +302,7 @@ export function ReviewCardCategory({
         <div
           className="aspect-[4/3] md:aspect-square w-full rounded-lg bg-cover bg-center border border-[#e7edf3]"
           data-alt={imageAlt}
-          style={{ backgroundImage: `url(${imageUrl})` }}
+          style={{ backgroundImage: `url(${optimizedImageUrl})` }}
         />
       </div>
       <div className="flex flex-col flex-1 gap-2">
@@ -301,7 +311,7 @@ export function ReviewCardCategory({
             <div
               className="size-6 rounded-full bg-gray-200 bg-cover bg-center"
               data-alt={avatarAlt}
-              style={{ backgroundImage: `url(${avatarUrl})` }}
+              style={{ backgroundImage: `url(${optimizedAvatarUrl})` }}
             />
             <span className="text-xs font-semibold text-[#4c739a]">
               {authorName}
@@ -311,7 +321,9 @@ export function ReviewCardCategory({
           <RatingStarsCategory stars={ratingStars} />
         </div>
         <h3 className="text-lg font-bold text-[#0d141b] group-hover:text-primary cursor-pointer hover:underline decoration-primary">
-          <Link href={href}>{review.title}</Link>
+          <Link href={href} prefetch={false}>
+            {review.title}
+          </Link>
         </h3>
         <p className="text-[#4c739a] text-sm line-clamp-3 leading-relaxed">
           {review.excerpt}
@@ -389,6 +401,8 @@ export function ReviewCardProfile({
   onShare,
   lang,
 }: ReviewCardProfileProps) {
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
+
   return (
     <article
       className="flex flex-col bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm hover:shadow-md transition-shadow"
@@ -424,7 +438,7 @@ export function ReviewCardProfile({
         <div
           className="w-full sm:w-32 h-48 sm:h-32 rounded-lg bg-cover bg-center shrink-0 border border-border-light dark:border-border-dark"
           data-alt={imageAlt}
-          style={{ backgroundImage: `url(${imageUrl})` }}
+          style={{ backgroundImage: `url(${optimizedImageUrl})` }}
         />
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-1">
@@ -433,7 +447,9 @@ export function ReviewCardProfile({
             </span>
           </div>
           <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-2 hover:text-primary transition-colors">
-            <Link href={href}>{review.title}</Link>
+          <Link href={href} prefetch={false}>
+            {review.title}
+          </Link>
           </h2>
           <p className="text-text-sub-light dark:text-text-sub-dark text-sm line-clamp-3 mb-4 leading-relaxed">
             {review.excerpt}
@@ -441,6 +457,7 @@ export function ReviewCardProfile({
           <Link
             className="text-primary text-sm font-bold hover:underline mb-4 inline-block"
             href={href}
+            prefetch={false}
           >
             {t(lang, "reviewCard.readFullReview")}
           </Link>

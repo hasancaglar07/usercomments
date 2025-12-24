@@ -17,6 +17,7 @@ import {
   getCategoryLabel,
   pickFrom,
 } from "@/src/lib/review-utils";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import {
   getCategories,
   getUserComments,
@@ -32,6 +33,8 @@ import {
 import { profileUser } from "@/data/mock/users";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+
+export const revalidate = 120;
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -323,6 +326,10 @@ export default async function Page(props: UserProfilePageProps) {
   }
 
   const profile = hydrateProfile(baseProfile, reviews);
+  const profileAvatarUrl = getOptimizedImageUrl(
+    profile.profilePicUrl ?? pickFrom(FALLBACK_PROFILE_IMAGES, 0),
+    200
+  );
   reviewCount = profile.stats?.reviewCount ?? reviewCount;
   const memberSince = formatMemberSince(profile.createdAt);
   const badges = buildProfileBadges(profile.stats);
@@ -359,7 +366,7 @@ export default async function Page(props: UserProfilePageProps) {
                   className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-28 h-28 ring-4 ring-background-light dark:ring-background-dark"
                   data-alt="Large user profile avatar"
                   style={{
-                    backgroundImage: `url(${profile.profilePicUrl})`,
+                    backgroundImage: `url(${profileAvatarUrl})`,
                   }}
                 />
                 <div className="absolute bottom-1 right-1 bg-green-500 rounded-full w-4 h-4 border-2 border-white dark:border-surface-dark" />

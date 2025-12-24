@@ -22,6 +22,8 @@ import { homepagePopularCategories } from "@/data/mock/categories";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const revalidate = 30;
+
 
 type SearchPageProps = {
   params: Promise<{ lang: string }>;

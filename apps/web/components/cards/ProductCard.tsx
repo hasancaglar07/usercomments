@@ -6,6 +6,7 @@ import {
   DEFAULT_REVIEW_IMAGE,
   formatCompactNumber,
 } from "@/src/lib/review-utils";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
@@ -29,6 +30,7 @@ export default function ProductCard({
     resolvedLang
   );
   const imageUrl = product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE;
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
   const productHref = localizePath(`/products/${product.slug}`, lang);
   const reviewHref = `${localizePath("/node/add/review", lang)}?productSlug=${encodeURIComponent(
     product.slug
@@ -41,10 +43,11 @@ export default function ProductCard({
           className="sm:w-48 sm:shrink-0"
           href={productHref}
           aria-label={t(resolvedLang, "productCard.ariaView", { name: product.name })}
+          prefetch={false}
         >
           <div
             className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 dark:bg-slate-800 bg-cover bg-center"
-            style={{ backgroundImage: `url(${imageUrl})` }}
+            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
           />
         </Link>
         <div className="flex-1 p-5 flex flex-col justify-between">
@@ -60,7 +63,7 @@ export default function ProductCard({
               </span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-2">
-              <Link className="hover:text-primary" href={productHref}>
+              <Link className="hover:text-primary" href={productHref} prefetch={false}>
                 {product.name}
               </Link>
             </h3>
@@ -82,12 +85,14 @@ export default function ProductCard({
             <Link
               className="text-xs font-semibold text-primary hover:underline"
               href={productHref}
+              prefetch={false}
             >
               {t(resolvedLang, "productCard.viewProduct")}
             </Link>
             <Link
               className="text-xs font-semibold text-slate-500 hover:text-primary"
               href={reviewHref}
+              prefetch={false}
             >
               {t(resolvedLang, "productCard.writeReview")}
             </Link>
