@@ -100,8 +100,8 @@ function buildHomepageCards(
       href: localizePath(`/content/${review.slug}`, lang),
       authorMeta: categoryName
         ? t(resolvedLang, "homepage.reviewerMetaWithCategory", {
-            category: categoryName,
-          })
+          category: categoryName,
+        })
         : t(resolvedLang, "homepage.reviewerMetaCommunity"),
       postedLabel: relative
         ? t(resolvedLang, "homepage.postedWithRelative", { relative })
@@ -296,7 +296,8 @@ export default async function Page(props: HomePageProps) {
     } catch (error) {
       console.error("Failed to load homepage API data", error);
       if (!allowMockFallback) {
-        errorMessage = t(lang, "homepage.error.loadFailed");
+        const detail = error instanceof Error ? error.message : String(error);
+        errorMessage = `${t(lang, "homepage.error.loadFailed")} (${detail})`;
       }
     }
   } else if (!allowMockFallback) {
@@ -383,8 +384,8 @@ export default async function Page(props: HomePageProps) {
                           star === "empty"
                             ? "material-symbols-outlined star-empty text-[18px]"
                             : star === "half"
-                            ? "material-symbols-outlined star-half text-secondary text-[18px]"
-                            : "material-symbols-outlined star-filled text-secondary text-[18px]";
+                              ? "material-symbols-outlined star-half text-secondary text-[18px]"
+                              : "material-symbols-outlined star-filled text-secondary text-[18px]";
                         return (
                           <span key={`${card.product.id}-star-${starIndex}`} className={className}>
                             {icon}
