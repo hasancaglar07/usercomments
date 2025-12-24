@@ -1,5 +1,5 @@
 
-const IMAGE_OPTIMIZER = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "wsrv";
+const IMAGE_OPTIMIZER = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "none";
 const IMAGE_CDN_BASE_URL =
   process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL?.replace(/\/$/, "") ?? "";
 
