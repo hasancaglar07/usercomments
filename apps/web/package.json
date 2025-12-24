@@ -6,7 +6,7 @@
     "dev": "next dev",
     "postinstall": "node scripts/ensure-lightningcss.mjs",
     "build": "next build",
-    "build:cloudflare": "opennextjs-cloudflare build && cp .open-next/worker.js .open-next/_worker.js && cp -r .next/static .open-next/assets/_next/",
+    "build:cloudflare": "opennextjs-cloudflare build && cp .open-next/worker.js .open-next/_worker.js && mkdir -p .open-next/assets/_next && cp -r .next/static .open-next/assets/_next/",
     "start": "next start",
     "lint": "eslint"
   },
