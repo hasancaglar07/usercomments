@@ -393,50 +393,57 @@ export default async function Page(props: CatalogPageProps) {
             {errorMessage}
           </div>
         ) : null}
-        <nav aria-label="Breadcrumb" className="flex mb-6">
-          <ol className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
-            <li>
-              <Link
-                className="hover:text-primary flex items-center"
-                href={localizePath("/", lang)}
-              >
-                <span className="material-symbols-outlined text-[18px] mr-1">
-                  home
-                </span>
-                {t(lang, "catalog.breadcrumb.home")}
-              </Link>
-            </li>
-            <li>
-              <span className="mx-1">/</span>
-            </li>
-            <li className="font-medium text-slate-900 dark:text-slate-200">
-              {t(lang, "catalog.breadcrumb.catalog")}
-            </li>
-          </ol>
-        </nav>
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-2">
+        <div className="mb-10 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+          <nav aria-label="Breadcrumb" className="flex mb-6 relative z-10">
+            <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+              <li>
+                <Link
+                  className="hover:text-primary transition-colors flex items-center"
+                  href={localizePath("/", lang)}
+                >
+                  <span className="material-symbols-outlined text-[18px] mr-1">
+                    home
+                  </span>
+                  {t(lang, "catalog.breadcrumb.home")}
+                </Link>
+              </li>
+              <li>
+                <span className="mx-1 text-gray-300">/</span>
+              </li>
+              <li className="font-medium text-gray-900 dark:text-gray-100">
+                {t(lang, "catalog.breadcrumb.catalog")}
+              </li>
+            </ol>
+          </nav>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+            <div className="max-w-2xl">
+              <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-3">
                 {t(lang, "catalog.heading")}
               </h2>
-              <p className="text-slate-500 dark:text-slate-400">
+              <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
                 {catalogSubtitle}
               </p>
             </div>
+            <div className="w-full md:w-auto min-w-[200px]">
+              <Suspense fallback={null}>
+                <CatalogSortSelect
+                  sort={sort}
+                  options={SORT_OPTIONS.map(({ labelKey, value }) => ({
+                    label: t(lang, labelKey),
+                    value,
+                  }))}
+                />
+              </Suspense>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
             <Suspense fallback={null}>
-              <CatalogSortSelect
-                sort={sort}
-                options={SORT_OPTIONS.map(({ labelKey, value }) => ({
-                  label: t(lang, labelKey),
-                  value,
-                }))}
-              />
+              <CatalogCategoryChips categoryId={categoryId} pills={categoryPills} />
             </Suspense>
           </div>
-          <Suspense fallback={null}>
-            <CatalogCategoryChips categoryId={categoryId} pills={categoryPills} />
-          </Suspense>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {cards.length > 0 ? (

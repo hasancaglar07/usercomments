@@ -25,7 +25,7 @@ import { getCatalogPage, getLatestReviews } from "@/src/lib/api";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
-type FeedTab = "all" | "newest" | "popular" | "photos";
+type FeedTab = "all" | "popular" | "photos";
 
 type HomepageFeedProps = {
   initialCards: ReviewCardHomepageData[];
@@ -45,7 +45,7 @@ const ACTIVE_FILTER_CLASS =
   "px-3 py-1 text-xs font-medium bg-primary text-white rounded-full";
 const INACTIVE_FILTER_CLASS =
   "px-3 py-1 text-xs font-medium bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50";
-const FEED_TABS: FeedTab[] = ["all", "newest", "popular", "photos"];
+const FEED_TABS: FeedTab[] = ["all", "popular", "photos"];
 const LOAD_MORE_SKELETON_COUNT = 3;
 
 function parseTab(value?: string | null): FeedTab {
@@ -238,7 +238,6 @@ export default function HomepageFeed({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const tabs = [
     { key: "all", label: t(lang, "homepage.filters.all") },
-    { key: "newest", label: t(lang, "homepage.filters.newest") },
     { key: "popular", label: t(lang, "homepage.filters.popular") },
     { key: "photos", label: t(lang, "homepage.filters.photos") },
   ] as const;
@@ -275,9 +274,6 @@ export default function HomepageFeed({
   const visibleCards = useMemo(() => {
     if (tab === "popular") {
       return popularCards;
-    }
-    if (tab === "newest") {
-      return sortedLatestCards.slice(0, pageSize);
     }
     if (tab === "photos") {
       return sortedLatestCards.filter((card) => hasPhotos(card.review));
@@ -355,7 +351,7 @@ export default function HomepageFeed({
   }, [latestCards.length, latestNextCursor, lang, pageSize]);
 
   useEffect(() => {
-    if (tab === "popular" || tab === "newest") {
+    if (tab === "popular") {
       setPrefetchState(null);
       return;
     }
@@ -468,7 +464,7 @@ export default function HomepageFeed({
       }
       return;
     }
-    if (tab === "newest" || !latestNextCursor) {
+    if (!latestNextCursor) {
       return;
     }
     setIsLoading(true);
@@ -560,9 +556,7 @@ export default function HomepageFeed({
   const hasMore =
     tab === "popular"
       ? popularHasMore
-      : tab === "newest"
-        ? false
-        : Boolean(latestNextCursor);
+      : Boolean(latestNextCursor);
   const skeletonCount = Math.min(pageSize, LOAD_MORE_SKELETON_COUNT);
 
   useEffect(() => {

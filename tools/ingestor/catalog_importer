@@ -1,0 +1,23 @@
+2025-12-24 19:26:17 | INFO | ingestor.log | Starting Catalog Import...
+2025-12-24 19:27:27 | INFO | ingestor.log | Starting Catalog Import...
+2025-12-24 19:27:40 | INFO | ingestor.log | Starting Catalog Import...
+2025-12-24 19:28:28 | INFO | ingestor.log | Starting Catalog Import...
+2025-12-24 19:28:45 | INFO | ingestor.log | Starting Catalog Import...
+2025-12-24 19:28:46 | INFO | ingestor.log | Initiating crawl from: https://irecommend.ru/catalog
+2025-12-24 19:28:50 | CRITICAL | ingestor.log | Process failed: {'message': 'column category_translations.id does not exist', 'code': '42703', 'hint': None, 'details': None}
+Traceback (most recent call last):
+  File "C:\Users\ihsan\Desktop\review\tools\ingestor\run_catalog_import.py", line 55, in main
+    await spider.process_category(root_url, parent_id=None, depth=0)
+  File "C:\Users\ihsan\Desktop\review\tools\ingestor\ingestor\crawl\catalog_spider.py", line 151, in process_category
+    existing_trans = self.supabase.select(
+                     ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ihsan\Desktop\review\tools\ingestor\ingestor\db\supabase_client.py", line 67, in select
+    return self._execute(query, f"select {table}", allow_write=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ihsan\Desktop\review\tools\ingestor\ingestor\db\supabase_client.py", line 17, in _execute
+    response = query.execute()
+               ^^^^^^^^^^^^^^^
+  File "C:\Users\ihsan\AppData\Local\Programs\Python\Python312\Lib\site-packages\postgrest\_sync\request_builder.py", line 53, in execute
+    raise APIError(dict(json_obj))
+postgrest.exceptions.APIError: {'message': 'column category_translations.id does not exist', 'code': '42703', 'hint': None, 'details': None}
+2025-12-24 19:28:50 | INFO | ingestor.log | Catalog Import Finished.

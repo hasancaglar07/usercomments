@@ -55,6 +55,10 @@ class SupabaseClient:
                         query = query.in_(column, value)
                     elif op == "is":
                         query = query.is_(column, value)
+                    elif op == "like":
+                        query = query.like(column, value)
+                    elif op == "ilike":
+                        query = query.ilike(column, value)
                     else:
                         raise ValueError(f"Unsupported filter op: {op}")
                 else:
@@ -96,3 +100,19 @@ class SupabaseClient:
                 else:
                     raise ValueError(f"Unsupported filter op: {op}")
         return self._execute(query, f"update {table}", allow_write=True)
+
+    def delete(
+        self,
+        table: str,
+        filters: Optional[List[Tuple[str, str, Any]]] = None,
+    ) -> List[Dict[str, Any]]:
+        query = self.client.table(table).delete()
+        if filters:
+            for op, column, value in filters:
+                if op == "eq":
+                    query = query.eq(column, value)
+                elif op == "in":
+                    query = query.in_(column, value)
+                else:
+                    raise ValueError(f"Unsupported filter op: {op}")
+        return self._execute(query, f"delete {table}", allow_write=True)

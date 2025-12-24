@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import argparse
+import random
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
@@ -32,7 +33,8 @@ from .db.upsert import (
 )
 from .db.user_pool import ProfilePool
 from .llm.groq_client import GroqClient
-from .llm.translate_and_seo import translate_category, translate_product, translate_review, extract_review_details_ai
+from .llm.translate_and_seo import translate_product, translate_review, extract_review_details_ai
+from .llm.category_matcher import match_category_ai
 from .media.r2_upload import R2Uploader
 from .media.image_fetch import fetch_image
 from .media.image_process import process_image
@@ -47,7 +49,8 @@ async def _fetch_html_async(http: HttpClient, url: str, logger: logging.Logger) 
     # Use thread for cloudscraper sync get
     def _fetch():
         response = http.get(url)
-        response.encoding = response.apparent_encoding
+        # Force UTF-8 as irecommend uses it, sometimes apparent_encoding fails or detects differently
+        response.encoding = 'utf-8'
         return response.text
     
     text = await asyncio.to_thread(_fetch)
@@ -144,6 +147,9 @@ async def _ensure_category_ids_async(
     http: HttpClient,
     supabase: SupabaseClient,
     category_map: Dict[str, int],
+    category_name_map: Dict[str, int],
+    parent_map: Dict[int, int],
+    ai_match_cache: Dict[str, Optional[int]],
     detail: ReviewDetail,
     base_url: str,
     groq: GroqClient,
@@ -160,48 +166,59 @@ async def _ensure_category_ids_async(
     if not prod_name and detail.source_slug:
         prod_name = detail.source_slug.replace("-", " ").strip() or None
 
-    # 1. Ensure Category
+    # 1. Ensure Category (Strict Match)
     cat_id = None
     if cat_url:
         cat_id = category_map.get(cat_url)
-        if not cat_id and detail.category_name:
-            payload = [{"source_url": cat_url, "name": detail.category_name, "parent_id": None}]
-            await asyncio.to_thread(upsert_categories, supabase, payload, logger)
-            cat_id = (await asyncio.to_thread(fetch_categories_by_source_urls, supabase, [cat_url])).get(cat_url)
-            if cat_id:
-                category_map[cat_url] = cat_id
-    
-    if cat_id and detail.category_name:
-        # Check if translation exists
-        first_lang = config.langs[0] if config.langs else "en"
-        rows = await asyncio.to_thread(supabase.select, "category_translations", "lang", [("eq", "category_id", cat_id), ("eq", "lang", first_lang)])
-        if not rows:
-            try:
-                trans = await translate_category(groq, detail.category_name, config.langs, logger)
-                await asyncio.to_thread(upsert_category_translations, supabase, cat_id, trans.values(), logger)
-            except Exception as e:
-                logger.warning("Category translation failed: %s", e)
 
-    # 2. Ensure Subcategory
+    if not cat_id and detail.category_name:
+        norm = detail.category_name.strip().lower()
+        cat_id = category_name_map.get(norm)
+        
+        # AI Match Fallback
+        if not cat_id:
+            if norm in ai_match_cache:
+                cat_id = ai_match_cache[norm]
+                if cat_id: logger.info("Category matched by AI CACHE: '%s' -> ID %s", detail.category_name, cat_id)
+            elif config.groq_api_key:
+                 cat_id = await match_category_ai(groq, detail.category_name, category_name_map, logger)
+                 ai_match_cache[norm] = cat_id
+
+        if cat_id:
+            logger.info("Category matched: '%s' -> ID %s", detail.category_name, cat_id)
+    
+    # 2. Ensure Subcategory (Strict Match)
     sub_id = None
     if sub_url:
         sub_id = category_map.get(sub_url)
-        if not sub_id and detail.subcategory_name:
-             payload = [{"source_url": sub_url, "name": detail.subcategory_name, "parent_id": cat_id}]
-             await asyncio.to_thread(upsert_categories, supabase, payload, logger)
-             sub_id = (await asyncio.to_thread(fetch_categories_by_source_urls, supabase, [sub_url])).get(sub_url)
-             if sub_id:
-                 category_map[sub_url] = sub_id
 
-    if sub_id and detail.subcategory_name:
-        first_lang = config.langs[0] if config.langs else "en"
-        rows = await asyncio.to_thread(supabase.select, "category_translations", "lang", [("eq", "category_id", sub_id), ("eq", "lang", first_lang)])
-        if not rows:
-            try:
-                trans = await translate_category(groq, detail.subcategory_name, config.langs, logger)
-                await asyncio.to_thread(upsert_category_translations, supabase, sub_id, trans.values(), logger)
-            except Exception as e:
-                logger.warning("Subcategory translation failed: %s", e)
+    if not sub_id and detail.subcategory_name:
+        norm = detail.subcategory_name.strip().lower()
+        sub_id = category_name_map.get(norm)
+
+        # AI Match Fallback (Sub)
+        if not sub_id:
+            if norm in ai_match_cache:
+                 sub_id = ai_match_cache[norm]
+                 if sub_id: logger.info("Subcategory matched by AI CACHE: '%s' -> ID %s", detail.subcategory_name, sub_id)
+            elif config.groq_api_key:
+                 sub_id = await match_category_ai(groq, detail.subcategory_name, category_name_map, logger)
+                 ai_match_cache[norm] = sub_id
+
+        if sub_id:
+            logger.info("Subcategory matched: '%s' -> ID %s", detail.subcategory_name, sub_id)
+
+    # STRICT CHECK: If no category match, abort immediately.
+    # Do NOT create product if we don't know where to put it.
+    if not cat_id and not sub_id:
+        logger.warning(
+            "Category mismatch (Strict Mode). Product creation aborted.\n"
+            "  Source Category URL: %s\n"
+            "  Source SubCategory URL: %s\n"
+            "  Product: %s",
+            cat_url, sub_url, prod_name
+        )
+        return {"category_id": None, "sub_category_id": None, "product_id": None}
 
     # 3. Ensure Product
     prod_id = None
@@ -262,12 +279,44 @@ async def _ensure_category_ids_async(
                             translations.values(),
                             logger,
                         )
+                        
+                        # Update Main Product with Translated Data (Name, Desc, Slug)
+                        # Prefer 'en' if available, else take first
+                        main_lang_data = translations.get("en") or list(translations.values())[0]
+                        if main_lang_data:
+                            try:
+                                await asyncio.to_thread(
+                                    supabase.update,
+                                    "products",
+                                    {
+                                        "name": main_lang_data["name"],
+                                        "description": main_lang_data["description"],
+                                        "slug": main_lang_data["slug"], # Update slug to be English/Clean
+                                    },
+                                    [("eq", "id", prod_id)]
+                                )
+                                logger.info("Updated main product record to %s (slug: %s)", main_lang_data["lang"], main_lang_data["slug"])
+                            except Exception as update_err:
+                                logger.warning("Failed to update main product record: %s", update_err)
                     except Exception as e:
                         logger.warning("Product translation failed: %s", e)
 
+    # Hierarchy Correction
+    final_cat_id = cat_id
+    final_sub_id = sub_id or cat_id
+
+    # If the "category" we found is actually a child (has a parent), fix it.
+    if cat_id and cat_id in parent_map:
+         final_sub_id = cat_id
+         final_cat_id = parent_map[cat_id]
+    
+    # If explicit sub_id found, ensure cat_id is its parent if possible
+    if sub_id and sub_id in parent_map:
+         final_cat_id = parent_map[sub_id]
+
     updates["product_id"] = prod_id
-    updates["sub_category_id"] = sub_id or cat_id
-    updates["category_id"] = cat_id
+    updates["sub_category_id"] = final_sub_id
+    updates["category_id"] = final_cat_id
 
     return updates
 
@@ -280,6 +329,9 @@ async def _process_review_item_async(
     uploader: Optional[R2Uploader],
     profile_pool: ProfilePool,
     category_map: Dict[str, int],
+    category_name_map: Dict[str, int],
+    parent_map: Dict[int, int],
+    ai_match_cache: Dict[str, Optional[int]],
     config: Config,
     logger: logging.Logger,
     dry_run: bool,
@@ -392,6 +444,9 @@ async def _process_review_item_async(
                     http,
                     supabase,
                     category_map,
+                    category_name_map,
+                    parent_map,
+                    ai_match_cache,
                     detail,
                     config.source_base_url,
                     groq,
@@ -406,7 +461,20 @@ async def _process_review_item_async(
 
             cat_id = category_ids.get("category_id")
             if not cat_id:
-                logger.warning("Missing category for %s; continuing without category", source_url)
+                # Debug log to see why it failed
+                cat_url_debug = _normalize_url(config.source_base_url, detail.category_url)
+                sub_url_debug = _normalize_url(config.source_base_url, detail.subcategory_url)
+                logger.warning(
+                    "Missing/Unmatched category. SKIPPING.\n"
+                    "  Source URL: %s\n"
+                    "  Found Cat URL: %s\n"
+                    "  Found Sub URL: %s\n"
+                    "  Detail Cat Name: %s\n"
+                    "  Detail Sub Name: %s\n"
+                    "  Total DB Categories Loaded: %d",
+                    source_url, cat_url_debug, sub_url_debug, detail.category_name, detail.subcategory_name, len(category_map)
+                )
+                return False
 
             try:
                 author_id = profile_pool.pick()
@@ -606,9 +674,53 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
     profile_pool = ProfilePool(supabase, config.random_user_pool_size, logger)
     await asyncio.to_thread(profile_pool.load_or_create)
 
+    # Check daily limit
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    try:
+        daily_rows = await asyncio.to_thread(
+            supabase.select, 
+            "reviews", 
+            "id", 
+            [("gte", "created_at", today_start)]
+        )
+        daily_count = len(daily_rows)
+        if daily_count >= config.daily_review_limit:
+            logger.warning("Daily limit reached (%d/%d). Sleeping...", daily_count, config.daily_review_limit)
+            return
+        logger.info("Daily count: %d/%d", daily_count, config.daily_review_limit)
+    except Exception as e:
+        logger.error("Failed to check daily limit: %s", e)
+        # We might want to continue or return. Let's continue but be cautious? 
+        # User said "spam vermemesi için", so better safe than sorry?
+        # But if DB check fails, maybe we shouldn't block everything. 
+        # I'll continue for now.
+
     # Load categories
-    rows = await asyncio.to_thread(supabase.select, "categories", "id, source_url")
-    category_map = {row["source_url"]: row["id"] for row in rows if row.get("source_url")}
+    rows = await asyncio.to_thread(supabase.select, "categories", "id, source_url, name, parent_id")
+    category_map = {}
+    category_name_map = {}
+    parent_map = {} # ID -> Parent ID
+    
+    for row in rows:
+        raw_url = row.get("source_url")
+        cat_id = row["id"]
+        name = row.get("name")
+        parent_id = row.get("parent_id")
+        
+        if parent_id:
+            parent_map[cat_id] = parent_id
+        
+        if raw_url:
+            norm_url = _normalize_url(config.source_base_url, raw_url)
+            if norm_url:
+                category_map[norm_url] = cat_id
+        
+        if name:
+            # Normalize name for better matching (lowercase, stripped)
+            norm_name = name.strip().lower()
+            category_name_map[norm_name] = cat_id
+    
+    logger.info("Loaded categories: %d URL, %d Name, %d Hierarchy Links", len(category_map), len(category_name_map), len(parent_map))
 
     new_sources = await asyncio.to_thread(
         fetch_new_sources,
@@ -618,59 +730,33 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         config.max_source_retries,
     )
     
+    # Calculate how many we can still process
+    remaining_daily = config.daily_review_limit - daily_count
+    if remaining_daily <= 0:
+        logger.info("Daily limit reached (checked again).")
+        return
+
+    # Cap new sources
+    if len(new_sources) > remaining_daily:
+        new_sources = new_sources[:remaining_daily]
+    
     if len(new_sources) < config.max_new_reviews_per_loop:
-        logger.info("Discovering new content (Sync wrapped)...")
+        logger.info("Discovering new content from detailed scan of EXISTING categories...")
 
         def _sync_discovery_flow():
-            # 1. Catalog
-            catalog_urls = [f"{config.source_base_url}/catalog", config.source_base_url]
-            categories = []
-            for curl in catalog_urls:
-                try:
-                    html = http.get(curl).text
-                    found = discover_catalog_categories(html, config.source_base_url, logger)
-                    categories.extend(found)
-                    if found: break
-                except Exception as e:
-                    logger.warning("Catalog discovery failed: %s", e)
-            
-            if not categories:
-                return 0
-
-            # Upsert root categories
-            root_payload = []
-            for c in categories:
-                root_payload.append({
-                    "source_url": c.get("source_url"),
-                    "parent_id": None,
-                    "source_key": c.get("source_key"),
-                    "name": c.get("name"),
-                })
-            
-            cat_map = upsert_categories(supabase, root_payload, logger)
-            
-            # 2. Subcategories
-            subcategories = discover_subcategories(http, config, categories, logger)
-            sub_payload = []
-            for sc in subcategories:
-                p_url = sc.get("parent_url")
-                sub_payload.append({
-                    "source_url": sc.get("source_url"),
-                    "parent_id": cat_map.get(p_url) if p_url else None,
-                    "source_key": sc.get("source_key"),
-                    "name": sc.get("name"),
-                })
-            
-            if sub_payload:
-                cat_map.update(upsert_categories(supabase, sub_payload, logger))
-
-            # 3. Reviews Discovery (Nested)
-            cat_urls = [x.get("source_url") for x in categories + subcategories if x.get("source_url")]
+            cat_urls = [url for url, _ in category_map.items()]
+            random.shuffle(cat_urls)
             all_review_urls = set()
             product_urls = set()
 
             # First pass: Get links from category pages
-            for c_url in cat_urls:
+            # Shuffle or limit categories to avoid scanning same ones always?
+            # For now, scan all but limit pages
+            logger.info("Scanning %d existing categories...", len(cat_urls))
+            for idx, c_url in enumerate(cat_urls):
+                # We can randomize or limits this loop if needed
+                if idx > 30: break # Safety break to avoid huge cycles per run
+                
                 for page_url in build_page_urls(c_url, config.category_pages_to_scan):
                     try:
                         p_html = http.get(page_url).text
@@ -685,7 +771,6 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
 
             # Second pass: Visit product pages to find deep review links
             logger.info("Deep discovery: Scanning %d product pages for reviews...", len(product_urls))
-            # Limit to a reasonable number to avoid infinite scan
             for p_idx, p_url in enumerate(list(product_urls)[:50]): 
                 try:
                     p_html = http.get(p_url).text
@@ -701,7 +786,7 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
             unique_reviews = sorted(list(all_review_urls))
             logger.info("Discovery complete. Total unique deep reviews found: %d", len(unique_reviews))
             
-            # 4. Upsert sources
+            # Upsert sources
             items = []
             for url in unique_reviews:
                  slug = urlparse(url).path.rstrip("/").split("/")[-1]
@@ -723,18 +808,25 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
             config.retry_failed_sources,
             config.max_source_retries,
         )
+        if len(new_sources) > remaining_daily:
+            new_sources = new_sources[:remaining_daily]
 
     logger.info("Items to process: %d", len(new_sources))
     
     # Sequential processing with delays for gentle proxy usage
     successful = 0
     failed = 0
+    
+    # Initialize AI Match Cache for this run
+    ai_match_cache: Dict[str, Optional[int]] = {}
+    semaphore = asyncio.Semaphore(1)
+
     for idx, item in enumerate(new_sources):
         logger.info("Processing item %d/%d", idx + 1, len(new_sources))
         
         try:
             result = await _process_review_item_async(
-                item, http, supabase, groq, uploader, profile_pool, category_map, config, logger, dry_run, asyncio.Semaphore(1)
+                item, http, supabase, groq, uploader, profile_pool, category_map, category_name_map, parent_map, ai_match_cache, config, logger, dry_run, semaphore
             )
             if result:
                 successful += 1

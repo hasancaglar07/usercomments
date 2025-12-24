@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import RecentComments from "@/components/home/RecentComments";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import {
   UserProfileAchievementsTrigger,
@@ -91,6 +93,11 @@ export function SidebarHomepage({
         <AuthCtaButton className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-sm">
           {t(resolvedLang, "sidebar.startWriting")}
         </AuthCtaButton>
+      </div>
+      <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+        <Suspense fallback={<div className="animate-pulse h-40 bg-gray-100 dark:bg-gray-800 rounded-lg" />}>
+          <RecentComments lang={normalizeLanguage(lang)} />
+        </Suspense>
       </div>
       <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
         <h3 className="text-lg font-bold text-text-main dark:text-white mb-4">

@@ -125,12 +125,16 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
 export async function getPopularReviews(
   limit = 3,
   lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  timeWindow?: "6h" | "24h" | "week",
   fetchOptions?: FetchOptions
 ): Promise<Review[]> {
   const searchParams = new URLSearchParams({
     limit: String(limit),
     lang,
   });
+  if (timeWindow) {
+    searchParams.set("timeWindow", timeWindow);
+  }
   const options: FetchOptions = {
     next: { revalidate: 60 },
     ...fetchOptions,
@@ -156,8 +160,19 @@ export async function getLatestReviews(
     ...fetchOptions,
   };
   return fetchJson<CursorResult<Review>>(
+
     `/api/reviews/latest?${searchParams}`,
     options
+  );
+}
+
+export async function getLatestComments(
+  limit = 5
+): Promise<{ items: Comment[] }> {
+  const searchParams = new URLSearchParams({ limit: String(limit) });
+  return fetchJson<{ items: Comment[] }>(
+    `/api/comments/latest?${searchParams}`,
+    { next: { revalidate: 60 } }
   );
 }
 

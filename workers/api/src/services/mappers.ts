@@ -4,6 +4,8 @@ import type {
   Product,
   ProductImage,
   ProductStats,
+  ProductStatus,
+  BrandStatus,
   Review,
   UserProfile,
 } from "../types";
@@ -29,16 +31,16 @@ type DbReview = {
   excerpt: string | null;
   content_html?: string | null;
   review_translations?:
-    | {
-        lang: string;
-        slug: string;
-        title?: string | null;
-        excerpt?: string | null;
-        content_html?: string | null;
-        meta_title?: string | null;
-        meta_description?: string | null;
-      }[]
-    | null;
+  | {
+    lang: string;
+    slug: string;
+    title?: string | null;
+    excerpt?: string | null;
+    content_html?: string | null;
+    meta_title?: string | null;
+    meta_description?: string | null;
+  }[]
+  | null;
   rating_avg?: number | string | null;
   rating_count?: number | string | null;
   views?: number | string | null;
@@ -91,6 +93,16 @@ type DbComment = {
   | {
     username: string | null;
     profile_pic_url: string | null;
+  }[]
+  | null;
+  reviews?:
+  | {
+    slug: string | null;
+    title: string | null;
+  }
+  | {
+    slug: string | null;
+    title: string | null;
   }[]
   | null;
 };
@@ -174,18 +186,18 @@ export function mapReviewRow(
   const product = pickRelation(row.products);
   const translations = Array.isArray(row.review_translations)
     ? row.review_translations
-        .filter((item): item is NonNullable<DbReview["review_translations"]>[number] =>
-          Boolean(item)
-        )
-        .map((translation) => ({
-          lang: translation.lang,
-          slug: translation.slug,
-          title: translation.title,
-          excerpt: translation.excerpt ?? undefined,
-          contentHtml: translation.content_html ?? undefined,
-          metaTitle: translation.meta_title ?? undefined,
-          metaDescription: translation.meta_description ?? undefined,
-        }))
+      .filter((item): item is NonNullable<DbReview["review_translations"]>[number] =>
+        Boolean(item)
+      )
+      .map((translation) => ({
+        lang: translation.lang,
+        slug: translation.slug,
+        title: translation.title,
+        excerpt: translation.excerpt ?? undefined,
+        contentHtml: translation.content_html ?? undefined,
+        metaTitle: translation.meta_title ?? undefined,
+        metaDescription: translation.meta_description ?? undefined,
+      }))
     : [];
   const preferredTranslation = options?.lang
     ? translations.find((translation) => translation.lang === options.lang)
@@ -220,9 +232,9 @@ export function mapReviewRow(
     metaDescription: preferredTranslation?.metaDescription,
     translations: options?.includeTranslations
       ? translations.map((translation) => ({
-          lang: translation.lang,
-          slug: translation.slug,
-        }))
+        lang: translation.lang,
+        slug: translation.slug,
+      }))
       : undefined,
     ratingAvg,
     ratingCount,
@@ -256,6 +268,7 @@ export function mapReviewRow(
 
 export function mapCommentRow(row: DbComment): Comment {
   const profile = pickRelation(row.profiles);
+  const review = pickRelation(row.reviews);
   return {
     id: row.id,
     reviewId: row.review_id,
@@ -266,6 +279,13 @@ export function mapCommentRow(row: DbComment): Comment {
       displayName: profile?.username ?? undefined,
       profilePicUrl: profile?.profile_pic_url ?? undefined,
     },
+    review:
+      review?.slug && review?.title
+        ? {
+          slug: review.slug,
+          title: review.title,
+        }
+        : undefined,
   };
 }
 
@@ -275,7 +295,7 @@ export function mapProductRow(
 ): Product {
   const translation = Array.isArray(row.product_translations)
     ? row.product_translations.find((item) => item.lang === options?.lang) ??
-      row.product_translations[0]
+    row.product_translations[0]
     : undefined;
   const images: ProductImage[] | undefined = Array.isArray(row.product_images)
     ? row.product_images.map((image) => ({
@@ -308,13 +328,13 @@ export function mapProductRow(
     slug: translation?.slug ?? row.slug,
     name: translation?.name ?? row.name,
     description: translation?.description ?? row.description ?? undefined,
-    status: row.status ?? undefined,
+    status: (row.status as ProductStatus) ?? undefined,
     brand: brand?.id
       ? {
         id: brand.id,
         slug: brand.slug ?? "",
         name: brand.name ?? "",
-        status: brand.status ?? undefined,
+        status: (brand.status as BrandStatus) ?? undefined,
       }
       : undefined,
     categoryIds: categoryIds && categoryIds.length > 0 ? categoryIds : undefined,

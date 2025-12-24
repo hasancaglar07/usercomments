@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import ProductCard from "@/components/cards/ProductCard";
+import RatingHistogram from "@/components/product/RatingHistogram";
 import {
   ReviewCardCategory,
   type ReviewCardCategoryData,
@@ -367,6 +368,10 @@ export default async function Page(props: PageProps) {
     url: productUrl,
   };
 
+  // NEW: Aggregate Pros/Cons from the first page of reviews to simulating "Top Pros/Cons"
+  const aggregatedPros = Array.from(new Set(reviewsResult.items.flatMap(r => r.pros || []))).slice(0, 4);
+  const aggregatedCons = Array.from(new Set(reviewsResult.items.flatMap(r => r.cons || []))).slice(0, 4);
+
   return (
     <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
       <div className="layout-content-container flex flex-col max-w-6xl w-full gap-8">
@@ -375,73 +380,123 @@ export default async function Page(props: PageProps) {
           {JSON.stringify(breadcrumbJsonLd)}
         </script>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
-          <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-            <div
-              className="aspect-square w-full rounded-xl bg-slate-100 dark:bg-slate-800 bg-cover bg-center"
-              style={{ backgroundImage: `url(${productImage})` }}
-            />
+          <div className="grid gap-8 md:grid-cols-[260px_1fr]">
+            {/* Left Column: Image */}
             <div className="flex flex-col gap-4">
+              <div
+                className="aspect-square w-full rounded-xl bg-slate-100 dark:bg-slate-800 bg-contain bg-center bg-no-repeat border border-slate-100 dark:border-slate-800"
+                style={{ backgroundImage: `url(${productImage})` }}
+              />
+              {/* Quick stats for mobile could go here if needed */}
+            </div>
+
+            {/* Right Column: Info & Stats */}
+            <div className="flex flex-col gap-6">
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                 {categoryLabels.map((label) => (
-                  <span
+                  <Link
                     key={label}
-                    className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-semibold text-slate-600 dark:text-slate-300"
+                    href={localizePath(`/catalog/reviews/${primaryCategoryId}`, lang)}
+                    className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     {label}
-                  </span>
+                  </Link>
                 ))}
               </div>
+
               <div>
-                <h1 className="text-3xl font-black text-slate-900 dark:text-white">
+                <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight">
                   {product.name}
                 </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                  {product.description ??
-                    t(lang, "productDetail.descriptionFallback")}
+                <p className="text-base text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
+                  {product.description ?? t(lang, "productDetail.descriptionFallback")}
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-6">
-                <div>
-                  <RatingStarsCatalog
-                    stars={buildRatingStars(ratingAvg)}
-                    valueText={
-                      ratingAvg > 0
-                        ? ratingAvg.toFixed(1)
-                        : t(lang, "productDetail.rating.none")
-                    }
-                  />
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t(lang, "productDetail.rating.countLabel", {
-                      count: formatNumber(ratingCount, lang),
-                    })}
-                  </p>
+
+              {/* Rating Block: Histogram & Big Numbers */}
+              <div className="flex flex-col sm:flex-row gap-8 py-6 border-y border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-6 sm:border-r sm:border-slate-100 sm:dark:border-slate-800 sm:pr-8">
+                  <div className="text-center">
+                    <div className="text-5xl font-black text-slate-900 dark:text-white">
+                      {ratingAvg > 0 ? ratingAvg.toFixed(1) : "0.0"}
+                    </div>
+                    <div className="mt-1">
+                      <RatingStarsCatalog
+                        stars={buildRatingStars(ratingAvg)}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {t(lang, "productDetail.rating.countLabel", {
+                        count: formatNumber(ratingCount, lang),
+                      })}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">
-                    {formatNumber(reviewCount, lang)}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t(lang, "productDetail.review.countLabel")}
-                  </p>
+
+                <div className="flex-1">
+                  <RatingHistogram ratingAvg={ratingAvg} ratingCount={ratingCount} lang={lang} />
                 </div>
-                <div>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">
-                    {recommendRate !== null ? `${recommendRate}%` : "—"}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t(lang, "productDetail.recommend.label")}
-                  </p>
+
+                <div className="hidden sm:flex flex-col justify-center pl-4 border-l border-slate-100 dark:border-slate-800">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {recommendRate !== null ? `${recommendRate}%` : "—"}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide">
+                      {t(lang, "productDetail.recommend.label")}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+
+              {/* Pros & Cons Summary (Simulated) */}
+              {(aggregatedPros.length > 0 || aggregatedCons.length > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {aggregatedPros.length > 0 && (
+                    <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-4">
+                      <h3 className="flex items-center gap-2 font-bold text-green-800 dark:text-green-300 mb-2 text-sm">
+                        <span className="material-symbols-outlined text-lg">add_circle</span>
+                        {t(lang, "reviewDetail.pros")}
+                      </h3>
+                      <ul className="space-y-1">
+                        {aggregatedPros.map((pro, i) => (
+                          <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <span className="text-green-500 font-bold">•</span>
+                            {pro}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aggregatedCons.length > 0 && (
+                    <div className="bg-red-50 dark:bg-red-900/10 rounded-xl p-4">
+                      <h3 className="flex items-center gap-2 font-bold text-red-800 dark:text-red-300 mb-2 text-sm">
+                        <span className="material-symbols-outlined text-lg">do_not_disturb_on</span>
+                        {t(lang, "reviewDetail.cons")}
+                      </h3>
+                      <ul className="space-y-1">
+                        {aggregatedCons.map((con, i) => (
+                          <li key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <span className="text-red-500 font-bold">•</span>
+                            {con}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Link
-                  className="inline-flex items-center justify-center rounded-lg bg-primary text-white text-sm font-semibold px-4 py-2 hover:bg-primary-dark"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center rounded-xl bg-primary text-white text-base font-bold px-8 py-3 hover:bg-primary-dark shadow-sm shadow-primary/30 transition-all hover:scale-105 active:scale-95"
                   href={reviewHref}
                 >
+                  <span className="material-symbols-outlined mr-2">rate_review</span>
                   {t(lang, "productDetail.cta.writeReview")}
                 </Link>
                 <Link
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold px-4 py-2 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-base font-bold px-6 py-3 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-colors"
                   href={localizePath("/products", lang)}
                 >
                   {t(lang, "productDetail.cta.browseAll")}
@@ -451,7 +506,7 @@ export default async function Page(props: PageProps) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
               {t(lang, "productDetail.community.title")}

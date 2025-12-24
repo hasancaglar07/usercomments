@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import { FALLBACK_PROFILE_IMAGES } from "@/src/lib/review-utils";
+import { PROFILE_ICONS } from "@/src/lib/constants";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import { getProfile, presignUpload, updateProfile } from "@/src/lib/api-client";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
@@ -164,6 +165,14 @@ export default function UserSettingsClient() {
     }
   };
 
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+
+  const handleSelectIcon = (iconName: string) => {
+    const url = `/profile_icon/${iconName}`;
+    setForm((current) => ({ ...current, profilePicUrl: url }));
+    setIsAvatarModalOpen(false);
+  };
+
   const previewUrl = form.profilePicUrl || FALLBACK_PROFILE_IMAGES[0];
 
   return (
@@ -208,13 +217,22 @@ export default function UserSettingsClient() {
                   JPG, PNG, or WebP.
                 </p>
               </div>
-              <button
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-sm font-bold py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-                onClick={handleAvatarClick}
-                disabled={uploading}
-              >
-                {uploading ? "Uploading..." : "Upload New Avatar"}
-              </button>
+              <div className="w-full flex flex-col gap-2">
+                <button
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-sm font-bold py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+                  onClick={handleAvatarClick}
+                  disabled={uploading}
+                >
+                  {uploading ? "Uploading..." : "Upload New Avatar"}
+                </button>
+                <button
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold py-2 text-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  onClick={() => setIsAvatarModalOpen(true)}
+                  disabled={uploading}
+                >
+                  Choose Avatar
+                </button>
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -288,6 +306,51 @@ export default function UserSettingsClient() {
           </div>
         )}
       </main>
+
+      {/* Avatar Selection Modal */}
+      {isAvatarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Choose an Avatar</h3>
+              <button
+                onClick={() => setIsAvatarModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                {PROFILE_ICONS.map((icon: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSelectIcon(icon)}
+                    className="group relative aspect-square rounded-xl overflow-hidden hover:ring-4 hover:ring-primary/50 transition-all"
+                  >
+                    <img
+                      src={`/profile_icon/${icon}`}
+                      alt="Avatar option"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-950 flex justify-end">
+              <button
+                onClick={() => setIsAvatarModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

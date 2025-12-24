@@ -21,6 +21,7 @@ export const TRANSLATIONS = {
     "header.nav.kids": "Kids",
     "header.nav.finance": "Finance",
     "header.nav.movies": "Movies",
+    "header.others": "Others",
     "footer.tagline": "\"Real Reviews, Real Decisions\"",
     "footer.description":
       "The most trusted review platform. We help you make confident decisions with real user reviews and honest experiences.",
@@ -72,6 +73,7 @@ export const TRANSLATIONS = {
     "reviewCard.readFullReview": "Read full review",
     "reviewCard.share": "Share",
     "homepage.recentReviews": "Recent Reviews",
+    "homepage.recentComments": "Live Comments",
     "homepage.meta.title": "Home",
     "homepage.meta.description":
       "Discover honest reviews, trending products, and trusted recommendations.",
@@ -102,6 +104,9 @@ export const TRANSLATIONS = {
     "homepage.trendingTabs.popular": "Trending",
     "homepage.trendingTabs.latest": "Newest",
     "homepage.trendingTabs.rating": "Top Rated",
+    "homepage.trendingTabs.popular6h": "6 Hours",
+    "homepage.trendingTabs.popular24h": "24 Hours",
+    "homepage.trendingTabs.popular1w": "This Week",
     "homepage.ratingCountLabel": "({count} reviews)",
     "homepage.topReviewers.reviewCountLabel": "{count} Reviews",
     "homepage.error.loadFailed": "Unable to load homepage data. Please try again later.",
@@ -744,6 +749,7 @@ export const TRANSLATIONS = {
     "header.nav.kids": "Çocuk",
     "header.nav.finance": "Finans",
     "header.nav.movies": "Filmler",
+    "header.others": "Diğer",
     "footer.tagline": "\"Gerçek Yorumlar, Gerçek Kararlar\"",
     "footer.description":
       "En güvenilir inceleme platformu. Gerçek kullanıcı yorumları ve dürüst deneyimlerle güvenle karar vermenize yardımcı oluruz.",
@@ -794,7 +800,8 @@ export const TRANSLATIONS = {
     "reviewCard.expert": "Uzman",
     "reviewCard.readFullReview": "Tam yorumu oku",
     "reviewCard.share": "Paylaş",
-    "homepage.recentReviews": "Son Yorumlar",
+    "homepage.recentReviews": "Son İncelemeler",
+    "homepage.recentComments": "Canlı Yorumlar",
     "homepage.meta.title": "Ana Sayfa",
     "homepage.meta.description":
       "Dürüst yorumları, trend ürünleri ve güvenilir önerileri keşfedin.",
@@ -816,6 +823,9 @@ export const TRANSLATIONS = {
     "homepage.trendingEmpty": "Trend ürünler yakında burada görünecek.",
     "homepage.trendingTitle": "Şu Anda Trend",
     "homepage.trendingTabs.popular": "Trend",
+    "homepage.trendingTabs.popular6h": "6 Saat",
+    "homepage.trendingTabs.popular24h": "24 Saat",
+    "homepage.trendingTabs.popular1w": "Bu Hafta",
     "homepage.trendingTabs.latest": "Yeni",
     "homepage.trendingTabs.rating": "En Yüksek Puan",
     "homepage.ratingCountLabel": "({count} yorum)",

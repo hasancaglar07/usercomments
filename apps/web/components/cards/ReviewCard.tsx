@@ -33,6 +33,7 @@ import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 type ReviewCardHomepageProps = ReviewCardHomepageData & {
   lang: SupportedLanguage;
   imagePriority?: boolean;
+  layout?: "horizontal" | "vertical";
 };
 
 export function ReviewCardHomepage({
@@ -52,90 +53,189 @@ export function ReviewCardHomepage({
   photoCountLabel,
   lang,
   imagePriority = false,
+  layout = "horizontal",
 }: ReviewCardHomepageProps) {
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
   const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
 
-  return (
-    <article className="flex flex-col sm:flex-row bg-background-light dark:bg-surface-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-shadow">
-      <div className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 relative overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          alt={imageAlt}
-          className="h-full w-full object-cover"
-          data-alt={imageAlt}
-          decoding="async"
-          fetchPriority={imagePriority ? "high" : "auto"}
-          loading={imagePriority ? "eager" : "lazy"}
-          src={optimizedImageUrl}
-        />
-      </div>
-      <div className="flex-1 p-5 flex flex-col justify-between">
-        <div>
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={avatarAlt}
-                  className="h-full w-full object-cover"
-                  data-alt={avatarAlt}
-                  decoding="async"
-                  loading="lazy"
-                  src={optimizedAvatarUrl}
-                />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-text-main dark:text-white">
-                  {authorName}
-                </p>
-                <p className="text-[10px] text-text-muted">{authorMeta}</p>
+  const galleryPhotos = review.photoUrls?.slice(1, 4) || [];
+  const remainingCount = (review.photoUrls?.length || 0) - 4;
+
+  if (layout === "vertical") {
+    return (
+      <article className="group relative flex flex-col bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.12)] border border-gray-100/50 dark:border-gray-800 transition-all duration-300 hover:-translate-y-1 h-full overflow-hidden">
+        <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-100 dark:bg-gray-800">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt={imageAlt}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            decoding="async"
+            fetchPriority={imagePriority ? "high" : "auto"}
+            loading={imagePriority ? "eager" : "lazy"}
+            src={optimizedImageUrl}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
+
+          {badge === "verified" && (
+            <div className="absolute top-3 right-3">
+              <div className="flex items-center gap-1 bg-white/95 dark:bg-black/80 backdrop-blur text-emerald-700 dark:text-emerald-400 text-[10px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
+                <span className="material-symbols-outlined text-[14px]">verified</span>
+                <span>{t(lang, "reviewCard.verifiedPurchase")}</span>
               </div>
             </div>
-            {badge === "verified" ? (
-              <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-medium">
-                {t(lang, "reviewCard.verifiedPurchase")}
-              </span>
-            ) : null}
-            {badge === "expert" ? (
-              <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded font-medium">
-                {t(lang, "reviewCard.expert")}
-              </span>
-            ) : null}
-          </div>
-          <h3 className="text-lg font-bold text-text-main dark:text-white hover:text-primary cursor-pointer mb-1">
-            <Link
-              className="hover:underline decoration-primary"
-              href={href}
-              prefetch={false}
-            >
+          )}
+
+          <div className="absolute bottom-3 left-4 right-4 text-white">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full border border-white/30 overflow-hidden shrink-0">
+                <img alt={avatarAlt} className="w-full h-full object-cover" src={optimizedAvatarUrl} />
+              </div>
+              <span className="text-xs font-medium text-white/90 truncate drop-shadow-sm">{authorName}</span>
+            </div>
+            <h3 className="text-lg font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
               {review.title}
-            </Link>
-          </h3>
-          <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
-          <p className="text-sm text-text-muted line-clamp-2">
+            </h3>
+          </div>
+        </Link>
+        <div className="p-4 flex flex-col flex-1 gap-3">
+          <div className="flex items-center justify-between">
+            <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
+            <span className="text-xs text-text-muted font-medium">{postedLabel}</span>
+          </div>
+
+          <p className="text-sm text-text-sub line-clamp-2 leading-relaxed flex-1 opacity-90">
             {review.excerpt}
           </p>
+
+          {galleryPhotos.length > 0 && (
+            <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/50">
+              {galleryPhotos.map((photo, index) => (
+                <div key={index} className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800">
+                  <img
+                    src={getOptimizedImageUrl(photo, 100)}
+                    alt={`Thumb ${index}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {index === galleryPhotos.length - 1 && remainingCount > 0 && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-[9px] font-bold">
+                      +{remainingCount}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-4 pt-2">
+            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer">
+              <span className="material-symbols-outlined text-[18px]">thumb_up</span>
+              <span>{likesLabel}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer">
+              <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
+              <span>{commentsLabel}</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center justify-between mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
-          <span className="text-xs text-gray-400">{postedLabel}</span>
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-1 text-gray-500 hover:text-primary transition-colors text-xs">
-              <span className="material-symbols-outlined text-[16px]">
-                thumb_up
-              </span>
+      </article>
+    );
+  }
+
+  return (
+    <article className="group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
+      <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
+        <Link href={href} className="block h-full w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt={imageAlt}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            decoding="async"
+            fetchPriority={imagePriority ? "high" : "auto"}
+            loading={imagePriority ? "eager" : "lazy"}
+            src={optimizedImageUrl}
+          />
+          {badge && (
+            <div className="absolute top-3 left-3">
+              {badge === "verified" ? (
+                <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur text-emerald-700 text-[10px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
+                  <span className="material-symbols-outlined text-[14px]">verified</span>
+                  {t(lang, "reviewCard.verifiedPurchase")}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur text-blue-700 text-[10px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
+                  <span className="material-symbols-outlined text-[14px]">diamond</span>
+                  {t(lang, "reviewCard.expert")}
+                </span>
+              )}
+            </div>
+          )}
+        </Link>
+      </div>
+
+      <div className="flex-1 p-5 sm:p-6 flex flex-col">
+        {/* Header: Author & Date */}
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
+              <img alt={avatarAlt} className="h-full w-full object-cover" src={optimizedAvatarUrl} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-text-main dark:text-white leading-none">{authorName}</span>
+              <span className="text-[11px] text-text-muted mt-0.5">{authorMeta}</span>
+            </div>
+          </div>
+          <span className="text-xs font-medium text-text-muted bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
+            {postedLabel}
+          </span>
+        </div>
+
+        {/* Content: Title & Rating */}
+        <div className="mb-3">
+          <Link href={href} className="group-hover:text-primary transition-colors">
+            <h3 className="text-xl font-bold text-text-main dark:text-white leading-tight mb-2 line-clamp-2">
+              {review.title}
+            </h3>
+          </Link>
+          <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
+        </div>
+
+        {/* Excerpt */}
+        <p className="text-sm text-text-sub dark:text-gray-300 line-clamp-2 mb-4 leading-relaxed">
+          {review.excerpt}
+        </p>
+
+        {/* Gallery & Footer Split */}
+        <div className="mt-auto flex flex-col gap-4">
+          {galleryPhotos.length > 0 && (
+            <div className="flex gap-2">
+              {galleryPhotos.map((photo, index) => (
+                <div key={index} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:ring-2 ring-primary/20 transition-all">
+                  <img
+                    src={getOptimizedImageUrl(photo, 150)}
+                    alt={`Gallery ${index}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  {index === galleryPhotos.length - 1 && remainingCount > 0 && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[1px]">
+                      +{remainingCount}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-6 pt-3 border-t border-gray-50 dark:border-gray-800">
+            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide">
+              <span className="material-symbols-outlined text-[18px]">thumb_up</span>
               <span>{likesLabel}</span>
             </button>
-            <button className="flex items-center gap-1 text-gray-500 hover:text-primary transition-colors text-xs">
-              <span className="material-symbols-outlined text-[16px]">
-                comment
-              </span>
+            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide">
+              <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
               <span>{commentsLabel}</span>
             </button>
-            {photoCountLabel ? (
-              <span className="text-xs text-gray-400">{photoCountLabel}</span>
-            ) : null}
           </div>
         </div>
       </div>
@@ -447,9 +547,9 @@ export function ReviewCardProfile({
             </span>
           </div>
           <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-2 hover:text-primary transition-colors">
-          <Link href={href} prefetch={false}>
-            {review.title}
-          </Link>
+            <Link href={href} prefetch={false}>
+              {review.title}
+            </Link>
           </h2>
           <p className="text-text-sub-light dark:text-text-sub-dark text-sm line-clamp-3 mb-4 leading-relaxed">
             {review.excerpt}

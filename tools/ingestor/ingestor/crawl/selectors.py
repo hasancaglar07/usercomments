@@ -4,8 +4,14 @@ CATALOG_LINK_SELECTORS = [
 ]
 
 SUBCATEGORY_LINK_SELECTORS = [
-    "a[href^='/catalog/']",
-    "a[href*='/catalog/']",
+    "div.IrecUiNavbar.desktopStuff a[href^='/catalog/']", # Navbar (Top)
+    ".catalog-bubles a", # Category bubbles (Tags)
+    ".catalog-list .item a", # Main lists
+    ".view-content a[href^='/catalog/']", # Grid views
+    ".taxonomy-list .item a", # Taxonomy specific
+    "ul.terms li a", # Generic terms
+    "aside.sidebar a[href^='/catalog/']", # Sidebar navigation
+    ".IrecUiAccordion a[href^='/catalog/']", # Accordion/Deep menus
 ]
 
 REVIEW_LINK_SELECTORS = [
@@ -110,6 +116,21 @@ PRODUCT_IMAGE_SELECTORS = [
     "div.product-image img",
     "img[itemprop='image']",
     ".main-product-image img",
+]
+
+CATALOG_PAGINATION_NEXT = [
+    "li.pager-next a",
+    "a.pager-next",
+    "a[rel='next']",
+    ".pager-next a",
+]
+
+CATALOG_PRODUCT_ITEMS = [
+    ".ProductTizer",
+    ".views-row",
+    ".product-tizer",
+    ".list-item",
+    ".list-products .item",
 ]
 
 

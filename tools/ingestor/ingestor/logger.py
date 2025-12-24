@@ -43,15 +43,14 @@ def setup_logging(log_file: Optional[str] = None, run_id: Optional[str] = None) 
 
 
     stream_handler = logging.StreamHandler(sys.stdout)
-
     stream_handler.setFormatter(formatter)
+    stream_handler.addFilter(RunIdFilter(run_id))
     logger.addHandler(stream_handler)
 
     if log_file:
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setFormatter(formatter)
+        file_handler.addFilter(RunIdFilter(run_id))
         logger.addHandler(file_handler)
 
-
-    _ensure_run_id_filter(logger, run_id)
     return logger

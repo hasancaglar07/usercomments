@@ -52,27 +52,27 @@ type DbReviewRow = {
   product_id?: string | null;
   created_at: string;
   profiles?:
-    | {
-        username: string | null;
-        profile_pic_url: string | null;
-      }
-    | {
-        username: string | null;
-        profile_pic_url: string | null;
-      }[]
-    | null;
+  | {
+    username: string | null;
+    profile_pic_url: string | null;
+  }
+  | {
+    username: string | null;
+    profile_pic_url: string | null;
+  }[]
+  | null;
   products?:
-    | {
-        id: string | null;
-        slug: string | null;
-        name: string | null;
-      }
-    | {
-        id: string | null;
-        slug: string | null;
-        name: string | null;
-      }[]
-    | null;
+  | {
+    id: string | null;
+    slug: string | null;
+    name: string | null;
+  }
+  | {
+    id: string | null;
+    slug: string | null;
+    name: string | null;
+  }[]
+  | null;
 };
 
 type ReviewWithCountRow = DbReviewRow & {
@@ -150,14 +150,28 @@ type CreateReviewPayload = {
 export async function fetchPopularReviews(
   env: ParsedEnv,
   limit: number,
-  lang: SupportedLanguage
+  lang: SupportedLanguage,
+  timeWindow?: "6h" | "24h" | "week"
 ): Promise<Review[]> {
   const supabase = getSupabaseClient(env);
-  const { data, error } = await supabase
+  let query = supabase
     .from("reviews")
     .select(reviewListSelectWithTranslations)
     .eq("review_translations.lang", lang)
-    .eq("status", "published")
+    .eq("status", "published");
+
+  if (timeWindow === "6h") {
+    const time = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", time);
+  } else if (timeWindow === "24h") {
+    const time = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", time);
+  } else if (timeWindow === "week") {
+    const time = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", time);
+  }
+
+  const { data, error } = await query
     .order("votes_up", { ascending: false })
     .order("views", { ascending: false })
     .limit(limit);
@@ -312,9 +326,9 @@ export async function fetchReviewBySlug(
 
   let translation = data as
     | (DbReviewTranslationRow & {
-        review_id: string;
-        reviews: (DbReviewRow & { status?: string }) | null;
-      })
+      review_id: string;
+      reviews: (DbReviewRow & { status?: string }) | null;
+    })
     | null;
 
   if (!translation) {
@@ -345,9 +359,9 @@ export async function fetchReviewBySlug(
 
     translation = fallbackTranslation as
       | (DbReviewTranslationRow & {
-          review_id: string;
-          reviews: (DbReviewRow & { status?: string }) | null;
-        })
+        review_id: string;
+        reviews: (DbReviewRow & { status?: string }) | null;
+      })
       | null;
   }
 
@@ -374,9 +388,9 @@ export async function fetchReviewBySlug(
 
   const translationList = Array.isArray(reviewRow.review_translations)
     ? reviewRow.review_translations.filter(
-        (item): item is { lang: string; slug: string } =>
-          Boolean(item) && isSupportedLanguage(item.lang)
-      )
+      (item): item is { lang: string; slug: string } =>
+        Boolean(item) && isSupportedLanguage(item.lang)
+    )
     : [];
 
   const mergedReview: DbReviewRow = {
@@ -439,9 +453,9 @@ export async function fetchReviewMetaById(
 
   const translations = Array.isArray(data.review_translations)
     ? data.review_translations.filter(
-        (item): item is { lang: string; slug: string } =>
-          Boolean(item) && isSupportedLanguage(item.lang)
-      )
+      (item): item is { lang: string; slug: string } =>
+        Boolean(item) && isSupportedLanguage(item.lang)
+    )
     : [];
   const defaultTranslation = translations.find(
     (translation) => translation.lang === DEFAULT_LANGUAGE
@@ -451,11 +465,11 @@ export async function fetchReviewMetaById(
     : data.products;
   const productTranslations = Array.isArray(productRelation?.product_translations)
     ? productRelation.product_translations.filter(
-        (item: { lang?: string; slug?: string }): item is {
-          lang: string;
-          slug: string;
-        } => Boolean(item?.lang && item?.slug && isSupportedLanguage(item.lang))
-      )
+      (item: { lang?: string; slug?: string }): item is {
+        lang: string;
+        slug: string;
+      } => Boolean(item?.lang && item?.slug && isSupportedLanguage(item.lang))
+    )
     : [];
   const defaultProductTranslation = productTranslations.find(
     (translation) => translation.lang === DEFAULT_LANGUAGE
@@ -470,7 +484,7 @@ export async function fetchReviewMetaById(
     status: data.status ?? "published",
     authorUsername: Array.isArray(data.profiles)
       ? data.profiles[0]?.username ?? null
-      : data.profiles?.username ?? null,
+      : (data.profiles as any)?.username ?? null,
     translations: translations.length > 0 ? translations : undefined,
   };
 }
@@ -534,6 +548,28 @@ export async function fetchReviewComments(
   const nextCursor = items.length > 0 ? items[items.length - 1].createdAt : null;
 
   return { items, nextCursor };
+}
+
+export async function fetchLatestComments(
+  env: ParsedEnv,
+  limit: number
+): Promise<Comment[]> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("comments")
+    .select(
+      "id, review_id, text, created_at, profiles(username, profile_pic_url), reviews(slug, title)"
+    )
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  // Cast row to match DbComment structure, including reviews relation
+  return (data ?? []).map((row) => mapCommentRow(row as any));
 }
 
 export async function createReview(
@@ -830,7 +866,10 @@ export async function fetchSavedReviews(
   }
 
   const rows = (data ?? [])
-    .map((row) => (row as { reviews: DbReviewRow | null }).reviews)
+    .map((row) => {
+      const r = (row as any).reviews;
+      return Array.isArray(r) ? r[0] : r;
+    })
     .filter((review): review is DbReviewRow => Boolean(review));
   const translations = await fetchReviewTranslationMap(
     env,
@@ -945,9 +984,9 @@ function buildHiddenReview(row: {
   created_at: string;
   translationLang?: string;
   profiles?:
-    | { username: string | null; profile_pic_url: string | null }
-    | { username: string | null; profile_pic_url: string | null }[]
-    | null;
+  | { username: string | null; profile_pic_url: string | null }
+  | { username: string | null; profile_pic_url: string | null }[]
+  | null;
 }): Review {
   const profile = Array.isArray(row.profiles)
     ? row.profiles[0] ?? null

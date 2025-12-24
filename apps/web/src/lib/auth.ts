@@ -1,6 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabase";
 import { AUTH_COOKIE_NAME } from "./auth-cookies";
+import { PROFILE_ICONS } from "./constants";
 
 let accessToken: string | null = null;
 let currentUser: User | null = null;
@@ -114,11 +115,21 @@ export async function signInWithPassword(email: string, password: string) {
   return data;
 }
 
+
 export async function signUpWithPassword(email: string, password: string) {
   const supabase = getSupabaseClient();
+
+  const randomIcon = PROFILE_ICONS[Math.floor(Math.random() * PROFILE_ICONS.length)];
+  const profilePicUrl = `/profile_icon/${randomIcon}`;
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        profile_pic_url: profilePicUrl,
+      }
+    }
   });
 
   if (error) {

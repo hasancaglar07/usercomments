@@ -8,6 +8,7 @@ export type SitemapReviewItem = {
   slug: string;
   createdAt: string;
   updatedAt: string | null;
+  imageUrls?: string[];
 };
 
 export type SitemapCategoryItem = {
@@ -19,12 +20,50 @@ export type SitemapProductItem = {
   slug: string;
   createdAt: string;
   updatedAt: string | null;
+  imageUrls?: string[];
 };
 
 export type SitemapResult<T> = {
   items: T[];
   pageInfo: PaginationInfo;
 };
+
+const MAX_SITEMAP_IMAGES = 5;
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!value) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string");
+      }
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function pickImageUrls(urls: string[] | undefined): string[] | undefined {
+  if (!urls || urls.length === 0) {
+    return undefined;
+  }
+  const filtered = urls
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0);
+  if (filtered.length === 0) {
+    return undefined;
+  }
+  const deduped = Array.from(new Set(filtered));
+  const limited = deduped.slice(0, MAX_SITEMAP_IMAGES);
+  return limited.length > 0 ? limited : undefined;
+}
 
 export async function fetchSitemapReviews(
   env: ParsedEnv,
@@ -38,7 +77,7 @@ export async function fetchSitemapReviews(
 
   const { data, error, count } = await supabase
     .from("reviews")
-    .select("created_at, updated_at, review_translations!inner(lang, slug)", {
+    .select("created_at, updated_at, photo_urls, review_translations!inner(lang, slug)", {
       count: "exact",
     })
     .eq("review_translations.lang", lang)
@@ -59,10 +98,12 @@ export async function fetchSitemapReviews(
       if (!translation?.slug) {
         return null;
       }
+      const imageUrls = pickImageUrls(normalizeStringArray(row.photo_urls));
       return {
         slug: translation.slug,
         createdAt: row.created_at,
         updatedAt: row.updated_at ?? null,
+        imageUrls,
       };
     })
     .filter((item): item is SitemapReviewItem => Boolean(item));
@@ -150,9 +191,12 @@ export async function fetchSitemapProducts(
 
   const { data, error, count } = await supabase
     .from("products")
-    .select("created_at, updated_at, product_translations!inner(lang, slug)", {
+    .select(
+      "created_at, updated_at, product_translations!inner(lang, slug), product_images(url, sort_order)",
+      {
       count: "exact",
-    })
+      }
+    )
     .eq("product_translations.lang", lang)
     .eq("status", "published")
     .order("created_at", { ascending: false })
@@ -171,10 +215,26 @@ export async function fetchSitemapProducts(
       if (!translation?.slug) {
         return null;
       }
+      const productImages = Array.isArray(row.product_images)
+        ? row.product_images
+        : [];
+      const sortedImages = [...productImages].sort((left, right) => {
+        const leftOrder = Number(left?.sort_order ?? 0);
+        const rightOrder = Number(right?.sort_order ?? 0);
+        const normalizedLeft = Number.isFinite(leftOrder) ? leftOrder : 0;
+        const normalizedRight = Number.isFinite(rightOrder) ? rightOrder : 0;
+        return normalizedLeft - normalizedRight;
+      });
+      const imageUrls = pickImageUrls(
+        sortedImages
+          .map((image) => image?.url)
+          .filter((url): url is string => typeof url === "string")
+      );
       return {
         slug: translation.slug,
         createdAt: row.created_at,
         updatedAt: row.updated_at ?? null,
+        imageUrls,
       };
     })
     .filter((item): item is SitemapProductItem => Boolean(item));

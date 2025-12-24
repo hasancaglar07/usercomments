@@ -14,6 +14,16 @@ def _normalize_url(base_url: str, href: str) -> str:
 
 
 def _page_url(base_url: str, page: int) -> str:
+    # Ensure we sort by 'new' or equivalent if possible. 
+    # For irecommend, usually appending `?new=1` works for reviews list, 
+    # but for category pages, the default is often "relevant". 
+    # Let's try to append `?new=1` if it's not present.
+    
+    # Check if sorting param exists
+    if "new=1" not in base_url and "sort=" not in base_url:
+        joiner = "&" if "?" in base_url else "?"
+        base_url = f"{base_url}{joiner}new=1"
+
     if page <= 1:
         return base_url
     joiner = "&" if "?" in base_url else "?"

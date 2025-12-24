@@ -230,6 +230,10 @@ export type Comment = {
   text: string;
   createdAt: string;
   author: UserProfile;
+  review?: {
+    slug: string;
+    title: string;
+  };
 };
 
 export type ReportStatus = "open" | "resolved" | "rejected";

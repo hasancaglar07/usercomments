@@ -21,6 +21,7 @@ import {
   addVote,
   createReview,
   fetchCommentStatusById,
+  fetchLatestComments,
   fetchLatestReviews,
   fetchPopularReviews,
   fetchReviewBySlug,
@@ -178,6 +179,7 @@ const cursorSchema = z
 const popularQuerySchema = z.object({
   limit: limitSchema,
   lang: langSchema,
+  timeWindow: z.enum(["6h", "24h", "week"]).optional(),
 });
 
 const latestQuerySchema = z.object({
@@ -669,14 +671,28 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function buildUrlset(urls: Array<{ loc: string; lastmod?: string }>): string {
+function buildUrlset(
+  urls: Array<{ loc: string; lastmod?: string; images?: string[] }>
+): string {
+  const hasImages = urls.some((item) => item.images && item.images.length > 0);
   const entries = urls
     .map((item) => {
       const lastmod = item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : "";
-      return `<url><loc>${escapeXml(item.loc)}</loc>${lastmod}</url>`;
+      const images = item.images?.length
+        ? item.images
+          .map(
+            (image) =>
+              `<image:image><image:loc>${escapeXml(image)}</image:loc></image:image>`
+          )
+          .join("")
+        : "";
+      return `<url><loc>${escapeXml(item.loc)}</loc>${lastmod}${images}</url>`;
     })
     .join("");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</urlset>`;
+  const imageNamespace = hasImages
+    ? ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+    : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${imageNamespace}>${entries}</urlset>`;
 }
 
 function buildSitemapIndex(urls: string[]): string {
@@ -1047,8 +1063,8 @@ async function handleSubcategories({
 }
 
 async function handlePopularReviews({ env, url }: HandlerContext): Promise<Response> {
-  const { limit, lang } = popularQuerySchema.parse(getQueryObject(url));
-  const reviews = await fetchPopularReviews(env, limit, lang);
+  const { limit, lang, timeWindow } = popularQuerySchema.parse(getQueryObject(url));
+  const reviews = await fetchPopularReviews(env, limit, lang, timeWindow);
   return jsonResponse({
     items: reviews,
     pageInfo: buildPaginationInfo(1, reviews.length, reviews.length),
@@ -1059,6 +1075,12 @@ async function handleLatestReviews({ env, url }: HandlerContext): Promise<Respon
   const { cursor, limit, lang } = latestQuerySchema.parse(getQueryObject(url));
   const result = await fetchLatestReviews(env, cursor ?? null, limit, lang);
   return jsonResponse(result);
+}
+
+async function handleLatestComments({ env, url }: HandlerContext): Promise<Response> {
+  const { limit } = z.object({ limit: limitSchema }).parse(getQueryObject(url));
+  const comments = await fetchLatestComments(env, limit);
+  return jsonResponse({ items: comments });
 }
 
 async function handleReviewsList({ env, url }: HandlerContext): Promise<Response> {
@@ -1603,6 +1625,7 @@ async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): P
   const urls = result.items.map((item) => ({
     loc: `${origin}/${lang}/content/${item.slug}`,
     lastmod: item.updatedAt ?? item.createdAt,
+    images: item.imageUrls,
   }));
   return xmlResponse(buildUrlset(urls));
 }
@@ -1614,6 +1637,7 @@ async function handleSitemapProductsXml({ env, request, url }: HandlerContext): 
   const urls = result.items.map((item) => ({
     loc: `${origin}/${lang}/products/${item.slug}`,
     lastmod: item.updatedAt ?? item.createdAt,
+    images: item.imageUrls,
   }));
   return xmlResponse(buildUrlset(urls));
 }
@@ -2214,6 +2238,12 @@ const routes: Route[] = [
     method: "GET",
     pattern: new URLPattern({ pathname: "/api/reviews/latest" }),
     handler: handleLatestReviews,
+    cacheTtl: (env) => env.CACHE_TTL_LATEST_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/comments/latest" }),
+    handler: handleLatestComments,
     cacheTtl: (env) => env.CACHE_TTL_LATEST_SEC,
   },
   {

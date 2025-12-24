@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import ProductCard from "@/components/cards/ProductCard";
 import ProductFilters from "@/components/catalog/ProductFilters";
 import { PaginationCatalog } from "@/components/ui/Pagination";
@@ -128,8 +129,8 @@ export default async function Page(props: ProductsPageProps) {
     sort === "popular" && page === 1
       ? productsResult.items.slice(0, POPULAR_PRODUCTS_LIMIT)
       : (await getProducts(1, POPULAR_PRODUCTS_LIMIT, "popular", categoryId, lang).catch(
-          () => null
-        ))?.items ?? [];
+        () => null
+      ))?.items ?? [];
 
   const categoryLabel = categoryId
     ? categoryMap.get(categoryId)?.name ?? t(lang, "category.fallback.label")
@@ -180,13 +181,38 @@ export default async function Page(props: ProductsPageProps) {
     <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
       <div className="layout-content-container flex flex-col max-w-6xl w-full gap-6">
         <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white">
-            {heading}
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {description}
-          </p>
+        <div className="mb-10 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+          <nav aria-label="Breadcrumb" className="flex mb-6 relative z-10">
+            <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+              <li>
+                <div className="flex items-center">
+                  <span className="material-symbols-outlined text-[18px] mr-1">
+                    home
+                  </span>
+                  {t(lang, "catalog.breadcrumb.home")}
+                </div>
+              </li>
+              <li>
+                <span className="mx-1 text-gray-300">/</span>
+              </li>
+              <li className="font-medium text-gray-900 dark:text-gray-100">
+                {t(lang, "category.tab.products")}
+              </li>
+            </ol>
+          </nav>
+
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 relative z-10">
+            <div className="max-w-3xl">
+              <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight text-gray-900 dark:text-white mb-4">
+                {heading}
+              </h1>
+              <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+                {description}
+              </p>
+            </div>
+          </div>
         </div>
 
         <ProductFilters

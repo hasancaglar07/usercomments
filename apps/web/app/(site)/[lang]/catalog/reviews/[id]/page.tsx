@@ -260,13 +260,13 @@ export default async function Page(props: CategoryPageProps) {
         sort === "popular"
           ? Promise.resolve(null)
           : getCategoryPage(
-              categoryId,
-              1,
-              POPULAR_REVIEWS_LIMIT,
-              "popular",
-              undefined,
-              lang
-            ).catch(() => null);
+            categoryId,
+            1,
+            POPULAR_REVIEWS_LIMIT,
+            "popular",
+            undefined,
+            lang
+          ).catch(() => null);
       const [categoryResult, categories, subcategories, popularResult] =
         await Promise.all([
           getCategoryPage(categoryId, page, pageSize, sort, subCategoryId, lang),
@@ -386,58 +386,65 @@ export default async function Page(props: CategoryPageProps) {
       <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
       <div className="flex min-h-screen flex-col">
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-6">
-          <div className="flex flex-wrap gap-2 pb-4">
-            <Link
-              className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
-              href={localizePath("/", lang)}
-            >
-              {t(lang, "category.breadcrumb.home")}
-            </Link>
-            <span className="text-[#4c739a] text-sm font-medium">/</span>
-            <Link
-              className="text-[#4c739a] text-sm font-medium hover:text-primary hover:underline"
-              href={localizePath("/catalog", lang)}
-            >
-              {t(lang, "category.breadcrumb.reviews")}
-            </Link>
-            <span className="text-[#4c739a] text-sm font-medium">/</span>
-            <span className="text-[#0d141b] text-sm font-medium">
-              {categoryLabel}
-            </span>
-          </div>
-          {errorMessage ? (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
-              {errorMessage}
-            </div>
-          ) : null}
-          <div className="flex flex-col gap-3 pb-6 border-b border-[#e7edf3]">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="mb-8 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <div className="flex flex-wrap gap-2 pb-6 relative z-10">
               <Link
-                className="flex h-9 items-center justify-center rounded-full bg-[#0d141b] text-white px-5 text-sm font-bold"
-                href={localizePath(`/catalog/reviews/${categoryId}`, lang)}
+                className="text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-primary transition-colors flex items-center"
+                href={localizePath("/", lang)}
               >
-                {t(lang, "category.tab.reviews")}
+                <span className="material-symbols-outlined text-[18px] mr-1">
+                  home
+                </span>
+                {t(lang, "category.breadcrumb.home")}
               </Link>
+              <span className="text-gray-300 dark:text-gray-600 text-sm font-medium">/</span>
               <Link
-                className="flex h-9 items-center justify-center rounded-full bg-white border border-[#e7edf3] px-5 text-sm font-bold text-[#0d141b] hover:border-primary hover:text-primary"
-                href={localizePath(`/catalog/list/${categoryId}`, lang)}
+                className="text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-primary hover:underline"
+                href={localizePath("/catalog", lang)}
               >
-                {t(lang, "category.tab.products")}
+                {t(lang, "category.breadcrumb.reviews")}
               </Link>
+              <span className="text-gray-300 dark:text-gray-600 text-sm font-medium">/</span>
+              <span className="text-gray-900 dark:text-gray-100 text-sm font-medium">
+                {categoryLabel}
+              </span>
             </div>
-            <h1 className="text-[#0d141b] text-4xl font-black leading-tight tracking-[-0.033em]">
-              {categoryLabel}
-            </h1>
-            <p className="text-[#4c739a] text-lg font-normal max-w-3xl">
-              {categoryDescription}
-            </p>
+
+            <div className="flex flex-col gap-6 relative z-10">
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                <div className="max-w-3xl">
+                  <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight text-gray-900 dark:text-white mb-4">
+                    {categoryLabel}
+                  </h1>
+                  <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+                    {categoryDescription}
+                  </p>
+                </div>
+
+                <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800 rounded-lg self-start shrink-0">
+                  <Link
+                    className="flex h-9 items-center justify-center rounded-md bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white px-5 text-sm font-bold transition-all"
+                    href={localizePath(`/catalog/reviews/${categoryId}`, lang)}
+                  >
+                    {t(lang, "category.tab.reviews")}
+                  </Link>
+                  <Link
+                    className="flex h-9 items-center justify-center rounded-md px-5 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary transition-colors"
+                    href={localizePath(`/catalog/list/${categoryId}`, lang)}
+                  >
+                    {t(lang, "category.tab.products")}
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
           <div className="sticky top-[65px] z-40 bg-background-light py-4 -mx-4 px-4 md:mx-0 md:px-0">
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               <Link
                 className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-transform hover:scale-105 ${subCategoryId
-                    ? "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary transition-all"
-                    : "bg-[#0d141b] text-white"
+                  ? "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary transition-all"
+                  : "bg-[#0d141b] text-white"
                   }`}
                 href={buildFilterHref()}
               >
@@ -450,8 +457,8 @@ export default async function Page(props: CategoryPageProps) {
                   <Link
                     key={tag.id}
                     className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-all ${isActive
-                        ? "bg-[#0d141b] text-white"
-                        : "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary group"
+                      ? "bg-[#0d141b] text-white"
+                      : "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary group"
                       }`}
                     href={buildFilterHref(tag.id)}
                   >

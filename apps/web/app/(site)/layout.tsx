@@ -1,5 +1,6 @@
 import "../../styles/globals.css";
 import type { Metadata } from "next";
+import Script from "next/script";
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import { AuthProvider } from "../../components/auth/AuthProvider";
@@ -32,14 +33,26 @@ export default async function SiteLayout({
   const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
   let categories: Category[] = [];
 
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    try {
-      const allCategories = await getCategories(lang);
-      // Filter for top-level categories only
-      categories = allCategories.filter((category) => category.parentId == null);
-    } catch (error) {
-      console.error("Failed to load header categories", error);
+  try {
+    const allCategories = await getCategories(lang);
+
+    // Exact order and selection from irecommend.ru
+    const headerCategoryIds = [930, 932, 929, 937, 934, 936, 935, 940, 941, 938];
+
+    const categoryMap = new Map();
+    (allCategories || []).forEach(cat => categoryMap.set(cat.id, cat));
+
+    categories = headerCategoryIds
+      .map(id => categoryMap.get(id))
+      .filter(Boolean);
+
+    // If for some reason we have no categories, fallback to all top-level
+    if (categories.length === 0) {
+      // Fallback removed to prevent unwanted categories (like 'Diğerleri') from appearing
+      categories = [];
     }
+  } catch (error) {
+    console.error("Failed to load header categories", error);
   }
 
   const localizedSiteUrl = toAbsoluteUrl(localizePath("/", lang));
@@ -72,6 +85,19 @@ export default async function SiteLayout({
     <html lang={lang} dir={dir} className="light">
       <body>
         <AuthProvider>
+          <Script
+            src="https://www.googletagmanager.com/gtag/js?id=G-829FXRQW1V"
+            strategy="afterInteractive"
+          />
+          <Script id="google-analytics" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+
+              gtag('config', 'G-829FXRQW1V');
+            `}
+          </Script>
           <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
           <script type="application/ld+json">
             {JSON.stringify(organizationJsonLd)}
