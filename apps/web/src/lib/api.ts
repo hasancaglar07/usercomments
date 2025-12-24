@@ -98,34 +98,43 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
 
 export async function getPopularReviews(
   limit = 3,
-  lang: SupportedLanguage = DEFAULT_LANGUAGE
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  fetchOptions?: FetchOptions
 ): Promise<Review[]> {
   const searchParams = new URLSearchParams({
     limit: String(limit),
     lang,
   });
+  const options: FetchOptions = {
+    cache: "force-cache",
+    next: { revalidate: 60 },
+    ...fetchOptions,
+  };
   return fetchJson<PaginatedResult<Review>>(
     `/api/reviews/popular?${searchParams}`,
-    {
-      cache: "force-cache",
-      next: { revalidate: 60 },
-    }
+    options
   ).then((result) => result.items);
 }
 
 export async function getLatestReviews(
   limit = 3,
   cursor?: string | null,
-  lang: SupportedLanguage = DEFAULT_LANGUAGE
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  fetchOptions?: FetchOptions
 ): Promise<CursorResult<Review>> {
   const searchParams = new URLSearchParams({ limit: String(limit), lang });
   if (cursor) {
     searchParams.set("cursor", cursor);
   }
-  return fetchJson<CursorResult<Review>>(`/api/reviews/latest?${searchParams}`, {
+  const options: FetchOptions = {
     cache: "force-cache",
     next: { revalidate: 60 },
-  });
+    ...fetchOptions,
+  };
+  return fetchJson<CursorResult<Review>>(
+    `/api/reviews/latest?${searchParams}`,
+    options
+  );
 }
 
 export async function getCatalogPage(
@@ -236,7 +245,8 @@ export async function getProducts(
   pageSize: number,
   sort: "latest" | "popular" | "rating" = "latest",
   categoryId?: number,
-  lang: SupportedLanguage = DEFAULT_LANGUAGE
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  fetchOptions?: FetchOptions
 ): Promise<PaginatedResult<Product>> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -247,10 +257,12 @@ export async function getProducts(
   if (categoryId) {
     searchParams.set("categoryId", String(categoryId));
   }
-  return fetchJson<PaginatedResult<Product>>(`/api/products?${searchParams}`, {
+  const options: FetchOptions = {
     cache: "force-cache",
     next: { revalidate: 300 },
-  });
+    ...fetchOptions,
+  };
+  return fetchJson<PaginatedResult<Product>>(`/api/products?${searchParams}`, options);
 }
 
 export async function getProductBySlug(

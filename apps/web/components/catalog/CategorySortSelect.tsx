@@ -32,14 +32,14 @@ export default function CategorySortSelect({ sort }: CategorySortSelectProps) {
 
   const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextSort = event.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     if (nextSort && nextSort !== "latest") {
       params.set("sort", nextSort);
     } else {
       params.delete("sort");
     }
-    router.push(buildCategoryHref(pathname, params));
+    router.push(buildCategoryHref(pathname ?? "", params));
   };
 
   return (

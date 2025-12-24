@@ -39,26 +39,26 @@ export default function ProductFilters({
 
   const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextSort = event.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     if (nextSort && nextSort !== "latest") {
       params.set("sort", nextSort);
     } else {
       params.delete("sort");
     }
-    router.push(buildHref(pathname, params));
+    router.push(buildHref(pathname ?? "", params));
   };
 
   const handleCategoryChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextCategoryId = event.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     if (nextCategoryId) {
       params.set("categoryId", nextCategoryId);
     } else {
       params.delete("categoryId");
     }
-    router.push(buildHref(pathname, params));
+    router.push(buildHref(pathname ?? "", params));
   };
 
   return (

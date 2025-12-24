@@ -5,7 +5,12 @@ import {
 } from "@/src/lib/sitemap";
 import { isSupportedLanguage } from "@/src/lib/i18n";
 
+export const dynamic = "force-static";
 export const revalidate = 1800;
+
+export function generateStaticParams() {
+  return [];
+}
 
 export async function GET(
   _request: Request,

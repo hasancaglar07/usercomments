@@ -82,8 +82,8 @@ function buildHomepageCard(
     href: localizePath(`/content/${review.slug}`, lang),
     authorMeta: categoryName
       ? t(resolvedLang, "homepage.reviewerMetaWithCategory", {
-          category: categoryName,
-        })
+        category: categoryName,
+      })
       : t(resolvedLang, "homepage.reviewerMetaCommunity"),
     postedLabel: relative
       ? t(resolvedLang, "homepage.postedWithRelative", { relative })
@@ -106,10 +106,18 @@ function buildHomepageCard(
   };
 }
 
+function hasReviewPhoto(review: Review): boolean {
+  return Array.isArray(review.photoUrls) && review.photoUrls.length > 0;
+}
+
+function getReviewPhotoCount(review: Review): number {
+  const urlCount = Array.isArray(review.photoUrls) ? review.photoUrls.length : 0;
+  const count = typeof review.photoCount === "number" ? review.photoCount : urlCount;
+  return Math.max(count, urlCount);
+}
+
 function hasPhotos(review: Review): boolean {
-  return Boolean(
-    (review.photoCount ?? 0) > 0 || (review.photoUrls?.length ?? 0) > 0
-  );
+  return getReviewPhotoCount(review) >= 2;
 }
 
 function sortHomepageCardsByLatest(cards: ReviewCardHomepageData[]) {
@@ -182,13 +190,19 @@ export default function HomepageFeed({
   pageSize,
   initialPopularCards,
 }: HomepageFeedProps) {
+  const filteredInitialCards = initialCards.filter((card) =>
+    hasReviewPhoto(card.review)
+  );
+  const filteredInitialPopularCards = (initialPopularCards ?? []).filter((card) =>
+    hasReviewPhoto(card.review)
+  );
   const [latestCards, setLatestCards] = useState<ReviewCardHomepageData[]>(
-    initialCards
+    filteredInitialCards
   );
   const [latestNextCursor, setLatestNextCursor] =
     useState<string | null>(initialNextCursor);
   const [popularCards, setPopularCards] = useState<ReviewCardHomepageData[]>(
-    initialPopularCards ?? []
+    filteredInitialPopularCards
   );
   const [popularPage, setPopularPage] = useState(
     initialPopularCards && initialPopularCards.length > 0 ? 1 : 0
@@ -202,6 +216,7 @@ export default function HomepageFeed({
   const [prefetchState, setPrefetchState] = useState<PrefetchState | null>(null);
   const [pendingReviews, setPendingReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const params = useParams();
   const lang = normalizeLanguage(
     typeof params?.lang === "string" ? params.lang : undefined
@@ -209,10 +224,12 @@ export default function HomepageFeed({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [tab, setTab] = useState<FeedTab>(parseTab(searchParams.get("filter")));
-  const seenIds = useRef(new Set(initialCards.map((card) => card.review.id)));
+  const [tab, setTab] = useState<FeedTab>(parseTab(searchParams?.get("filter")));
+  const seenIds = useRef(
+    new Set(filteredInitialCards.map((card) => card.review.id))
+  );
   const popularSeenIdsRef = useRef(
-    new Set((initialPopularCards ?? []).map((card) => card.review.id))
+    new Set(filteredInitialPopularCards.map((card) => card.review.id))
   );
   const pendingIdsRef = useRef(new Set<string>());
   const autoLoadKeyRef = useRef<string | null>(null);
@@ -229,14 +246,15 @@ export default function HomepageFeed({
   const updateTab = useCallback(
     (nextTab: FeedTab) => {
       setTab(nextTab);
-      const params = new URLSearchParams(searchParams.toString());
+      setLoadError(false);
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
       if (nextTab === "all") {
         params.delete("filter");
       } else {
         params.set("filter", nextTab);
       }
       const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, {
+      router.replace(query ? `${pathname}?${query}` : pathname ?? "", {
         scroll: false,
       });
     },
@@ -244,8 +262,9 @@ export default function HomepageFeed({
   );
 
   useEffect(() => {
-    const nextTab = parseTab(searchParams.get("filter"));
+    const nextTab = parseTab(searchParams?.get("filter"));
     setTab((prev) => (prev === nextTab ? prev : nextTab));
+    setLoadError(false);
   }, [searchParams]);
 
   const sortedLatestCards = useMemo(
@@ -267,7 +286,7 @@ export default function HomepageFeed({
   }, [pageSize, popularCards, sortedLatestCards, tab]);
 
   useEffect(() => {
-    if (latestCards.length === 0) {
+    if (latestCards.length === 0 && !latestNextCursor) {
       setPendingReviews([]);
       pendingIdsRef.current.clear();
       return;
@@ -281,6 +300,9 @@ export default function HomepageFeed({
           return;
         }
         const fresh = result.items.filter((review) => {
+          if (!hasReviewPhoto(review)) {
+            return false;
+          }
           const id = review.id;
           if (!id) {
             return false;
@@ -330,7 +352,7 @@ export default function HomepageFeed({
         window.clearTimeout(pollTimerRef.current);
       }
     };
-  }, [latestCards.length, lang, pageSize]);
+  }, [latestCards.length, latestNextCursor, lang, pageSize]);
 
   useEffect(() => {
     if (tab === "popular" || tab === "newest") {
@@ -377,12 +399,14 @@ export default function HomepageFeed({
   const loadPopularPage = useCallback(
     async (page: number) => {
       const result = await getCatalogPage(page, pageSize, "popular", undefined, lang);
+      const photoItems = result.items.filter(hasReviewPhoto);
+      setLoadError(false);
       if (page === 1) {
         popularSeenIdsRef.current.clear();
       }
       setPopularCards((prev) => {
         const startIndex = page === 1 ? 0 : prev.length;
-        const nextCards = result.items
+        const nextCards = photoItems
           .map((review, index) =>
             buildHomepageCard(review, categories, startIndex + index, lang)
           )
@@ -418,7 +442,7 @@ export default function HomepageFeed({
       loadPopularPage(1)
         .catch((error) => {
           console.error("Failed to load popular reviews", error);
-          setPopularHasMore(false);
+          setLoadError(true);
         })
         .finally(() => setIsLoading(false));
     }
@@ -428,6 +452,7 @@ export default function HomepageFeed({
     if (isLoading) {
       return;
     }
+    setLoadError(false);
     if (tab === "popular") {
       if (!popularHasMore) {
         return;
@@ -437,6 +462,7 @@ export default function HomepageFeed({
         await loadPopularPage(popularPage + 1);
       } catch (error) {
         console.error("Failed to load more popular reviews", error);
+        setLoadError(true);
       } finally {
         setIsLoading(false);
       }
@@ -454,9 +480,11 @@ export default function HomepageFeed({
       const result =
         prefetched ?? (await getLatestReviews(pageSize, latestNextCursor, lang));
       setPrefetchState(null);
+      setLoadError(false);
+      const photoItems = result.items.filter(hasReviewPhoto);
       setLatestCards((prev) => {
         const startIndex = prev.length;
-        const nextCards = result.items
+        const nextCards = photoItems
           .map((review, index) =>
             buildHomepageCard(review, categories, startIndex + index, lang)
           )
@@ -480,6 +508,7 @@ export default function HomepageFeed({
       setLatestNextCursor(isExhausted ? null : result.nextCursor);
     } catch (error) {
       console.error("Failed to load more reviews", error);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -543,7 +572,7 @@ export default function HomepageFeed({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting || isLoading) {
+        if (!entry.isIntersecting || isLoading || loadError) {
           return;
         }
         const loadKey =
@@ -569,9 +598,18 @@ export default function HomepageFeed({
     hasMore,
     isLoading,
     latestNextCursor,
+    loadError,
     popularPage,
     tab,
   ]);
+
+  const loadMoreLabel = isLoading
+    ? t(lang, "homepage.loading")
+    : loadError
+      ? t(lang, "common.retry")
+      : hasMore
+        ? t(lang, "homepage.loadMore")
+        : t(lang, "homepage.empty.caughtUp");
 
   return (
     <>
@@ -616,7 +654,10 @@ export default function HomepageFeed({
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark p-6 text-center text-sm text-text-muted">
-            {t(lang, "homepage.empty.noReviews")}
+            {t(
+              lang,
+              loadError ? "homepage.error.loadFailed" : "homepage.empty.noReviews"
+            )}
           </div>
         )
       ) : !hasVisibleCards ? (
@@ -637,13 +678,9 @@ export default function HomepageFeed({
                 className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 type="button"
                 onClick={handleLoadMore}
-                disabled={!hasMore || isLoading}
+                disabled={isLoading || (!hasMore && !loadError)}
               >
-                {isLoading
-                  ? t(lang, "homepage.loading")
-                  : hasMore
-                    ? t(lang, "homepage.loadMore")
-                    : t(lang, "homepage.empty.caughtUp")}
+                {loadMoreLabel}
               </button>
             </div>
           </div>
@@ -665,17 +702,15 @@ export default function HomepageFeed({
               className="w-full py-3 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-lg text-primary font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
               onClick={handleLoadMore}
-              disabled={!hasMore || isLoading}
+              disabled={isLoading || (!hasMore && !loadError)}
             >
-              {isLoading
-                ? t(lang, "homepage.loading")
-                : hasMore
-                  ? t(lang, "homepage.loadMore")
-                  : t(lang, "homepage.empty.caughtUp")}
+              {loadMoreLabel}
             </button>
-            {!hasMore && !isLoading ? (
+            {!isLoading && (loadError || !hasMore) ? (
               <p className="text-center text-xs text-text-muted">
-                {t(lang, "homepage.empty.checkBackSoon")}
+                {loadError
+                  ? t(lang, "homepage.error.loadFailed")
+                  : t(lang, "homepage.empty.checkBackSoon")}
               </p>
             ) : null}
             {hasMore ? (

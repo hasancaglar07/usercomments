@@ -37,7 +37,7 @@ export default function RegisterForm() {
                 window.alert("Check your email to confirm your account.");
                 return;
             }
-            const next = searchParams.get("next");
+            const next = searchParams?.get("next");
             router.push(
                 next && next.startsWith("/") ? next : localizePath("/", lang)
             );
@@ -200,12 +200,12 @@ export default function RegisterForm() {
             <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 text-center">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                     Already have an account?
-                        <Link
-                            className="font-bold text-primary hover:text-blue-600 dark:hover:text-blue-400 ml-1 transition-colors"
-                            href={localizePath("/user/login", lang)}
-                        >
-                            Log In
-                        </Link>
+                    <Link
+                        className="font-bold text-primary hover:text-blue-600 dark:hover:text-blue-400 ml-1 transition-colors"
+                        href={localizePath("/user/login", lang)}
+                    >
+                        Log In
+                    </Link>
                 </p>
             </div>
         </div>

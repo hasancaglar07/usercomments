@@ -3,7 +3,12 @@ import type { NextRequest } from "next/server";
 import { DEFAULT_LANGUAGE, localizePath } from "@/src/lib/i18n";
 import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 
+export const dynamic = "force-static";
 export const revalidate = 1800;
+
+export function generateStaticParams() {
+  return [];
+}
 
 function escapeXml(value: string): string {
   return value

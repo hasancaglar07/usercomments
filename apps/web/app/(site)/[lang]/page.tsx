@@ -32,11 +32,16 @@ import { t } from "@/src/lib/copy";
 const HOMEPAGE_LIMIT = 9;
 const POPULAR_LIMIT = 9;
 const TRENDING_LIMIT = 3;
+const TRENDING_FETCH_LIMIT = 18;
 const TRENDING_BADGES = [
   "bg-blue-100 text-blue-800",
   "bg-pink-100 text-pink-800",
   "bg-purple-100 text-purple-800",
 ];
+const HOMEPAGE_FETCH_OPTIONS = {
+  cache: "no-store" as const,
+  headers: { "Cache-Control": "no-store" },
+};
 const ACTIVE_TRENDING_TAB_CLASS =
   "px-2.5 py-1 text-[10px] font-semibold rounded-full bg-primary text-white";
 const INACTIVE_TRENDING_TAB_CLASS =
@@ -120,6 +125,14 @@ function buildHomepageCards(
   });
 }
 
+function hasReviewPhoto(review: Review): boolean {
+  return Array.isArray(review.photoUrls) && review.photoUrls.length > 0;
+}
+
+function filterReviewsWithPhotos(reviews: Review[]): Review[] {
+  return reviews.filter(hasReviewPhoto);
+}
+
 function getHomepageBadge(review: Review): "verified" | null {
   const rating = review.ratingAvg ?? 0;
   const ratingsCount = review.ratingCount ?? 0;
@@ -127,6 +140,10 @@ function getHomepageBadge(review: Review): "verified" | null {
     return "verified";
   }
   return null;
+}
+
+function hasProductImage(product: Product): boolean {
+  return Boolean(product.images?.some((image) => image.url));
 }
 
 function buildTopReviewers(
@@ -183,29 +200,32 @@ function buildTrendingProductCards(
   lang: string
 ): TrendingProductCard[] {
   const resolvedLang = normalizeLanguage(lang);
-  return products.slice(0, TRENDING_LIMIT).map((product, index) => {
-    const categoryId = product.categoryIds?.[0];
-    const categoryLabel =
-      (categoryId ? getCategoryLabel(categories, categoryId) : undefined) ??
-      t(resolvedLang, "homepage.trendingCategoryFallback");
-    const excerpt =
-      product.description?.trim() ||
-      t(resolvedLang, "homepage.trendingExcerptFallback");
-    const reviewCount =
-      product.stats?.reviewCount ?? product.stats?.ratingCount ?? 0;
+  return products
+    .filter(hasProductImage)
+    .slice(0, TRENDING_LIMIT)
+    .map((product, index) => {
+      const categoryId = product.categoryIds?.[0];
+      const categoryLabel =
+        (categoryId ? getCategoryLabel(categories, categoryId) : undefined) ??
+        t(resolvedLang, "homepage.trendingCategoryFallback");
+      const excerpt =
+        product.description?.trim() ||
+        t(resolvedLang, "homepage.trendingExcerptFallback");
+      const reviewCount =
+        product.stats?.reviewCount ?? product.stats?.ratingCount ?? 0;
 
-    return {
-      product,
-      href: localizePath(`/products/${product.slug}`, lang),
-      categoryLabel,
-      badgeClassName: pickFrom(TRENDING_BADGES, index),
-      imageUrl: product.images?.[0]?.url ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
-      imageAlt: product.name,
-      excerpt,
-      ratingStars: buildRatingStars(product.stats?.ratingAvg),
-      ratingCountLabel: formatCompactNumber(reviewCount, resolvedLang),
-    };
-  });
+      return {
+        product,
+        href: localizePath(`/products/${product.slug}`, lang),
+        categoryLabel,
+        badgeClassName: pickFrom(TRENDING_BADGES, index),
+        imageUrl: product.images?.[0]?.url ?? "",
+        imageAlt: product.name,
+        excerpt,
+        ratingStars: buildRatingStars(product.stats?.ratingAvg),
+        ratingCountLabel: formatCompactNumber(reviewCount, resolvedLang),
+      };
+    });
 }
 
 export default async function Page(props: HomePageProps) {
@@ -243,15 +263,24 @@ export default async function Page(props: HomePageProps) {
     try {
       const [latestResult, popularReviews, categoryItems, trendingProducts] =
         await Promise.all([
-        getLatestReviews(HOMEPAGE_LIMIT, null, lang),
-        getPopularReviews(POPULAR_LIMIT, lang),
-        getCategories(lang),
-        getProducts(1, TRENDING_LIMIT, trendingTab, undefined, lang),
-      ]);
+          getLatestReviews(HOMEPAGE_LIMIT, null, lang, HOMEPAGE_FETCH_OPTIONS),
+          getPopularReviews(POPULAR_LIMIT, lang, HOMEPAGE_FETCH_OPTIONS),
+          getCategories(lang),
+          getProducts(
+            1,
+            TRENDING_FETCH_LIMIT,
+            trendingTab,
+            undefined,
+            lang,
+            HOMEPAGE_FETCH_OPTIONS
+          ),
+        ]);
 
       categories = categoryItems;
-      recentCards = buildHomepageCards(latestResult.items, categories, lang);
-      popularFeedCards = buildHomepageCards(popularReviews, categories, lang);
+      const latestWithPhotos = filterReviewsWithPhotos(latestResult.items);
+      const popularWithPhotos = filterReviewsWithPhotos(popularReviews);
+      recentCards = buildHomepageCards(latestWithPhotos, categories, lang);
+      popularFeedCards = buildHomepageCards(popularWithPhotos, categories, lang);
       nextCursor = latestResult.nextCursor;
       topReviewers = buildTopReviewers(
         popularReviews,

@@ -3,9 +3,14 @@ import {
   buildUrlset,
   SITEMAP_CACHE_SECONDS,
 } from "@/src/lib/sitemap";
-import { isSupportedLanguage } from "@/src/lib/i18n";
+import { isSupportedLanguage, SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
 
+export const dynamic = "force-static";
 export const revalidate = 1800;
+
+export function generateStaticParams() {
+  return SUPPORTED_LANGUAGES.map((lang) => ({ lang }));
+}
 
 export async function GET(
   _request: Request,

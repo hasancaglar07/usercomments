@@ -32,14 +32,14 @@ export default function ProductSortSelect({ sort }: ProductSortSelectProps) {
 
   const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextSort = event.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     if (nextSort && nextSort !== "latest") {
       params.set("sort", nextSort);
     } else {
       params.delete("sort");
     }
-    router.push(buildHref(pathname, params));
+    router.push(buildHref(pathname ?? "", params));
   };
 
   return (

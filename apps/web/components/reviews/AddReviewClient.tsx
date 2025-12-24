@@ -104,7 +104,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
   }, [lang, router]);
 
   useEffect(() => {
-    const productSlug = searchParams.get("productSlug");
+    const productSlug = searchParams?.get("productSlug");
     if (!productSlug || selectedProduct) {
       return;
     }

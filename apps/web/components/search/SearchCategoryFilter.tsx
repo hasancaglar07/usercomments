@@ -29,7 +29,7 @@ export default function SearchCategoryFilter({
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextValue = event.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     if (nextValue) {
       params.set("categoryId", nextValue);

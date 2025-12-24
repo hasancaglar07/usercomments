@@ -33,7 +33,7 @@ export default function LoginForm() {
         setIsLoading(true);
         try {
             await signInWithPassword(parsed.data.email, parsed.data.password);
-            const next = searchParams.get("next");
+            const next = searchParams?.get("next");
             router.push(
                 next && next.startsWith("/") ? next : localizePath("/", lang)
             );

@@ -47,7 +47,7 @@ export function CatalogSortSelect({ sort, options }: CatalogSortSelectProps) {
 
   const handleSortChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextSort = event.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.delete("page");
     if (nextSort && nextSort !== "latest") {
       params.set("sort", nextSort);
@@ -88,7 +88,7 @@ export function CatalogCategoryChips({
         const isAll = Boolean(pill.isAll);
         const isActive = isAll ? !categoryId : pill.id === categoryId;
 
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(searchParams?.toString() ?? "");
         params.delete("page");
         if (pill.id) {
           params.set("categoryId", String(pill.id));

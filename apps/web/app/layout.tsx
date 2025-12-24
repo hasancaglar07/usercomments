@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { isRtlLanguage, normalizeLanguage } from "@/src/lib/i18n";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "UserReview | Real User Reviews & Honest Product Insights",
   description: "Read what real people say before you buy. Thousands of user reviews and honest experiences on the latest products.",
