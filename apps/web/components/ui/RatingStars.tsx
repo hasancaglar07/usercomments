@@ -6,26 +6,30 @@ type RatingStarsProps = {
 };
 
 export function RatingStarsHomepage({ stars, valueText }: RatingStarsProps) {
+  const baseClass = "material-symbols-outlined text-[20px]";
+  const fullClass = `${baseClass} star-filled text-secondary`;
+  const halfClass = `${baseClass} star-half text-secondary`;
+  const emptyClass = `${baseClass} star-empty`;
+
   return (
     <div className="flex items-center gap-1 mb-2">
       {stars.map((star, index) => {
-        const baseClass = "material-symbols-outlined text-[20px]";
         if (star === "full") {
           return (
-            <span key={index} className={`${baseClass} star-filled`}>
+            <span key={index} className={fullClass}>
               star
             </span>
           );
         }
         if (star === "half") {
           return (
-            <span key={index} className={`${baseClass} star-filled`}>
+            <span key={index} className={halfClass}>
               star_half
             </span>
           );
         }
         return (
-          <span key={index} className={`${baseClass} star-empty`}>
+          <span key={index} className={emptyClass}>
             star
           </span>
         );
@@ -38,23 +42,26 @@ export function RatingStarsHomepage({ stars, valueText }: RatingStarsProps) {
 }
 
 export function RatingStarsCatalog({ stars, valueText }: RatingStarsProps) {
+  const fullClass =
+    "material-symbols-outlined star-filled text-secondary text-[20px] fill-current";
+  const halfClass =
+    "material-symbols-outlined star-half text-secondary text-[20px] fill-current";
+  const emptyClass =
+    "material-symbols-outlined star-empty text-slate-300 text-[20px] fill-current";
+
   return (
     <div className="flex items-center gap-1 mb-3">
       {stars.map((star, index) => {
-        const filledClass =
-          "material-symbols-outlined filled text-secondary text-[20px] fill-current";
-        const emptyClass =
-          "material-symbols-outlined text-slate-300 text-[20px] fill-current";
         if (star === "full") {
           return (
-            <span key={index} className={filledClass}>
+            <span key={index} className={fullClass}>
               star
             </span>
           );
         }
         if (star === "half") {
           return (
-            <span key={index} className={filledClass}>
+            <span key={index} className={halfClass}>
               star_half
             </span>
           );
@@ -81,20 +88,20 @@ export function RatingStarsCategory({ stars }: RatingStarsProps) {
         const baseClass = "material-symbols-outlined text-[20px]";
         if (star === "full") {
           return (
-            <span key={index} className={`${baseClass} filled fill-current`}>
+            <span key={index} className={`${baseClass} star-filled fill-current`}>
               star
             </span>
           );
         }
         if (star === "half") {
           return (
-            <span key={index} className={`${baseClass} filled fill-current`}>
+            <span key={index} className={`${baseClass} star-half fill-current`}>
               star_half
             </span>
           );
         }
         return (
-          <span key={index} className={`${baseClass} text-gray-300`}>
+          <span key={index} className={`${baseClass} star-empty text-gray-300`}>
             star
           </span>
         );
@@ -109,13 +116,19 @@ export function RatingStarsProfile({ stars }: RatingStarsProps) {
       {stars.map((star, index) => {
         if (star === "empty") {
           return (
-            <span key={index} className="material-symbols-outlined text-[20px]">
+            <span
+              key={index}
+              className="material-symbols-outlined star-empty text-[20px]"
+            >
               star
             </span>
           );
         }
         return (
-          <span key={index} className="material-symbols-filled text-[20px]">
+          <span
+            key={index}
+            className="material-symbols-outlined star-filled text-[20px]"
+          >
             star
           </span>
         );

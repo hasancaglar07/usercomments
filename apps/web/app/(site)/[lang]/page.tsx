@@ -318,7 +318,9 @@ export default async function Page(props: HomePageProps) {
                         const className =
                           star === "empty"
                             ? "material-symbols-outlined star-empty text-[18px]"
-                            : "material-symbols-outlined star-filled text-[18px]";
+                            : star === "half"
+                            ? "material-symbols-outlined star-half text-secondary text-[18px]"
+                            : "material-symbols-outlined star-filled text-secondary text-[18px]";
                         return (
                           <span key={`${card.review.id}-star-${starIndex}`} className={className}>
                             {icon}

@@ -492,7 +492,7 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
                   {item.review.title}
                 </p>
                 <div className="flex items-center gap-1 text-xs text-text-sub-light dark:text-text-sub-dark">
-                  <span className="material-symbols-filled text-yellow-400 text-[14px]">
+                  <span className="material-symbols-outlined star-filled text-yellow-400 text-[14px]">
                     star
                   </span>
                   <span>{item.ratingLabel}</span>
