@@ -10,22 +10,30 @@ import {
   getReviewBySlug,
   getReviewComments,
   getCategories,
+  getCategoryPage,
   getProductBySlug,
 } from "@/src/lib/api";
 import {
   DEFAULT_AVATAR,
   DEFAULT_REVIEW_IMAGE,
+  FALLBACK_AVATARS,
+  FALLBACK_REVIEW_IMAGES,
   buildRatingStars,
   formatCompactNumber,
   formatNumber,
   formatRelativeTime,
   getCategoryLabel,
+  pickFrom,
 } from "@/src/lib/review-utils";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { homepageReviewCards } from "@/data/mock/reviews";
 import { RatingStarsCatalog } from "@/components/ui/RatingStars";
+import {
+  ReviewCardCategory,
+  type ReviewCardCategoryData,
+} from "@/components/cards/ReviewCard";
 import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
@@ -37,6 +45,8 @@ import { t } from "@/src/lib/copy";
 
 export const revalidate = 120;
 
+const RELATED_FETCH_LIMIT = 6;
+const RELATED_LIMIT = 3;
 
 type PageProps = {
   params: Promise<{ lang: string; slug: string }>;
@@ -151,6 +161,39 @@ function parseReviewContent(
   return { paragraphs, pros, cons };
 }
 
+function buildRelatedCards(
+  reviews: Review[],
+  categories: Category[],
+  lang: string
+): ReviewCardCategoryData[] {
+  const resolvedLang = normalizeLanguage(lang);
+  return reviews.map((related, index) => {
+    const subCategoryLabel = getCategoryLabel(categories, related.subCategoryId);
+    const categoryLabel = getCategoryLabel(categories, related.categoryId);
+
+    return {
+      review: related,
+      href: localizePath(`/content/${related.slug}`, lang),
+      dateLabel: formatRelativeTime(related.createdAt, resolvedLang),
+      ratingStars: buildRatingStars(related.ratingAvg),
+      imageUrl:
+        related.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
+      imageAlt: related.title,
+      avatarUrl:
+        related.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
+      avatarAlt: t(resolvedLang, "category.card.avatarAlt", {
+        username: related.author.username,
+      }),
+      tagLabel:
+        subCategoryLabel ??
+        categoryLabel ??
+        t(resolvedLang, "common.general"),
+      likesLabel: formatCompactNumber(related.votesUp ?? 0, resolvedLang),
+      commentsLabel: formatCompactNumber(related.commentCount ?? 0, resolvedLang),
+    };
+  });
+}
+
 export default async function Page(props: PageProps) {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
@@ -158,6 +201,7 @@ export default async function Page(props: PageProps) {
   let comments: Comment[] = [];
   let categories: Category[] = [];
   let productDetail: Product | null = null;
+  let relatedReviews: Review[] = [];
 
   try {
     review = await getReviewBySlug(params.slug, lang);
@@ -169,7 +213,17 @@ export default async function Page(props: PageProps) {
     }
 
     const productSlug = review?.product?.slug;
-    const [fetchedComments, fetchedCategories, fetchedProduct] = await Promise.all([
+    const relatedPromise = review?.categoryId
+      ? getCategoryPage(
+          review.categoryId,
+          1,
+          RELATED_FETCH_LIMIT,
+          "latest",
+          undefined,
+          lang
+        ).catch(() => null)
+      : Promise.resolve(null);
+    const [fetchedComments, fetchedCategories, fetchedProduct, relatedResult] = await Promise.all([
       review
         ? getReviewComments(review.id, 50).then((res) => res.items)
         : Promise.resolve<Comment[]>([]),
@@ -177,10 +231,12 @@ export default async function Page(props: PageProps) {
       productSlug
         ? getProductBySlug(productSlug, lang).catch(() => null)
         : Promise.resolve<Product | null>(null),
+      relatedPromise,
     ]);
     comments = fetchedComments;
     categories = fetchedCategories;
     productDetail = fetchedProduct;
+    relatedReviews = relatedResult?.items ?? [];
 
   } catch (error) {
     console.error("Failed to load review details", error);
@@ -189,6 +245,7 @@ export default async function Page(props: PageProps) {
   if (!review && allowMockFallback) {
     review = mockReviewDetail;
     comments = mockComments;
+    relatedReviews = homepageReviewCards.map((card) => card.review);
   }
 
   if (!review) {
@@ -218,6 +275,17 @@ export default async function Page(props: PageProps) {
   const dateLabel = formatRelativeTime(review.createdAt, lang);
   const categoryLabel = getCategoryLabel(categories, review.categoryId);
   const subCategoryLabel = getCategoryLabel(categories, review.subCategoryId);
+  const relatedCategoryHref = review.categoryId
+    ? localizePath(`/catalog/reviews/${review.categoryId}`, lang)
+    : null;
+  const filteredRelatedReviews = relatedReviews
+    .filter((item) => item.id !== review.id && item.slug !== review.slug)
+    .slice(0, RELATED_LIMIT);
+  const relatedCards = buildRelatedCards(
+    filteredRelatedReviews,
+    categories,
+    lang
+  );
   const authorPic = getOptimizedImageUrl(
     review.author.profilePicUrl ?? DEFAULT_AVATAR,
     160
@@ -682,6 +750,38 @@ export default async function Page(props: PageProps) {
                   </div>
                 </div>
               </article>
+
+              {relatedCards.length > 0 ? (
+                <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                        {t(lang, "reviewDetail.related.title")}
+                      </h3>
+                      {categoryLabel ? (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {t(lang, "reviewDetail.related.subtitle", {
+                            category: categoryLabel,
+                          })}
+                        </p>
+                      ) : null}
+                    </div>
+                    {relatedCategoryHref ? (
+                      <Link
+                        href={relatedCategoryHref}
+                        className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+                      >
+                        {t(lang, "reviewDetail.related.viewAll")}
+                      </Link>
+                    ) : null}
+                  </div>
+                  <div className="mt-6 flex flex-col gap-4">
+                    {relatedCards.map((card) => (
+                      <ReviewCardCategory key={card.review.id} {...card} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
               {/* Comments Section */}
               <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">

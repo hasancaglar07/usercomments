@@ -132,7 +132,6 @@ export async function getPopularReviews(
     lang,
   });
   const options: FetchOptions = {
-    cache: "force-cache",
     next: { revalidate: 60 },
     ...fetchOptions,
   };
@@ -153,7 +152,6 @@ export async function getLatestReviews(
     searchParams.set("cursor", cursor);
   }
   const options: FetchOptions = {
-    cache: "force-cache",
     next: { revalidate: 60 },
     ...fetchOptions,
   };
@@ -180,7 +178,6 @@ export async function getCatalogPage(
     searchParams.set("categoryId", String(categoryId));
   }
   return fetchJson<PaginatedResult<Review>>(`/api/reviews?${searchParams}`, {
-    cache: "force-cache",
     next: { revalidate: 60 },
   });
 }
@@ -204,14 +201,12 @@ export async function getCategoryPage(
     searchParams.set("subCategoryId", String(subCategoryId));
   }
   return fetchJson<PaginatedResult<Review>>(`/api/reviews?${searchParams}`, {
-    cache: "force-cache",
     next: { revalidate: 60 },
   });
 }
 
 export async function getUserProfile(username: string): Promise<UserProfile> {
   return fetchJson<UserProfile>(`/api/users/${encodeURIComponent(username)}`, {
-    cache: "force-cache",
     next: { revalidate: 60 },
   });
 }
@@ -230,7 +225,6 @@ export async function getUserReviews(
   return fetchJson<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/reviews?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 60 },
     }
   );
@@ -250,7 +244,6 @@ export async function getUserComments(
   return fetchJson<PaginatedResult<Review>>(
     `/api/users/${encodeURIComponent(username)}/comments?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 60 },
     }
   );
@@ -264,7 +257,6 @@ export async function getReviewBySlug(
   return fetchJson<Review>(
     `/api/reviews/slug/${encodeURIComponent(slug)}?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 90 },
     }
   );
@@ -288,7 +280,6 @@ export async function getProducts(
     searchParams.set("categoryId", String(categoryId));
   }
   const options: FetchOptions = {
-    cache: "force-cache",
     next: { revalidate: 300 },
     ...fetchOptions,
   };
@@ -303,7 +294,6 @@ export async function getProductBySlug(
   return fetchJson<Product>(
     `/api/products/slug/${encodeURIComponent(slug)}?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 300 },
     }
   );
@@ -325,7 +315,6 @@ export async function getProductReviews(
   return fetchJson<PaginatedResult<Review>>(
     `/api/products/${encodeURIComponent(productId)}/reviews?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 60 },
     }
   );
@@ -348,7 +337,6 @@ export async function searchProducts(
   return fetchJson<PaginatedResult<Product>>(
     `/api/products/search?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 30 },
     }
   );
@@ -375,7 +363,6 @@ export async function getReviewComments(
   return fetchJson<CursorResult<Comment>>(
     `/api/reviews/${reviewId}/comments?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 30 },
     }
   );
@@ -398,7 +385,6 @@ export async function searchReviews(
     searchParams.set("categoryId", String(categoryId));
   }
   return fetchJson<PaginatedResult<Review>>(`/api/search?${searchParams}`, {
-    cache: "force-cache",
     next: { revalidate: 30 },
   });
 }
@@ -410,7 +396,6 @@ export async function getCategories(
   return fetchJson<PaginatedResult<Category>>(
     `/api/categories?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 3600 },
     }
   ).then((result) => result.items);
@@ -424,7 +409,6 @@ export async function getSubcategories(
   return fetchJson<PaginatedResult<Category>>(
     `/api/categories/${id}/subcategories?${searchParams}`,
     {
-      cache: "force-cache",
       next: { revalidate: 3600 },
     }
   ).then((result) => result.items);
