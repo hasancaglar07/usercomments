@@ -24,12 +24,16 @@ type FetchOptions = RequestInit & {
   };
 };
 
-const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://irecommend-api.usercomments.workers.dev";
+// Hardcoded fallback for production environment where env vars might be missing in client bundle
+const FALLBACK_API_URL = "https://irecommend-api.usercomments.workers.dev";
+
+const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_API_URL;
 const BASE_URL = RAW_BASE_URL?.replace(/\/$/, "");
 
 function getBaseUrl(): string {
   if (!BASE_URL) {
-    throw new Error("NEXT_PUBLIC_API_BASE_URL is not set");
+    console.warn("NEXT_PUBLIC_API_BASE_URL is not set, using fallback");
+    return FALLBACK_API_URL;
   }
   return BASE_URL;
 }
