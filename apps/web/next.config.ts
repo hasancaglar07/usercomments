@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    runtime: "edge",
+    cpus: 2,
+  },
   images: {
     remotePatterns: [
       {
@@ -8,10 +12,6 @@ const nextConfig: NextConfig = {
         hostname: "**",
       },
     ],
-  },
-  experimental: {
-    // Reduce build worker concurrency to avoid Cloudflare Pages memory limits.
-    cpus: 2,
   },
 };
 

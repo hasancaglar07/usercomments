@@ -1,0 +1,1 @@
+python -m ingestor.main --once

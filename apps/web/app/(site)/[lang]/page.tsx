@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { SidebarHomepage } from "@/components/layout/Sidebar";
 import type { ReviewCardHomepageData } from "@/components/cards/ReviewCard";
 import type { HomepageTopReviewer } from "@/components/layout/Sidebar";
-import type { Category, Review, StarType } from "@/src/types";
+import type { Category, Product, Review, StarType } from "@/src/types";
 import {
   FALLBACK_AVATARS,
   FALLBACK_REVIEW_IMAGES,
@@ -18,6 +18,7 @@ import {
   getCategories,
   getLatestReviews,
   getPopularReviews,
+  getProducts,
 } from "@/src/lib/api";
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
@@ -36,9 +37,33 @@ const TRENDING_BADGES = [
   "bg-pink-100 text-pink-800",
   "bg-purple-100 text-purple-800",
 ];
+const ACTIVE_TRENDING_TAB_CLASS =
+  "px-2.5 py-1 text-[10px] font-semibold rounded-full bg-primary text-white";
+const INACTIVE_TRENDING_TAB_CLASS =
+  "px-2.5 py-1 text-[10px] font-semibold rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors";
+const TRENDING_TABS = [
+  { key: "popular", labelKey: "homepage.trendingTabs.popular" },
+  { key: "latest", labelKey: "homepage.trendingTabs.latest" },
+  { key: "rating", labelKey: "homepage.trendingTabs.rating" },
+] as const;
+const DEFAULT_TRENDING_TAB: TrendingTab = "popular";
+
+type TrendingTab = (typeof TRENDING_TABS)[number]["key"];
+
+function parseTrendingTab(value?: string): TrendingTab {
+  const normalized = value?.toLowerCase();
+  if (normalized === "latest" || normalized === "rating" || normalized === "popular") {
+    return normalized;
+  }
+  return DEFAULT_TRENDING_TAB;
+}
 
 type HomePageProps = {
   params: Promise<{ lang: string }>;
+  searchParams?: Promise<{
+    filter?: string;
+    trending?: string;
+  }>;
 };
 
 export async function generateMetadata(
@@ -104,32 +129,6 @@ function getHomepageBadge(review: Review): "verified" | null {
   return null;
 }
 
-function hasReviewImage(review: Review): boolean {
-  return Array.isArray(review.photoUrls) && review.photoUrls.length > 0;
-}
-
-function mergeTrendingReviews(primary: Review[], fallback: Review[]): Review[] {
-  const seen = new Set<string>();
-  const combined: Review[] = [];
-
-  const add = (review: Review) => {
-    if (!hasReviewImage(review)) {
-      return;
-    }
-    const key = review.id || review.slug;
-    if (!key || seen.has(key)) {
-      return;
-    }
-    seen.add(key);
-    combined.push(review);
-  };
-
-  primary.forEach(add);
-  fallback.forEach(add);
-
-  return combined;
-}
-
 function buildTopReviewers(
   reviews: Review[],
   fallback: HomepageTopReviewer[],
@@ -166,8 +165,8 @@ function buildTopReviewers(
   return reviewers.length > 0 ? reviewers : fallback;
 }
 
-type TrendingCard = {
-  review: Review;
+type TrendingProductCard = {
+  product: Product;
   href: string;
   categoryLabel: string;
   badgeClassName: string;
@@ -178,58 +177,76 @@ type TrendingCard = {
   ratingCountLabel: string;
 };
 
-function buildTrendingCards(
-  reviews: Review[],
+function buildTrendingProductCards(
+  products: Product[],
   categories: Category[],
   lang: string
-): TrendingCard[] {
+): TrendingProductCard[] {
   const resolvedLang = normalizeLanguage(lang);
-  return reviews
-    .filter(hasReviewImage)
-    .slice(0, TRENDING_LIMIT)
-    .map((review, index) => {
-      const categoryLabel =
-        getCategoryLabel(categories, review.categoryId) ??
-        t(resolvedLang, "homepage.trendingCategoryFallback");
-      const excerpt =
-        review.excerpt?.trim() ||
-        t(resolvedLang, "homepage.trendingExcerptFallback");
+  return products.slice(0, TRENDING_LIMIT).map((product, index) => {
+    const categoryId = product.categoryIds?.[0];
+    const categoryLabel =
+      (categoryId ? getCategoryLabel(categories, categoryId) : undefined) ??
+      t(resolvedLang, "homepage.trendingCategoryFallback");
+    const excerpt =
+      product.description?.trim() ||
+      t(resolvedLang, "homepage.trendingExcerptFallback");
+    const reviewCount =
+      product.stats?.reviewCount ?? product.stats?.ratingCount ?? 0;
 
-      return {
-        review,
-        href: localizePath(`/content/${review.slug}`, lang),
-        categoryLabel,
-        badgeClassName: pickFrom(TRENDING_BADGES, index),
-        imageUrl: review.photoUrls?.[0] ?? "",
-        imageAlt: review.title,
-        excerpt,
-        ratingStars: buildRatingStars(review.ratingAvg),
-        ratingCountLabel: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
-      };
-    });
+    return {
+      product,
+      href: localizePath(`/products/${product.slug}`, lang),
+      categoryLabel,
+      badgeClassName: pickFrom(TRENDING_BADGES, index),
+      imageUrl: product.images?.[0]?.url ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
+      imageAlt: product.name,
+      excerpt,
+      ratingStars: buildRatingStars(product.stats?.ratingAvg),
+      ratingCountLabel: formatCompactNumber(reviewCount, resolvedLang),
+    };
+  });
 }
 
 export default async function Page(props: HomePageProps) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const lang = normalizeLanguage(params.lang);
+  const trendingTab = parseTrendingTab(
+    typeof searchParams?.trending === "string" ? searchParams.trending : undefined
+  );
+  const filterParam =
+    typeof searchParams?.filter === "string" ? searchParams.filter : undefined;
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
   let recentCards = allowMockFallback ? homepageReviewCards : [];
   let popularFeedCards = allowMockFallback ? homepageReviewCards : [];
   let topReviewers = allowMockFallback ? homepageTopReviewers : [];
   let popularCategories = allowMockFallback ? homepagePopularCategories : [];
   let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
-  let trendingCards = allowMockFallback
-    ? buildTrendingCards(homepageReviewCards.map((card) => card.review), categories, lang)
-    : [];
+  let trendingCards: TrendingProductCard[] = [];
   let nextCursor: string | null = null;
   let errorMessage: string | null = null;
 
+  const buildTrendingHref = (tab: TrendingTab) => {
+    const params = new URLSearchParams();
+    if (filterParam) {
+      params.set("filter", filterParam);
+    }
+    if (tab !== DEFAULT_TRENDING_TAB) {
+      params.set("trending", tab);
+    }
+    const query = params.toString();
+    return localizePath(query ? `/?${query}` : "/", lang);
+  };
+
   if (apiConfigured) {
     try {
-      const [latestResult, popularReviews, categoryItems] = await Promise.all([
+      const [latestResult, popularReviews, categoryItems, trendingProducts] =
+        await Promise.all([
         getLatestReviews(HOMEPAGE_LIMIT, null, lang),
         getPopularReviews(POPULAR_LIMIT, lang),
         getCategories(lang),
+        getProducts(1, TRENDING_LIMIT, trendingTab, undefined, lang),
       ]);
 
       categories = categoryItems;
@@ -241,11 +258,11 @@ export default async function Page(props: HomePageProps) {
         allowMockFallback ? homepageTopReviewers : [],
         lang
       );
-      const trendingSource = mergeTrendingReviews(
-        popularReviews,
-        latestResult.items
+      trendingCards = buildTrendingProductCards(
+        trendingProducts.items,
+        categories,
+        lang
       );
-      trendingCards = buildTrendingCards(trendingSource, categories, lang);
       popularCategories = categories.slice(0, 7);
     } catch (error) {
       console.error("Failed to load homepage API data", error);
@@ -269,12 +286,30 @@ export default async function Page(props: HomePageProps) {
           </div>
         ) : null}
         <section className="mb-10">
-          <h2 className="text-2xl font-bold text-text-main dark:text-white mb-5 flex items-center gap-2">
-            <span className="material-symbols-outlined text-secondary">
-              trending_up
-            </span>
-            {t(lang, "homepage.trendingTitle")}
-          </h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+            <h2 className="text-2xl font-bold text-text-main dark:text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary">
+                trending_up
+              </span>
+              {t(lang, "homepage.trendingTitle")}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {TRENDING_TABS.map((tab) => {
+                const isActive = tab.key === trendingTab;
+                return (
+                  <Link
+                    key={tab.key}
+                    className={
+                      isActive ? ACTIVE_TRENDING_TAB_CLASS : INACTIVE_TRENDING_TAB_CLASS
+                    }
+                    href={buildTrendingHref(tab.key)}
+                  >
+                    {t(lang, tab.labelKey)}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
           {trendingCards.length === 0 ? (
             <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark p-6 text-sm text-text-muted text-center">
               {t(lang, "homepage.trendingEmpty")}
@@ -283,7 +318,7 @@ export default async function Page(props: HomePageProps) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {trendingCards.map((card, index) => (
                 <div
-                  key={`${card.review.id}-${index}`}
+                  key={`${card.product.id}-${index}`}
                   className="group relative overflow-hidden rounded-xl bg-background-light dark:bg-surface-dark shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-gray-800"
                 >
                   <Link href={card.href}>
@@ -308,7 +343,7 @@ export default async function Page(props: HomePageProps) {
                     </span>
                     <h3 className="text-lg font-bold text-text-main dark:text-white leading-tight mb-1 hover:text-primary transition-colors cursor-pointer">
                       <Link href={card.href}>
-                        {card.review.title}
+                        {card.product.name}
                       </Link>
                     </h3>
                     <p className="text-sm text-text-muted">{card.excerpt}</p>
@@ -322,7 +357,7 @@ export default async function Page(props: HomePageProps) {
                             ? "material-symbols-outlined star-half text-secondary text-[18px]"
                             : "material-symbols-outlined star-filled text-secondary text-[18px]";
                         return (
-                          <span key={`${card.review.id}-star-${starIndex}`} className={className}>
+                          <span key={`${card.product.id}-star-${starIndex}`} className={className}>
                             {icon}
                           </span>
                         );
