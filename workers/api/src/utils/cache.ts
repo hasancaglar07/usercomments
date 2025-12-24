@@ -63,6 +63,15 @@ export async function cacheResponse(
     return handler();
   }
 
+  const cacheControl = request.headers.get("cache-control")?.toLowerCase() ?? "";
+  if (cacheControl.includes("no-store") || cacheControl.includes("no-cache")) {
+    return handler();
+  }
+  const pragma = request.headers.get("pragma")?.toLowerCase() ?? "";
+  if (pragma.includes("no-cache")) {
+    return handler();
+  }
+
   const cache = (caches as CacheStorage & { default: Cache }).default ?? caches;
   const cacheKey = buildCacheKeyRequest(request);
   const cached = await cache.match(cacheKey);

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
+import requests
 
 from .config import Config
 from .http_client import HttpClient
@@ -70,6 +71,27 @@ def _infer_product_name(title: Optional[str]) -> Optional[str]:
         return None
     name = normalize_whitespace(title)
     return name or None
+
+
+def _purge_worker_cache(config: Config, review_id: Optional[str], logger: logging.Logger) -> None:
+    if not review_id:
+        return
+    if not config.cache_purge_url or not config.cache_purge_secret:
+        return
+    try:
+        response = requests.post(
+            config.cache_purge_url,
+            json={"reviewId": review_id},
+            headers={"x-cache-purge-secret": config.cache_purge_secret},
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning("Cache purge request failed: %s", exc)
+        return
+    if response.status_code >= 400:
+        logger.warning(
+            "Cache purge failed (%s): %s", response.status_code, response.text[:200]
+        )
 
 
 async def _process_images_async(
@@ -267,10 +289,6 @@ async def _process_review_item_async(
         source_url = item["source_url"]
         logger.info("Starting processing: %s", source_url)
         await asyncio.to_thread(mark_processing, supabase, source_url)
-        async def _skip(reason: str, retries: int = 999) -> bool:
-            logger.warning("Skip review: reason=%s source_url=%s", reason, source_url)
-            await asyncio.to_thread(mark_failed, supabase, source_url, retries, reason)
-            return False
         try:
             html = await _fetch_html_async(http, source_url, logger)
             detail = parse_review_detail(html, source_url, config.source_base_url, logger)
@@ -323,16 +341,51 @@ async def _process_review_item_async(
                         detail.subcategory_name = ai_data["subcategory_name"]
                 else:
                     if not detail.content_html or len(detail.content_html) < 100:
-                        return await _skip("Content too short")
+                        logger.warning(
+                            "Content still short after AI fallback (%d chars), continuing: %s",
+                            len(detail.content_html or ""),
+                            source_url,
+                        )
+            if detail.content_html:
+                detail.excerpt = normalize_whitespace(
+                    BeautifulSoup(detail.content_html, "lxml").get_text()
+                )[:300]
+            else:
+                detail.excerpt = detail.excerpt or ""
+
+            if not detail.title:
+                detail.title = detail.product_name or detail.source_slug or "Untitled Review"
+            if not detail.content_html:
+                detail.content_html = f"<p>{detail.title}</p>"
+
+            if not detail.product_image_url and detail.image_urls:
+                detail.product_image_url = detail.image_urls[0]
+                logger.info("Fallback: using first review image as product image for %s", source_url)
+
+            if not detail.image_urls and detail.product_image_url:
+                detail.image_urls = [detail.product_image_url]
+                logger.info("Fallback: using product image as review image for %s", source_url)
+            
+            if not detail.image_urls and config.fallback_review_image_url:
+                detail.image_urls = [config.fallback_review_image_url]
+                logger.info("Fallback: using default review image for %s", source_url)
+
+            if not detail.product_image_url and config.fallback_review_image_url:
+                detail.product_image_url = config.fallback_review_image_url
+                logger.info("Fallback: using default product image for %s", source_url)
 
             if not detail.image_urls:
-                return await _skip("No review images")
+                logger.warning("No review images for %s; continuing with empty photo list", source_url)
                 
             if not detail.product_image_url:
-                return await _skip("No product image")
+                logger.warning("No product image for %s; continuing without product image", source_url)
             
-            logger.info("Quality check passed: %d chars, %d images, product image OK", 
-                       len(detail.content_html), len(detail.image_urls))
+            logger.info(
+                "Quality check: %d chars, %d review images, product image %s",
+                len(detail.content_html or ""),
+                len(detail.image_urls),
+                "ok" if detail.product_image_url else "missing",
+            )
 
             try:
                 category_ids = await _ensure_category_ids_async(
@@ -347,23 +400,49 @@ async def _process_review_item_async(
                     logger,
                     dry_run,
                 )
-                cat_id = category_ids.get("category_id")
-                if not cat_id:
-                    raise ValueError(f"Category ID missing for {detail.category_name}")
             except Exception as e:
-                logger.error("Failed to ensure categories/product: %s", e)
-                retries = int(item.get("retries") or 0) + 1
-                await asyncio.to_thread(mark_failed, supabase, source_url, retries, f"Metadata error: {e}")
-                return False
+                logger.error("Category/product enrichment failed, continuing without it: %s", e)
+                category_ids = {"category_id": None, "sub_category_id": None, "product_id": None}
 
-            author_id = profile_pool.pick()
+            cat_id = category_ids.get("category_id")
+            if not cat_id:
+                logger.warning("Missing category for %s; continuing without category", source_url)
+
+            try:
+                author_id = profile_pool.pick()
+            except Exception as exc:
+                logger.error("Profile pool unavailable, continuing without author: %s", exc)
+                author_id = None
 
             full_title = detail.title or ""
             if detail.product_name and detail.product_name.lower() not in full_title.lower():
                 full_title = f"{detail.product_name} - {full_title}"
 
+            existing_created_at = None
+            try:
+                existing_rows = await asyncio.to_thread(
+                    supabase.select,
+                    "reviews",
+                    "id, created_at",
+                    [("eq", "source_url", detail.source_url)],
+                    None,
+                    1,
+                )
+                if existing_rows:
+                    existing_created_at = existing_rows[0].get("created_at")
+            except Exception as exc:
+                logger.warning("Failed to check existing review timestamps: %s", exc)
+
+            if existing_created_at:
+                created_at = existing_created_at
+            elif config.use_source_published_at and detail.published_at:
+                created_at = detail.published_at
+            else:
+                created_at = datetime.now(timezone.utc).isoformat()
+
             review_payload = {
                 "source_url": detail.source_url,
+                "source_slug": detail.source_slug,
                 "source": "irecommend",
                 "slug": detail.source_slug,
                 "title": full_title,
@@ -381,7 +460,7 @@ async def _process_review_item_async(
                 "photo_count": 0,
                 "pros": detail.pros or [],
                 "cons": detail.cons or [],
-                "created_at": (detail.published_at or datetime.now(timezone.utc).isoformat()),
+                "created_at": created_at,
                 "status": "published",
             }
 
@@ -414,6 +493,26 @@ async def _process_review_item_async(
                 translation_error = str(te)
                 logger.warning("Translation skipped: reason=%s source_url=%s", translation_error, source_url)
                 translations = {}
+
+            required_langs = config.langs or ["en"]
+            missing_langs = [lang for lang in required_langs if lang not in translations]
+            if missing_langs:
+                fallback_title = detail.title or detail.product_name or detail.source_slug or "Untitled Review"
+                fallback_excerpt = detail.excerpt or fallback_title
+                fallback_content = detail.content_html or f"<p>{fallback_title}</p>"
+                for lang in missing_langs:
+                    translations[lang] = {
+                        "title": fallback_title,
+                        "content_html": fallback_content,
+                        "meta_title": fallback_title[:60],
+                        "meta_description": fallback_excerpt[:160],
+                        "slug": slugify(fallback_title, max_length=80, fallback=fallback_title),
+                        "summary": "",
+                        "faq": [],
+                        "pros": detail.pros or [],
+                        "cons": detail.cons or [],
+                    }
+                logger.warning("Fallback translations created for %s", ", ".join(missing_langs))
             
             translation_payloads = []
             for lang, data in translations.items():
@@ -461,6 +560,7 @@ async def _process_review_item_async(
                     logger.warning("Translation empty for %s", source_url)
                 content_hash = sha1_text(f"{detail.title}|{detail.content_html}")
                 await asyncio.to_thread(mark_processed, supabase, source_url, content_hash)
+                await asyncio.to_thread(_purge_worker_cache, config, review_id, logger)
             
             logger.info("Successfully processed: %s", source_url)
             return True
@@ -510,7 +610,13 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
     rows = await asyncio.to_thread(supabase.select, "categories", "id, source_url")
     category_map = {row["source_url"]: row["id"] for row in rows if row.get("source_url")}
 
-    new_sources = await asyncio.to_thread(fetch_new_sources, supabase, config.max_new_reviews_per_loop)
+    new_sources = await asyncio.to_thread(
+        fetch_new_sources,
+        supabase,
+        config.max_new_reviews_per_loop,
+        config.retry_failed_sources,
+        config.max_source_retries,
+    )
     
     if len(new_sources) < config.max_new_reviews_per_loop:
         logger.info("Discovering new content (Sync wrapped)...")
@@ -610,7 +716,13 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         logger.info("Discovery finished. Found %d new reviews.", new_count)
         
         # Refresh sources
-        new_sources = await asyncio.to_thread(fetch_new_sources, supabase, config.max_new_reviews_per_loop)
+        new_sources = await asyncio.to_thread(
+            fetch_new_sources,
+            supabase,
+            config.max_new_reviews_per_loop,
+            config.retry_failed_sources,
+            config.max_source_retries,
+        )
 
     logger.info("Items to process: %d", len(new_sources))
     

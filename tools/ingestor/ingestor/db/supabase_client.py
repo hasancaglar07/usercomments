@@ -43,6 +43,14 @@ class SupabaseClient:
                         query = query.eq(column, value)
                     elif op == "neq":
                         query = query.neq(column, value)
+                    elif op == "lt":
+                        query = query.lt(column, value)
+                    elif op == "lte":
+                        query = query.lte(column, value)
+                    elif op == "gt":
+                        query = query.gt(column, value)
+                    elif op == "gte":
+                        query = query.gte(column, value)
                     elif op == "in":
                         query = query.in_(column, value)
                     elif op == "is":

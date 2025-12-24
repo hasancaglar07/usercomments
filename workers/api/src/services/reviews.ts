@@ -628,11 +628,14 @@ export async function createReview(
     }
   }
 
-  if (payload.productPhotoUrl) {
+  const productImageUrl =
+    payload.productPhotoUrl?.trim() || payload.photoUrls[0]?.trim();
+
+  if (productImageUrl) {
     if (isNewProduct) {
       await attachProductImage(env, {
         productId,
-        url: payload.productPhotoUrl,
+        url: productImageUrl,
         sortOrder: 0,
         userId: payload.userId,
       });
@@ -650,7 +653,7 @@ export async function createReview(
       if (!existingImages || existingImages.length === 0) {
         await attachProductImage(env, {
           productId,
-          url: payload.productPhotoUrl,
+          url: productImageUrl,
           sortOrder: 0,
           userId: payload.userId,
         });

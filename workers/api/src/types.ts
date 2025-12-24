@@ -131,6 +131,14 @@ export type UserProfile = {
   };
 };
 
+export type TopReviewer = {
+  userId: string;
+  username: string;
+  displayName?: string;
+  profilePicUrl?: string;
+  reviewCount: number;
+};
+
 export type Category = {
   id: number;
   name: string;

@@ -33,6 +33,12 @@ class Config:
     user_agent: str
     http_proxy: Optional[str]
     max_concurrent_tasks: int
+    use_source_published_at: bool
+    retry_failed_sources: bool
+    max_source_retries: int
+    fallback_review_image_url: Optional[str]
+    cache_purge_url: Optional[str]
+    cache_purge_secret: Optional[str]
 
 
     @staticmethod
@@ -51,8 +57,25 @@ class Config:
                 return default
             return float(raw)
 
+        def env_bool(key: str, default: bool) -> bool:
+            raw = os.getenv(key)
+            if raw is None or raw.strip() == "":
+                return default
+            return raw.strip().lower() in ("1", "true", "yes", "y")
+
+        def env_optional(key: str) -> Optional[str]:
+            raw = os.getenv(key)
+            if raw is None:
+                return None
+            value = raw.strip()
+            return value if value else None
+
         langs_raw = os.getenv("LANGS", "en,es,de,tr,ar")
-        langs = [lang.strip() for lang in langs_raw.split(",") if lang.strip()]
+        langs = [lang.strip().lower() for lang in langs_raw.split(",") if lang.strip()]
+        if "en" not in langs:
+            langs.insert(0, "en")
+        seen = set()
+        langs = [lang for lang in langs if not (lang in seen or seen.add(lang))]
 
         source_base_url = os.getenv("SOURCE_BASE_URL", "https://irecommend.ru").rstrip("/")
         max_new_reviews_per_loop = env_int("MAX_NEW_REVIEWS_PER_LOOP", 20)
@@ -89,6 +112,12 @@ class Config:
             ),
             http_proxy=os.getenv("HTTP_PROXY"),
             max_concurrent_tasks=env_int("MAX_CONCURRENT_TASKS", 5),
+            use_source_published_at=env_bool("USE_SOURCE_PUBLISHED_AT", False),
+            retry_failed_sources=env_bool("RETRY_FAILED_SOURCES", True),
+            max_source_retries=env_int("MAX_SOURCE_RETRIES", 0),
+            fallback_review_image_url=os.getenv("FALLBACK_REVIEW_IMAGE_URL"),
+            cache_purge_url=env_optional("CACHE_PURGE_URL"),
+            cache_purge_secret=env_optional("CACHE_PURGE_SECRET"),
         )
 
 

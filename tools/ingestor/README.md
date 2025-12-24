@@ -27,6 +27,10 @@ Key fields:
 Optional:
 - `LOG_FILE` for file logging
 - `USER_AGENT` for the crawler
+- `USE_SOURCE_PUBLISHED_AT=1` to keep original publish dates (default uses ingest time)
+- `RETRY_FAILED_SOURCES=1` to retry failed sources automatically
+- `MAX_SOURCE_RETRIES=0` for unlimited retries (set >0 to cap)
+- `FALLBACK_REVIEW_IMAGE_URL` to use a default image when no photos exist
 
 ## Apply schema
 Use the reference schema in `ingestor/db/schema.sql`.

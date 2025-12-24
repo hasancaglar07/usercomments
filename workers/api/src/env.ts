@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export type Env = {
   SUPABASE_URL: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_ANON_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
   R2_ENDPOINT?: string;
   R2_REGION?: string;
   R2_ACCESS_KEY_ID?: string;
@@ -25,11 +26,12 @@ export type Env = {
   CACHE_TTL_USER_REVIEWS_SEC?: string;
   CACHE_TTL_SEARCH_SEC?: string;
   CACHE_TTL_SITEMAP_SEC?: string;
+  CACHE_PURGE_SECRET?: string;
 };
 
 export type ParsedEnv = {
   SUPABASE_URL: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_KEY: string;
   R2_ENDPOINT?: string;
   R2_REGION: string;
   R2_ACCESS_KEY_ID?: string;
@@ -52,11 +54,13 @@ export type ParsedEnv = {
   CACHE_TTL_USER_REVIEWS_SEC: number;
   CACHE_TTL_SEARCH_SEC: number;
   CACHE_TTL_SITEMAP_SEC: number;
+  CACHE_PURGE_SECRET?: string;
 };
 
 const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_ANON_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   R2_ENDPOINT: z.string().min(1).optional(),
   R2_REGION: z.string().min(1).default("auto"),
   R2_ACCESS_KEY_ID: z.string().min(1).optional(),
@@ -78,14 +82,19 @@ const envSchema = z.object({
   CACHE_TTL_USER_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_USER_REVIEWS_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_SEARCH_SEC: z.coerce.number().int().positive().default(30),
-  CACHE_TTL_SITEMAP_SEC: z.coerce.number().int().positive().default(1800)
+  CACHE_TTL_SITEMAP_SEC: z.coerce.number().int().positive().default(1800),
+  CACHE_PURGE_SECRET: z.string().min(1).optional(),
 });
 
 let parsedEnv: ParsedEnv | null = null;
 
 export function getEnv(env: Env): ParsedEnv {
   if (!parsedEnv) {
-    parsedEnv = envSchema.parse(env);
+    const parsed = envSchema.parse(env);
+    parsedEnv = {
+      ...parsed,
+      SUPABASE_KEY: parsed.SUPABASE_ANON_KEY,
+    } as ParsedEnv;
   }
   return parsedEnv;
 }

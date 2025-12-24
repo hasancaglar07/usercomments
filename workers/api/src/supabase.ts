@@ -5,7 +5,7 @@ let supabase: SupabaseClient | null = null;
 
 export function getSupabaseClient(env: ParsedEnv): SupabaseClient {
   if (!supabase) {
-    supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,

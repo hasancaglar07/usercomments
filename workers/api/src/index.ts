@@ -260,6 +260,10 @@ const commentQuerySchema = z.object({
   limit: limitSchema,
 });
 
+const cachePurgeSchema = z.object({
+  reviewId: z.string().uuid(),
+});
+
 const createReviewSchema = z
   .object({
     title: z.string().min(3),
@@ -572,23 +576,30 @@ function getQueryObject(url: URL): Record<string, string> {
   return Object.fromEntries(url.searchParams.entries());
 }
 
-function applyCors(response: Response): Response {
-  response.headers.set("Access-Control-Allow-Origin", "*");
+function applyCors(response: Response, request?: Request): Response {
+  const origin = request?.headers.get("Origin");
+  if (origin) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Vary", "Origin");
+  } else {
+    response.headers.set("Access-Control-Allow-Origin", "*");
+  }
+
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "Authorization, Content-Type"
+    "Authorization, Content-Type, x-request-id, sentry-trace, baggage"
   );
   response.headers.set(
     "Access-Control-Allow-Methods",
-    "GET,POST,PATCH,OPTIONS"
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
   );
   response.headers.set("Access-Control-Max-Age", "86400");
   return response;
 }
 
-function handleOptions(): Response {
+function handleOptions(request: Request): Response {
   const response = new Response(null, { status: 204 });
-  return applyCors(response);
+  return applyCors(response, request);
 }
 
 function addRequestId(response: Response, requestId: string): Response {
@@ -1486,6 +1497,47 @@ async function handlePresign({ env, request }: HandlerContext): Promise<Response
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
+async function handleInternalCachePurge({
+  env,
+  request,
+  url,
+}: HandlerContext): Promise<Response> {
+  const secret = env.CACHE_PURGE_SECRET;
+  if (!secret) {
+    return errorResponse(403, "Cache purge is not configured");
+  }
+  const provided = request.headers.get("x-cache-purge-secret");
+  if (!provided || provided !== secret) {
+    return errorResponse(401, "Unauthorized");
+  }
+
+  const payload = cachePurgeSchema.parse(await readJson(request));
+  const meta = await fetchReviewMetaById(env, payload.reviewId);
+  if (!meta) {
+    return jsonResponse(
+      { ok: true, purged: 0, urls: 0 },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const urls = buildReviewCacheUrls({
+    origin: url.origin,
+    slug: meta.slug,
+    reviewId: payload.reviewId,
+    categoryId: meta.categoryId ?? null,
+    productId: meta.productId ?? null,
+    productSlug: meta.productSlug ?? null,
+    productTranslations: meta.productTranslations,
+    authorUsername: meta.authorUsername ?? null,
+    translations: meta.translations,
+  });
+  const purged = await purgeCacheUrls(urls);
+  return jsonResponse(
+    { ok: true, purged, urls: urls.length },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
 async function handleSitemapReviewsJson({ env, url }: HandlerContext): Promise<Response> {
   const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
   const result = await fetchSitemapReviews(env, part, pageSize, lang);
@@ -2303,6 +2355,12 @@ const routes: Route[] = [
     noStore: true,
   },
   {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/internal/cache/purge" }),
+    handler: handleInternalCachePurge,
+    noStore: true,
+  },
+  {
     method: "GET",
     pattern: new URLPattern({ pathname: "/api/sitemap/reviews" }),
     handler: handleSitemapReviewsJson,
@@ -2513,7 +2571,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const requestId = crypto.randomUUID();
     if (request.method === "OPTIONS") {
-      return addRequestId(handleOptions(), requestId);
+      return addRequestId(handleOptions(request), requestId);
     }
 
     try {
@@ -2521,7 +2579,7 @@ export default {
       const match = matchRoute(request);
       if (!match) {
         const notFound = errorResponse(404, "Not Found");
-        return addRequestId(applyCors(notFound), requestId);
+        return addRequestId(applyCors(notFound, request), requestId);
       }
 
       const url = new URL(request.url);
@@ -2545,7 +2603,7 @@ export default {
         withNoStore.headers.set("Cache-Control", "no-store");
       }
 
-      const withCors = applyCors(withNoStore);
+      const withCors = applyCors(withNoStore, request);
       return addRequestId(withCors, requestId);
     } catch (error) {
       let response: Response;
@@ -2574,7 +2632,7 @@ export default {
         response = errorResponse(500, message);
       }
 
-      const withCors = applyCors(response);
+      const withCors = applyCors(response, request);
       return addRequestId(withCors, requestId);
     }
   },
