@@ -157,7 +157,21 @@ function buildUploadHealth(env: ParsedEnv): UploadHealth {
 const cursorSchema = z
   .string()
   .optional()
-  .refine((value) => !value || !Number.isNaN(Date.parse(value)), {
+  .refine((value) => {
+    if (!value) {
+      return true;
+    }
+    const [datePart, idPart] = value.split("|");
+    if (Number.isNaN(Date.parse(datePart))) {
+      return false;
+    }
+    if (idPart) {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idPart
+      );
+    }
+    return true;
+  }, {
     message: "cursor must be a valid date string",
   });
 

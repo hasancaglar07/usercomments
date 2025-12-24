@@ -3,17 +3,35 @@ import sys
 from typing import Optional
 
 
-def setup_logging(log_file: Optional[str] = None) -> logging.Logger:
+class RunIdFilter(logging.Filter):
+    def __init__(self, run_id: Optional[str] = None) -> None:
+        super().__init__()
+        self.run_id = run_id or "-"
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "run_id"):
+            record.run_id = self.run_id
+        return True
+
+
+def _ensure_run_id_filter(logger: logging.Logger, run_id: Optional[str]) -> None:
+    for existing in logger.filters:
+        if isinstance(existing, RunIdFilter):
+            existing.run_id = run_id or "-"
+            return
+    logger.addFilter(RunIdFilter(run_id))
+
+
+def setup_logging(log_file: Optional[str] = None, run_id: Optional[str] = None) -> logging.Logger:
     logger = logging.getLogger("ingestor")
     logger.setLevel(logging.INFO)
 
-
-
     if logger.handlers:
+        _ensure_run_id_filter(logger, run_id)
         return logger
 
     formatter = logging.Formatter(
-        fmt="%(asctime)s | %(levelname)s | %(message)s",
+        fmt="%(asctime)s | %(levelname)s | %(run_id)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
@@ -35,4 +53,5 @@ def setup_logging(log_file: Optional[str] = None) -> logging.Logger:
         logger.addHandler(file_handler)
 
 
+    _ensure_run_id_filter(logger, run_id)
     return logger

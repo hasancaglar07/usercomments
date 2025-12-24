@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import argparse
+import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin, urlparse
@@ -266,6 +267,10 @@ async def _process_review_item_async(
         source_url = item["source_url"]
         logger.info("Starting processing: %s", source_url)
         await asyncio.to_thread(mark_processing, supabase, source_url)
+        async def _skip(reason: str, retries: int = 999) -> bool:
+            logger.warning("Skip review: reason=%s source_url=%s", reason, source_url)
+            await asyncio.to_thread(mark_failed, supabase, source_url, retries, reason)
+            return False
         try:
             html = await _fetch_html_async(http, source_url, logger)
             detail = parse_review_detail(html, source_url, config.source_base_url, logger)
@@ -318,19 +323,13 @@ async def _process_review_item_async(
                         detail.subcategory_name = ai_data["subcategory_name"]
                 else:
                     if not detail.content_html or len(detail.content_html) < 100:
-                        logger.warning("Skipping %s: Content remains too short (<100) after AI fallback", source_url)
-                        await asyncio.to_thread(mark_failed, supabase, source_url, 999, "Content too short")
-                        return False
+                        return await _skip("Content too short")
 
             if not detail.image_urls:
-                logger.warning("Skipping %s: No review images found", source_url)
-                await asyncio.to_thread(mark_failed, supabase, source_url, 999, "No review images")
-                return False
+                return await _skip("No review images")
                 
             if not detail.product_image_url:
-                logger.warning("Skipping %s: No product image found", source_url)
-                await asyncio.to_thread(mark_failed, supabase, source_url, 999, "No product image")
-                return False
+                return await _skip("No product image")
             
             logger.info("Quality check passed: %d chars, %d images, product image OK", 
                        len(detail.content_html), len(detail.image_urls))
@@ -413,7 +412,7 @@ async def _process_review_item_async(
                 )
             except Exception as te:
                 translation_error = str(te)
-                logger.warning("Translation failed for %s: %s - will save without translations", source_url, te)
+                logger.warning("Translation skipped: reason=%s source_url=%s", translation_error, source_url)
                 translations = {}
             
             translation_payloads = []
@@ -454,7 +453,12 @@ async def _process_review_item_async(
 
             if review_id and not dry_run:
                 if translation_payloads:
-                    await asyncio.to_thread(upsert_review_translations, supabase, review_id, translation_payloads, logger)
+                    try:
+                        await asyncio.to_thread(upsert_review_translations, supabase, review_id, translation_payloads, logger)
+                    except Exception as exc:
+                        logger.error("Translation upsert failed for %s: %s", source_url, exc)
+                elif not translation_error:
+                    logger.warning("Translation empty for %s", source_url)
                 content_hash = sha1_text(f"{detail.title}|{detail.content_html}")
                 await asyncio.to_thread(mark_processed, supabase, source_url, content_hash)
             
@@ -468,8 +472,9 @@ async def _process_review_item_async(
             await asyncio.to_thread(mark_failed, supabase, source_url, retries, str(exc))
             return False
 
-async def run_once_async(config: Config, dry_run: bool) -> None:
-    logger = setup_logging(config.log_file)
+async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = None) -> None:
+    run_id = run_id or uuid.uuid4().hex[:8]
+    logger = setup_logging(config.log_file, run_id=run_id)
     http = HttpClient(
         timeout_seconds=config.http_timeout_seconds,
         max_retries=config.http_max_retries,
@@ -645,11 +650,12 @@ async def main_async() -> None:
     if args.once:
         await run_once_async(config, args.dry_run)
     else:
-        logger = setup_logging(config.log_file)
         while True:
+            run_id = uuid.uuid4().hex[:8]
+            logger = setup_logging(config.log_file, run_id=run_id)
             start = datetime.now(timezone.utc)
             try:
-                await run_once_async(config, args.dry_run)
+                await run_once_async(config, args.dry_run, run_id=run_id)
             except Exception as e:
                 logger.error("Loop error: %s", e)
             elapsed = (datetime.now(timezone.utc) - start).total_seconds()

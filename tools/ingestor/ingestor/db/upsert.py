@@ -119,6 +119,8 @@ def upsert_review_translations(
                                    translation["lang"], attempt + 1, payload["slug"])
                 else:
                     raise
+        else:
+            raise RuntimeError(f"Failed to upsert review translation after retries (lang={translation['lang']})")
 
 def upsert_category_translations(
     supabase: SupabaseClient,
@@ -153,6 +155,8 @@ def upsert_category_translations(
                                    translation["lang"], attempt + 1, payload["slug"])
                 else:
                     raise
+        else:
+            raise RuntimeError(f"Failed to upsert category translation after retries (lang={translation['lang']})")
 
 def upsert_product(
     supabase: SupabaseClient,
@@ -215,6 +219,8 @@ def upsert_product_translations(
                                    translation["lang"], attempt + 1, payload["slug"])
                 else:
                     raise
+        else:
+            raise RuntimeError(f"Failed to upsert product translation after retries (lang={translation['lang']})")
 
 def upsert_product_image(
     supabase: SupabaseClient,
@@ -240,9 +246,12 @@ def upsert_product_image(
 def link_product_to_category(
     supabase: SupabaseClient,
     product_id: str,
-    category_id: int,
+    category_id: Optional[int],
     logger: logging.Logger,
 ) -> None:
+    if category_id is None:
+        logger.warning("Skip product-category link: missing category_id for product %s", product_id)
+        return
     payload = {
         "product_id": product_id,
         "category_id": category_id,

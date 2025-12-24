@@ -47,11 +47,9 @@ class ReviewDetail(BaseModel):
     pros: List[str] = Field(default_factory=list)
     cons: List[str] = Field(default_factory=list)
 
-    @validator("content_html")
+    @validator("content_html", pre=True, always=True)
     def content_not_empty(cls, v):
-        if not v or len(v.strip()) < 50:
-            raise ValueError("Content is too short or empty")
-        return v
+        return v or ""
 
 
 
@@ -179,6 +177,7 @@ def _extract_breadcrumbs(soup: BeautifulSoup) -> Tuple[Optional[str], Optional[s
 
 
 def _extract_content_html(soup: BeautifulSoup) -> str:
+    cleaned = ""
     for selector in REVIEW_CONTENT_SELECTORS:
         node = soup.select_one(selector)
         if not node:
@@ -187,9 +186,7 @@ def _extract_content_html(soup: BeautifulSoup) -> str:
         cleaned = clean_html(raw_html)
         if cleaned:
             return cleaned
-    if not cleaned:
-        logger.debug("No content found in %s with selectors. HTML start: %s", soup.title.string if soup.title else "No Title", str(soup)[:500])
-    return cleaned or ""
+    return cleaned
 
 
 
@@ -327,5 +324,4 @@ def parse_review_detail(html: str, source_url: str, base_url: str, logger: loggi
         pros=pros,
         cons=cons,
     )
-
 

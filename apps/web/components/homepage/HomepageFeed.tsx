@@ -112,6 +112,30 @@ function hasPhotos(review: Review): boolean {
   );
 }
 
+function sortHomepageCardsByLatest(cards: ReviewCardHomepageData[]) {
+  return [...cards].sort((left, right) => {
+    const leftTime = Date.parse(left.review.createdAt);
+    const rightTime = Date.parse(right.review.createdAt);
+    if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) {
+      const leftKey = left.review.id ?? left.review.slug;
+      const rightKey = right.review.id ?? right.review.slug;
+      return rightKey.localeCompare(leftKey);
+    }
+    if (Number.isNaN(leftTime)) {
+      return 1;
+    }
+    if (Number.isNaN(rightTime)) {
+      return -1;
+    }
+    if (leftTime !== rightTime) {
+      return rightTime - leftTime;
+    }
+    const leftKey = left.review.id ?? left.review.slug;
+    const rightKey = right.review.id ?? right.review.slug;
+    return rightKey.localeCompare(leftKey);
+  });
+}
+
 function HomepageFeedSkeleton({ count }: { count: number }) {
   return (
     <>
@@ -224,18 +248,23 @@ export default function HomepageFeed({
     setTab((prev) => (prev === nextTab ? prev : nextTab));
   }, [searchParams]);
 
+  const sortedLatestCards = useMemo(
+    () => sortHomepageCardsByLatest(latestCards),
+    [latestCards]
+  );
+
   const visibleCards = useMemo(() => {
     if (tab === "popular") {
       return popularCards;
     }
     if (tab === "newest") {
-      return latestCards.slice(0, pageSize);
+      return sortedLatestCards.slice(0, pageSize);
     }
     if (tab === "photos") {
-      return latestCards.filter((card) => hasPhotos(card.review));
+      return sortedLatestCards.filter((card) => hasPhotos(card.review));
     }
-    return latestCards;
-  }, [latestCards, pageSize, popularCards, tab]);
+    return sortedLatestCards;
+  }, [pageSize, popularCards, sortedLatestCards, tab]);
 
   useEffect(() => {
     if (latestCards.length === 0) {

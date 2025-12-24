@@ -176,16 +176,26 @@ export async function fetchLatestReviews(
   lang: SupportedLanguage
 ): Promise<CursorResult<Review>> {
   const supabase = getSupabaseClient(env);
+  const cursorParts = cursor ? cursor.split("|") : null;
+  const cursorCreatedAt = cursorParts?.[0];
+  const cursorId = cursorParts?.[1];
   let query = supabase
     .from("reviews")
     .select(reviewListSelectWithTranslations)
     .eq("review_translations.lang", lang)
     .eq("status", "published")
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit);
 
-  if (cursor) {
-    query = query.lt("created_at", cursor);
+  if (cursorCreatedAt) {
+    if (cursorId) {
+      query = query.or(
+        `created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`
+      );
+    } else {
+      query = query.lt("created_at", cursorCreatedAt);
+    }
   }
 
   const { data, error } = await query;
@@ -195,7 +205,11 @@ export async function fetchLatestReviews(
   }
 
   const items = (data ?? []).map((row) => mapReviewRow(row as DbReviewRow, { lang }));
-  const nextCursor = items.length > 0 ? items[items.length - 1].createdAt : null;
+  const lastItem = items.length > 0 ? items[items.length - 1] : null;
+  const nextCursor =
+    lastItem?.createdAt && lastItem?.id
+      ? `${lastItem.createdAt}|${lastItem.id}`
+      : lastItem?.createdAt ?? null;
 
   return { items, nextCursor };
 }

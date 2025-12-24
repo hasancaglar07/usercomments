@@ -16,10 +16,15 @@ _ALLOWED_TAGS = {
     "u",
     "a",
     "blockquote",
+    "div",
+    "h2",
+    "h3",
+    "h4",
 }
 
 _ALLOWED_ATTRS = {
     "a": {"href", "title", "rel", "target"},
+    "div": {"class"},
 }
 
 _REMOVE_TAGS = {"script", "style", "noscript", "iframe"}
