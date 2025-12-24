@@ -30,6 +30,7 @@ import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
+export const runtime = "edge";
 export const revalidate = 60;
 
 const HOMEPAGE_LIMIT = 9;

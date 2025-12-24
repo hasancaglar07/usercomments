@@ -5,6 +5,7 @@ import {
 } from "@/src/lib/sitemap";
 import { isSupportedLanguage, SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
 
+export const runtime = "edge";
 export const dynamic = "force-static";
 export const revalidate = 1800;
 

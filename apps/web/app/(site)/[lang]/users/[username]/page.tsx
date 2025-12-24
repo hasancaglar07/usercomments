@@ -46,6 +46,7 @@ export async function generateMetadata(
   const username = params.username;
   let title = `${username} Profile`;
   let description = `View ${username}'s reviews and profile.`;
+  let shouldIndex = true;
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
@@ -55,18 +56,30 @@ export async function generateMetadata(
       if (profile.bio) {
         description = profile.bio;
       }
+      const reviewCount = profile.stats?.reviewCount ?? 0;
+      const hasBio = Boolean(profile.bio && profile.bio.trim().length > 0);
+      shouldIndex = reviewCount > 0 || hasBio;
     } catch {
       // keep defaults
     }
   }
 
-  return buildMetadata({
+  const metadata = buildMetadata({
     title,
     description,
     path: `/users/${encodeURIComponent(username)}`,
     lang,
     type: "website",
   });
+  return shouldIndex
+    ? metadata
+    : {
+        ...metadata,
+        robots: {
+          index: false,
+          follow: true,
+        },
+      };
 }
 
 type UserProfilePageProps = {

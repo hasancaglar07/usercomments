@@ -7,6 +7,7 @@ export const SITEMAP_CACHE_SECONDS = 1800;
 type SitemapEntry = {
   loc: string;
   lastmod?: string;
+  images?: string[];
 };
 
 function escapeXml(value: string): string {
@@ -19,13 +20,25 @@ function escapeXml(value: string): string {
 }
 
 export function buildUrlset(entries: SitemapEntry[]): string {
+  const hasImages = entries.some((entry) => entry.images && entry.images.length > 0);
   const xmlEntries = entries
     .map((entry) => {
       const lastmod = entry.lastmod ? `<lastmod>${entry.lastmod}</lastmod>` : "";
-      return `<url><loc>${escapeXml(entry.loc)}</loc>${lastmod}</url>`;
+      const images = entry.images?.length
+        ? entry.images
+            .map(
+              (image) =>
+                `<image:image><image:loc>${escapeXml(image)}</image:loc></image:image>`
+            )
+            .join("")
+        : "";
+      return `<url><loc>${escapeXml(entry.loc)}</loc>${lastmod}${images}</url>`;
     })
     .join("");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${xmlEntries}</urlset>`;
+  const imageNamespace = hasImages
+    ? ' xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"'
+    : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${imageNamespace}>${xmlEntries}</urlset>`;
 }
 
 export async function buildLanguageSitemapXml(
@@ -90,6 +103,7 @@ export async function buildLanguageSitemapXml(
         entries.push({
           loc: `${siteUrl}${localizePath(`/content/${review.slug}`, lang)}`,
           lastmod: review.updatedAt ?? review.createdAt,
+          images: Array.isArray(review.imageUrls) ? review.imageUrls : undefined,
         });
       }
     }

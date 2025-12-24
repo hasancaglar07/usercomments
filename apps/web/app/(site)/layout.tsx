@@ -8,6 +8,8 @@ import { getCategories } from "@/src/lib/api";
 import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
 
+export const runtime = "edge";
+
 const SITE_NAME = "UserReview";
 export const metadata: Metadata = {
   title: "UserReview | Real User Reviews & Honest Product Insights",

@@ -1,32 +1,13 @@
 import { getSiteUrl } from "@/src/lib/seo";
 import type { NextRequest } from "next/server";
 import { DEFAULT_LANGUAGE, localizePath } from "@/src/lib/i18n";
-import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
+import { buildUrlset, SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 
 export const dynamic = "force-static";
 export const revalidate = 1800;
 
 export function generateStaticParams() {
   return [];
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function buildUrlset(urls: Array<{ loc: string; lastmod?: string }>): string {
-  const entries = urls
-    .map((item) => {
-      const lastmod = item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : "";
-      return `<url><loc>${escapeXml(item.loc)}</loc>${lastmod}</url>`;
-    })
-    .join("");
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</urlset>`;
 }
 
 export async function GET(
@@ -63,10 +44,20 @@ export async function GET(
   }
 
   const data = await response.json();
-  const urls = (data.items ?? []).map((item: { slug: string; updatedAt?: string | null; createdAt?: string }) => ({
-    loc: `${siteUrl}${localizePath(`/content/${item.slug}`, lang)}`,
-    lastmod: item.updatedAt ?? item.createdAt,
-  }));
+  const urls = (
+    data.items ?? []
+  ).map(
+    (item: {
+      slug: string;
+      updatedAt?: string | null;
+      createdAt?: string;
+      imageUrls?: string[];
+    }) => ({
+      loc: `${siteUrl}${localizePath(`/content/${item.slug}`, lang)}`,
+      lastmod: item.updatedAt ?? item.createdAt,
+      images: Array.isArray(item.imageUrls) ? item.imageUrls : undefined,
+    })
+  );
 
   return new Response(buildUrlset(urls), {
     headers: {

@@ -56,10 +56,20 @@ export async function GET(
 
   const data = await response.json();
   const siteUrl = getSiteUrl();
-  const entries = (data.items ?? []).map((item: { slug: string; updatedAt?: string | null; createdAt?: string }) => ({
-    loc: `${siteUrl}${localizePath(`/products/${item.slug}`, langValue)}`,
-    lastmod: item.updatedAt ?? item.createdAt,
-  }));
+  const entries = (
+    data.items ?? []
+  ).map(
+    (item: {
+      slug: string;
+      updatedAt?: string | null;
+      createdAt?: string;
+      imageUrls?: string[];
+    }) => ({
+      loc: `${siteUrl}${localizePath(`/products/${item.slug}`, langValue)}`,
+      lastmod: item.updatedAt ?? item.createdAt,
+      images: Array.isArray(item.imageUrls) ? item.imageUrls : undefined,
+    })
+  );
 
   return new Response(buildUrlset(entries), {
     headers: {
