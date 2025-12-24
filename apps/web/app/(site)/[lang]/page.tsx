@@ -237,7 +237,7 @@ export default async function Page(props: HomePageProps) {
   );
   const filterParam =
     typeof searchParams?.filter === "string" ? searchParams.filter : undefined;
-  const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
+  const apiConfigured = true; // Fallback provided in src/lib/api.ts
   let recentCards = allowMockFallback ? homepageReviewCards : [];
   let popularFeedCards = allowMockFallback ? homepageReviewCards : [];
   let topReviewers = allowMockFallback ? homepageTopReviewers : [];
