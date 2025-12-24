@@ -8,6 +8,7 @@ import { t } from "@/src/lib/copy";
 import type { Category } from "@/src/types";
 import type { HeaderCategoryLinks } from "../../components/layout/Header";
 
+export const runtime = "edge";
 const HEADER_CATEGORY_ENTRIES = [
   { key: "beauty", labelKey: "header.nav.beauty", pillKey: "catalog.categoryPill.beauty" },
   { key: "tech", labelKey: "header.nav.tech", pillKey: "catalog.categoryPill.technology" },
