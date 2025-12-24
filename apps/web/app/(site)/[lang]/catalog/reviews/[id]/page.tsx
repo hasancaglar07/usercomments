@@ -46,7 +46,12 @@ export async function generateMetadata(
   props: CategoryPageProps
 ): Promise<Metadata> {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const lang = normalizeLanguage(params.lang);
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
+  const subCategoryId = parseOptionalNumber(searchParams?.subCategoryId);
   const categoryId = Number(params.id);
   let categoryLabel: string | undefined;
 
@@ -63,7 +68,7 @@ export async function generateMetadata(
     ? t(lang, "category.meta.titleWithLabel", { label: categoryLabel })
     : t(lang, "category.meta.titleDefault");
 
-  return buildMetadata({
+  const metadata = buildMetadata({
     title,
     description: categoryLabel
       ? t(lang, "category.meta.descriptionWithLabel", { label: categoryLabel })
@@ -72,6 +77,23 @@ export async function generateMetadata(
     lang,
     type: "website",
   });
+  const isIndexable =
+    page === 1 &&
+    pageSize === DEFAULT_PAGE_SIZE &&
+    sort === "latest" &&
+    !subCategoryId;
+
+  if (!isIndexable) {
+    return {
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
+
+  return metadata;
 }
 
 type CategoryPageProps = {

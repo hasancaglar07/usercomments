@@ -42,8 +42,6 @@ type PageProps = {
   params: Promise<{ lang: string; slug: string }>;
 };
 
-const SITE_NAME = "UserReview";
-
 const mockReviewDetail = homepageReviewCards[0].review;
 const mockComments: Comment[] = [];
 
@@ -254,6 +252,43 @@ export default async function Page(props: PageProps) {
   );
   const votesUp = review.votesUp ?? 0;
   const reviewUrl = toAbsoluteUrl(localizePath(`/content/${review.slug}`, lang));
+  const authorUrl = toAbsoluteUrl(
+    localizePath(
+      `/users/${encodeURIComponent(review.author.username.toLowerCase())}`,
+      lang
+    )
+  );
+  const organizationId = `${toAbsoluteUrl(localizePath("/", lang))}#organization`;
+  const productUrl = productLink ? toAbsoluteUrl(productLink) : undefined;
+  const reviewImageSource =
+    review.photoUrls?.[0] ?? productDetail?.images?.[0]?.url ?? null;
+  const reviewImage = reviewImageSource
+    ? toAbsoluteUrl(reviewImageSource)
+    : undefined;
+  const reviewRatingValue =
+    ratingAvg > 0 ? Number(ratingAvg.toFixed(1)) : undefined;
+  const positiveNotes =
+    review.pros && review.pros.length > 0
+      ? {
+          "@type": "ItemList",
+          itemListElement: review.pros.map((note, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: note,
+          })),
+        }
+      : undefined;
+  const negativeNotes =
+    review.cons && review.cons.length > 0
+      ? {
+          "@type": "ItemList",
+          itemListElement: review.cons.map((note, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: note,
+          })),
+        }
+      : undefined;
   const breadcrumbItems = [
     {
       "@type": "ListItem",
@@ -309,28 +344,37 @@ export default async function Page(props: PageProps) {
     author: {
       "@type": "Person",
       name: authorName,
+      url: authorUrl,
+      image: authorPic ? toAbsoluteUrl(authorPic) : undefined,
     },
     itemReviewed: {
       "@type": "Product",
+      "@id": productUrl ? `${productUrl}#product` : undefined,
       name: productName,
       image: productImage ? [toAbsoluteUrl(productImage)] : undefined,
-      url: productLink ? toAbsoluteUrl(productLink) : undefined,
+      url: productUrl,
     },
     reviewRating:
       ratingAvg > 0
         ? {
-          "@type": "Rating",
-          ratingValue: ratingAvg.toFixed(1),
-          bestRating: "5",
-          worstRating: "1",
-        }
+            "@type": "Rating",
+            ratingValue: reviewRatingValue ?? ratingAvg,
+            bestRating: 5,
+            worstRating: 1,
+          }
         : undefined,
     reviewBody: review.excerpt ?? undefined,
     datePublished: review.createdAt,
+    image: reviewImage ? [reviewImage] : undefined,
     inLanguage: lang,
+    positiveNotes,
+    negativeNotes,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": reviewUrl,
+    },
     publisher: {
-      "@type": "Organization",
-      name: SITE_NAME,
+      "@id": organizationId,
     },
     url: reviewUrl,
   };

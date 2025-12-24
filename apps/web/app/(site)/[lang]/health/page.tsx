@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 export default async function Page() {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   let apiStatus = "API base URL is not set.";

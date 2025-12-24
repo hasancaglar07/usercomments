@@ -1,6 +1,7 @@
-import HomepageFeed from "@/components/homepage/HomepageFeed";
 import Link from "next/link";
+import { Suspense } from "react";
 import type { Metadata } from "next";
+import HomepageFeed from "@/components/homepage/HomepageFeed";
 import { SidebarHomepage } from "@/components/layout/Sidebar";
 import type { ReviewCardHomepageData } from "@/components/cards/ReviewCard";
 import type { HomepageTopReviewer } from "@/components/layout/Sidebar";
@@ -27,6 +28,7 @@ import { homepageReviewCards } from "@/data/mock/reviews";
 import { homepageTopReviewers } from "@/data/mock/users";
 import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
 export const revalidate = 60;
 
@@ -190,8 +192,6 @@ type TrendingProductCard = {
   ratingStars: StarType[];
   ratingCountLabel: string;
 };
-
-import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
 function buildTrendingProductCards(
   products: Product[],
@@ -407,13 +407,15 @@ export default async function Page(props: HomePageProps) {
         </section>
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 w-full lg:w-2/3">
-            <HomepageFeed
-              initialCards={recentCards}
-              initialNextCursor={nextCursor}
-              initialPopularCards={popularFeedCards}
-              categories={categories}
-              pageSize={HOMEPAGE_LIMIT}
-            />
+            <Suspense fallback={<div className="animate-pulse space-y-4 shadow-sm h-64 bg-gray-100 rounded-lg" />}>
+              <HomepageFeed
+                initialCards={recentCards}
+                initialNextCursor={nextCursor}
+                initialPopularCards={popularFeedCards}
+                categories={categories}
+                pageSize={HOMEPAGE_LIMIT}
+              />
+            </Suspense>
           </div>
           <SidebarHomepage
             lang={lang}

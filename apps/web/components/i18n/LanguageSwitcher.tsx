@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   SUPPORTED_LANGUAGES,
@@ -17,7 +18,7 @@ type LanguageSwitcherProps = {
   selectClassName?: string;
 };
 
-export default function LanguageSwitcher({
+function LanguageSwitcherContent({
   currentLang,
   label,
   className,
@@ -64,5 +65,13 @@ export default function LanguageSwitcher({
         ))}
       </select>
     </div>
+  );
+}
+
+export default function LanguageSwitcher(props: LanguageSwitcherProps) {
+  return (
+    <Suspense fallback={<div className={props.className} />}>
+      <LanguageSwitcherContent {...props} />
+    </Suspense>
   );
 }

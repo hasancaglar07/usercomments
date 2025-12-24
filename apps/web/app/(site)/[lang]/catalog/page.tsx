@@ -52,15 +52,59 @@ const SORT_PARAM_VALUES = new Set<CatalogSortParam>(
   SORT_OPTIONS.map((option) => option.value)
 );
 
-export async function generateMetadata({ params }: CatalogPageProps): Promise<Metadata> {
-  const lang = normalizeLanguage((await params).lang);
-  return buildMetadata({
-    title: t(lang, "catalog.meta.title"),
-    description: t(lang, "catalog.meta.description"),
+export async function generateMetadata(
+  props: CatalogPageProps
+): Promise<Metadata> {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const lang = normalizeLanguage(params.lang);
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
+  const categoryId = parseOptionalNumber(searchParams?.categoryId);
+  let categoryLabel: string | undefined;
+
+  if (categoryId && process.env.NEXT_PUBLIC_API_BASE_URL) {
+    try {
+      const categories = await getCategories(lang);
+      categoryLabel = getCategoryLabel(categories, categoryId);
+    } catch {
+      categoryLabel = undefined;
+    }
+  }
+
+  const baseTitle = t(lang, "catalog.meta.title");
+  const baseDescription = t(lang, "catalog.meta.description");
+  const title = categoryLabel
+    ? t(lang, "category.meta.titleWithLabel", { label: categoryLabel })
+    : baseTitle;
+  const description = categoryLabel
+    ? t(lang, "category.meta.descriptionWithLabel", { label: categoryLabel })
+    : baseDescription;
+  const metadata = buildMetadata({
+    title,
+    description,
     path: "/catalog",
     lang,
     type: "website",
   });
+  const isIndexable =
+    page === 1 &&
+    pageSize === DEFAULT_PAGE_SIZE &&
+    sort === DEFAULT_SORT &&
+    !categoryId;
+
+  if (!isIndexable) {
+    return {
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
+
+  return metadata;
 }
 
 const TOP_AUTHOR_RANKS = [

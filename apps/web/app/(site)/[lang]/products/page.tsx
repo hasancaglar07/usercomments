@@ -6,6 +6,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import type { Category } from "@/src/types";
 import { getCategories, getProducts } from "@/src/lib/api";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
+import { getCategoryLabel } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
@@ -57,14 +58,53 @@ export async function generateMetadata(
   props: ProductsPageProps
 ): Promise<Metadata> {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const lang = normalizeLanguage(params.lang);
-  return buildMetadata({
-    title: t(lang, "products.meta.title"),
-    description: t(lang, "products.meta.description"),
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
+  const categoryId = parseOptionalNumber(searchParams?.categoryId);
+  let categoryLabel: string | undefined;
+
+  if (categoryId && process.env.NEXT_PUBLIC_API_BASE_URL) {
+    try {
+      const categories = await getCategories(lang);
+      categoryLabel = getCategoryLabel(categories, categoryId);
+    } catch {
+      categoryLabel = undefined;
+    }
+  }
+
+  const title = categoryLabel
+    ? t(lang, "products.heading.withCategory", { label: categoryLabel })
+    : t(lang, "products.meta.title");
+  const description = categoryLabel
+    ? t(lang, "products.description.withCategory", { label: categoryLabel })
+    : t(lang, "products.meta.description");
+  const metadata = buildMetadata({
+    title,
+    description,
     path: "/products",
     lang,
     type: "website",
   });
+  const isIndexable =
+    page === 1 &&
+    pageSize === DEFAULT_PAGE_SIZE &&
+    sort === "latest" &&
+    !categoryId;
+
+  if (!isIndexable) {
+    return {
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
+
+  return metadata;
 }
 
 export default async function Page(props: ProductsPageProps) {

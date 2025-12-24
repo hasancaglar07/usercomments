@@ -46,7 +46,11 @@ function parseSort(value?: string): SortValue {
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const lang = normalizeLanguage(params.lang);
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
   const categoryId = Number(params.id);
   let categoryLabel: string | undefined;
 
@@ -63,7 +67,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     ? t(lang, "productList.meta.titleWithLabel", { label: categoryLabel })
     : t(lang, "productList.meta.titleDefault");
 
-  return buildMetadata({
+  const metadata = buildMetadata({
     title,
     description: categoryLabel
       ? t(lang, "productList.meta.descriptionWithLabel", { label: categoryLabel })
@@ -72,6 +76,20 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     lang,
     type: "website",
   });
+  const isIndexable =
+    page === 1 && pageSize === DEFAULT_PAGE_SIZE && sort === "latest";
+
+  if (!isIndexable) {
+    return {
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
+
+  return metadata;
 }
 
 export default async function Page(props: PageProps) {

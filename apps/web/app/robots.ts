@@ -11,6 +11,8 @@ export default function robots(): MetadataRoute.Robots {
         "/user/settings",
         "/node/add/review",
         "/forgot-password",
+        "/search",
+        "/health",
     ];
 
     const rules: MetadataRoute.Robots["rules"] = {

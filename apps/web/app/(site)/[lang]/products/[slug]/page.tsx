@@ -200,11 +200,14 @@ export default async function Page(props: PageProps) {
   const ratingAvg = product.stats?.ratingAvg ?? 0;
   const ratingCount = product.stats?.ratingCount ?? product.stats?.reviewCount ?? 0;
   const reviewCount = product.stats?.reviewCount ?? 0;
+  const ratingValue = ratingCount > 0 ? Number(ratingAvg.toFixed(1)) : undefined;
   const recommendUp = product.stats?.recommendUp ?? 0;
   const recommendDown = product.stats?.recommendDown ?? 0;
   const recommendTotal = recommendUp + recommendDown;
   const recommendRate =
     recommendTotal > 0 ? Math.round((recommendUp / recommendTotal) * 100) : null;
+  const categoryNames = categoryLabels.length > 0 ? categoryLabels : undefined;
+  const productImageUrls = product.images?.map((image) => toAbsoluteUrl(image.url));
   const productImage = getOptimizedImageUrl(
     product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE,
     900
@@ -243,7 +246,11 @@ export default async function Page(props: PageProps) {
     "@id": `${productUrl}#product`,
     name: product.name,
     description: product.description ?? undefined,
-    image: product.images?.map((image) => toAbsoluteUrl(image.url)),
+    image: productImageUrls,
+    category: categoryNames,
+    inLanguage: lang,
+    datePublished: product.createdAt ?? undefined,
+    dateModified: product.updatedAt ?? undefined,
     brand: product.brand?.name
       ? {
           "@type": "Brand",
@@ -254,11 +261,11 @@ export default async function Page(props: PageProps) {
       ratingCount > 0
         ? {
             "@type": "AggregateRating",
-            ratingValue: ratingAvg.toFixed(1),
+            ratingValue: ratingValue ?? ratingAvg,
             ratingCount,
             reviewCount,
-            bestRating: "5",
-            worstRating: "1",
+            bestRating: 5,
+            worstRating: 1,
           }
         : undefined,
     url: productUrl,

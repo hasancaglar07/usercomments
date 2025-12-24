@@ -206,13 +206,19 @@ export async function generateMetadata(
   const description = query
     ? t(lang, "search.meta.descriptionWithQuery", { query })
     : t(lang, "search.meta.description");
-  const path = query ? `/search?q=${encodeURIComponent(query)}` : "/search";
-
-  return buildMetadata({
+  const metadata = buildMetadata({
     title,
     description,
-    path,
+    path: "/search",
     lang,
     type: "website",
   });
+
+  return {
+    ...metadata,
+    robots: {
+      index: false,
+      follow: true,
+    },
+  };
 }

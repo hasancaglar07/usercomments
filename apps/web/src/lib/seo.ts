@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   DEFAULT_LANGUAGE,
   SUPPORTED_LANGUAGES,
+  getLocale,
   localizePath,
   type SupportedLanguage,
 } from "@/src/lib/i18n";
@@ -70,10 +71,21 @@ export function buildMetadata(options: MetadataOptions): Metadata {
   });
   const url = (alternates?.canonical as string) ?? toAbsoluteUrl(options.path);
   const imageUrl = toAbsoluteUrl(options.image ?? DEFAULT_OG_IMAGE);
+  let metadataBase: URL | undefined;
+  try {
+    metadataBase = new URL(getSiteUrl());
+  } catch {
+    metadataBase = undefined;
+  }
+  const locale = getLocale(options.lang);
+  const alternateLocales = SUPPORTED_LANGUAGES.filter(
+    (lang) => lang !== options.lang
+  ).map(getLocale);
   const titleSuffix = t(options.lang, "seo.titleSuffix");
   const title = `${options.title} | ${DEFAULT_SITE_NAME} | ${titleSuffix}`;
 
   return {
+    metadataBase,
     title,
     description,
     alternates: {
@@ -86,6 +98,8 @@ export function buildMetadata(options: MetadataOptions): Metadata {
       url,
       siteName: DEFAULT_SITE_NAME,
       type: options.type ?? "website",
+      locale,
+      alternateLocale: alternateLocales.length > 0 ? alternateLocales : undefined,
       images: [{ url: imageUrl }],
     },
     twitter: {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import AddReviewClient from "@/components/reviews/AddReviewClient";
 import { getCategories } from "@/src/lib/api";
 import { allowMockFallback } from "@/src/lib/runtime";
@@ -6,6 +7,13 @@ import { normalizeLanguage } from "@/src/lib/i18n";
 
 type AddReviewPageProps = {
   params: Promise<{ lang: string }>;
+};
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default async function Page(props: AddReviewPageProps) {

@@ -13,13 +13,20 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
-  return buildMetadata({
+  const metadata = buildMetadata({
     title: "Admin Dashboard",
     description: "Manage categories, moderation, and reports.",
     path: "/admin",
     lang,
     type: "website",
   });
+  return {
+    ...metadata,
+    robots: {
+      index: false,
+      follow: true,
+    },
+  };
 }
 
 export default function Page() {
