@@ -38,13 +38,16 @@ export async function fetchUserProfileRecord(
 
   const statsRow = Array.isArray(statsData) ? statsData[0] : null;
 
-  const baseProfile = mapProfileRow(data as {
-    user_id: string;
-    username: string;
-    bio: string | null;
-    profile_pic_url: string | null;
-    created_at: string | null;
-  });
+  const baseProfile = mapProfileRow(
+    data as {
+      user_id: string;
+      username: string;
+      bio: string | null;
+      profile_pic_url: string | null;
+      created_at: string | null;
+    },
+    { r2BaseUrl: env.R2_PUBLIC_BASE_URL }
+  );
   const profile: UserProfile = {
     ...baseProfile,
     stats: {

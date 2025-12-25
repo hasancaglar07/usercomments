@@ -159,7 +159,7 @@ export async function fetchProfileDetailsByUserId(
     bio: string | null;
     profile_pic_url: string | null;
     created_at: string | null;
-  });
+  }, { r2BaseUrl: env.R2_PUBLIC_BASE_URL });
 }
 
 export async function updateProfileByUserId(
@@ -204,5 +204,5 @@ export async function updateProfileByUserId(
     bio: string | null;
     profile_pic_url: string | null;
     created_at: string | null;
-  });
+  }, { r2BaseUrl: env.R2_PUBLIC_BASE_URL });
 }

@@ -180,7 +180,9 @@ export async function fetchPopularReviews(
     throw error;
   }
 
-  return (data ?? []).map((row) => mapReviewRow(row as DbReviewRow, { lang }));
+  return (data ?? []).map((row) =>
+    mapReviewRow(row as DbReviewRow, { lang, r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+  );
 }
 
 export async function fetchLatestReviews(
@@ -218,7 +220,9 @@ export async function fetchLatestReviews(
     throw error;
   }
 
-  const items = (data ?? []).map((row) => mapReviewRow(row as DbReviewRow, { lang }));
+  const items = (data ?? []).map((row) =>
+    mapReviewRow(row as DbReviewRow, { lang, r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+  );
   const lastItem = items.length > 0 ? items[items.length - 1] : null;
   const nextCursor =
     lastItem?.createdAt && lastItem?.id
@@ -287,7 +291,12 @@ export async function fetchReviews(
   }
 
   return {
-    items: (data ?? []).map((row) => mapReviewRow(row as DbReviewRow, { lang })),
+    items: (data ?? []).map((row) =>
+      mapReviewRow(row as DbReviewRow, {
+        lang,
+        r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+      })
+    ),
     pageInfo: buildPaginationInfo(page, pageSize, count ?? 0),
   };
 }
@@ -418,6 +427,7 @@ export async function fetchReviewBySlug(
   return mapReviewRow(mergedReview, {
     lang: translation.lang,
     includeTranslations: true,
+    r2BaseUrl: env.R2_PUBLIC_BASE_URL,
   });
 }
 
@@ -544,7 +554,9 @@ export async function fetchReviewComments(
     throw error;
   }
 
-  const items = (data ?? []).map(mapCommentRow);
+  const items = (data ?? []).map((row) =>
+    mapCommentRow(row as any, { r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+  );
   const nextCursor = items.length > 0 ? items[items.length - 1].createdAt : null;
 
   return { items, nextCursor };
@@ -569,7 +581,9 @@ export async function fetchLatestComments(
   }
 
   // Cast row to match DbComment structure, including reviews relation
-  return (data ?? []).map((row) => mapCommentRow(row as any));
+  return (data ?? []).map((row) =>
+    mapCommentRow(row as any, { r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+  );
 }
 
 export async function createReview(
@@ -830,6 +844,7 @@ export async function fetchReviewsByUserComments(
   const items = rows.map((row) =>
     mapReviewRow(attachTranslation(row as DbReviewRow, translations.get(row.id)), {
       lang,
+      r2BaseUrl: env.R2_PUBLIC_BASE_URL,
     })
   );
   const totalItems = normalizeTotalCount(rows[0]?.total_count);
@@ -877,7 +892,10 @@ export async function fetchSavedReviews(
     lang
   );
   const items = rows.map((review) =>
-    mapReviewRow(attachTranslation(review, translations.get(review.id)), { lang })
+    mapReviewRow(attachTranslation(review, translations.get(review.id)), {
+      lang,
+      r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+    })
   );
 
   return {
@@ -916,7 +934,9 @@ export async function fetchReviewsByUserId(
   }
 
   return {
-    items: (data ?? []).map((row) => mapReviewRow(row as DbReviewRow, { lang })),
+    items: (data ?? []).map((row) =>
+      mapReviewRow(row as DbReviewRow, { lang, r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+    ),
     pageInfo: buildPaginationInfo(page, pageSize, count ?? 0),
   };
 }

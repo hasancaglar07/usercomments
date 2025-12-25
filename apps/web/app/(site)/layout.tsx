@@ -97,6 +97,12 @@ export default async function SiteLayout({
       <body>
         <AuthProvider>
           <Script
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8614212887540857"
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+          <Script
             src="https://www.googletagmanager.com/gtag/js?id=G-829FXRQW1V"
             strategy="afterInteractive"
           />

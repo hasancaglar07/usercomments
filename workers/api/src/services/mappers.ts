@@ -160,6 +160,14 @@ type DbProductRow = {
   product_categories?: { category_id: number | null }[] | null;
 };
 
+function fixUrl(url: string | null | undefined, r2BaseUrl?: string): string | undefined {
+  if (!url) return undefined;
+  if (r2BaseUrl && url.includes(".r2.dev")) {
+    return url.replace(/https:\/\/[^/]+\.r2\.dev/g, r2BaseUrl);
+  }
+  return url;
+}
+
 export function mapCategoryRow(row: DbCategory): Category {
   return {
     id: row.id,
@@ -168,22 +176,26 @@ export function mapCategoryRow(row: DbCategory): Category {
   };
 }
 
-export function mapProfileRow(row: DbProfile): UserProfile {
+export function mapProfileRow(
+  row: DbProfile,
+  options?: { r2BaseUrl?: string }
+): UserProfile {
   return {
     username: row.username,
     displayName: row.username,
     bio: row.bio ?? undefined,
-    profilePicUrl: row.profile_pic_url ?? undefined,
+    profilePicUrl: fixUrl(row.profile_pic_url, options?.r2BaseUrl),
     createdAt: row.created_at ?? undefined,
   };
 }
 
 export function mapReviewRow(
   row: DbReview,
-  options?: { lang?: string; includeTranslations?: boolean }
+  options?: { lang?: string; includeTranslations?: boolean; r2BaseUrl?: string }
 ): Review {
   const profile = pickRelation(row.profiles);
   const product = pickRelation(row.products);
+
   const translations = Array.isArray(row.review_translations)
     ? row.review_translations
       .filter((item): item is NonNullable<DbReview["review_translations"]>[number] =>
@@ -202,7 +214,9 @@ export function mapReviewRow(
   const preferredTranslation = options?.lang
     ? translations.find((translation) => translation.lang === options.lang)
     : translations[0];
-  const photoUrls = normalizeStringArray(row.photo_urls);
+  const photoUrls = normalizeStringArray(row.photo_urls)
+    ?.map((u) => fixUrl(u, options?.r2BaseUrl))
+    .filter((u): u is string => !!u);
   const pros = normalizeStringArray(row.pros);
   const cons = normalizeStringArray(row.cons);
   const excerpt = preferredTranslation?.excerpt ?? row.excerpt ?? "";
@@ -250,7 +264,7 @@ export function mapReviewRow(
     author: {
       username: profile?.username ?? "unknown",
       displayName: profile?.username ?? undefined,
-      profilePicUrl: profile?.profile_pic_url ?? undefined,
+      profilePicUrl: fixUrl(profile?.profile_pic_url, options?.r2BaseUrl),
     },
     createdAt: row.created_at,
     categoryId: categoryId ?? undefined,
@@ -266,7 +280,10 @@ export function mapReviewRow(
   };
 }
 
-export function mapCommentRow(row: DbComment): Comment {
+export function mapCommentRow(
+  row: DbComment,
+  options?: { r2BaseUrl?: string }
+): Comment {
   const profile = pickRelation(row.profiles);
   const review = pickRelation(row.reviews);
   return {
@@ -277,7 +294,7 @@ export function mapCommentRow(row: DbComment): Comment {
     author: {
       username: profile?.username ?? "unknown",
       displayName: profile?.username ?? undefined,
-      profilePicUrl: profile?.profile_pic_url ?? undefined,
+      profilePicUrl: fixUrl(profile?.profile_pic_url, options?.r2BaseUrl),
     },
     review:
       review?.slug && review?.title
@@ -291,7 +308,7 @@ export function mapCommentRow(row: DbComment): Comment {
 
 export function mapProductRow(
   row: DbProductRow,
-  options?: { lang?: string; includeTranslations?: boolean }
+  options?: { lang?: string; includeTranslations?: boolean; r2BaseUrl?: string }
 ): Product {
   const translation = Array.isArray(row.product_translations)
     ? row.product_translations.find((item) => item.lang === options?.lang) ??
@@ -300,7 +317,7 @@ export function mapProductRow(
   const images: ProductImage[] | undefined = Array.isArray(row.product_images)
     ? row.product_images.map((image) => ({
       id: image.id,
-      url: image.url,
+      url: fixUrl(image.url, options?.r2BaseUrl) ?? image.url,
       sortOrder: normalizeNumber(image.sort_order),
     }))
     : undefined;

@@ -36,9 +36,28 @@ type SearchRow = {
     category_id?: number | string | null;
     sub_category_id?: number | string | null;
     created_at: string;
-    profiles?: { username: string | null; profile_pic_url?: string | null } | null;
+    profiles?: { username: string | null; profile_pic_url: string | null } | { username: string | null; profile_pic_url: string | null }[] | null;
     status?: string | null;
-  } | null;
+  } | {
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string | null;
+    content_html?: string | null;
+    rating_avg?: number | string | null;
+    rating_count?: number | string | null;
+    views?: number | string | null;
+    votes_up?: number | string | null;
+    votes_down?: number | string | null;
+    photo_urls?: unknown;
+    photo_count?: number | string | null;
+    comment_count?: number | string | null;
+    category_id?: number | string | null;
+    sub_category_id?: number | string | null;
+    created_at: string;
+    profiles?: { username: string | null; profile_pic_url: string | null } | { username: string | null; profile_pic_url: string | null }[] | null;
+    status?: string | null;
+  }[] | null;
 };
 
 export async function searchReviews(env: ParsedEnv, options: {
@@ -132,7 +151,7 @@ export async function searchReviews(env: ParsedEnv, options: {
           },
         ],
       };
-      return mapReviewRow(merged, { lang });
+      return mapReviewRow(merged as any, { lang, r2BaseUrl: env.R2_PUBLIC_BASE_URL });
     })
     .filter((item): item is Review => Boolean(item));
 

@@ -10,7 +10,7 @@
 	"vars": {
 		"R2_ENDPOINT": "https://25959c8efbcfc8ab377dd8d8d07df1de.r2.cloudflarestorage.com",
 		"R2_BUCKET": "userreviewbudget",
-		"R2_PUBLIC_BASE_URL": "https://pub-2bb2ea117e8a45bead0ddb01b875d8ee.r2.dev",
+		"R2_PUBLIC_BASE_URL": "https://images.userreview.net",
 		"R2_REGION": "auto"
 	}
 }

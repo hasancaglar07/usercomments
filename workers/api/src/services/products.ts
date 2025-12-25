@@ -281,7 +281,10 @@ export async function fetchProducts(
           ...row,
           product_stats: stats ?? undefined,
         };
-      return mapProductRow(merged as DbProductRow, { lang });
+      return mapProductRow(merged as DbProductRow, {
+        lang,
+        r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+      });
     }),
     pageInfo: buildPaginationInfo(page, pageSize, count ?? productRows.length),
   };
@@ -368,7 +371,12 @@ export async function fetchAdminProducts(
   }
 
   return {
-    items: (data ?? []).map((row) => mapProductRow(row as DbProductRow, { lang })),
+    items: (data ?? []).map((row) =>
+      mapProductRow(row as DbProductRow, {
+        lang,
+        r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+      })
+    ),
     pageInfo: buildPaginationInfo(page, pageSize, count ?? 0),
   };
 }
@@ -393,7 +401,11 @@ export async function fetchAdminProductDetail(
     return null;
   }
 
-  return mapProductRow(data as DbProductRow, { lang, includeTranslations: true });
+  return mapProductRow(data as DbProductRow, {
+    lang,
+    includeTranslations: true,
+    r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+  });
 }
 
 export async function createAdminProduct(
@@ -478,7 +490,11 @@ export async function createAdminProduct(
     throw detailError;
   }
 
-  return mapProductRow(detail as DbProductRow, { lang, includeTranslations: true });
+  return mapProductRow(detail as DbProductRow, {
+    lang,
+    includeTranslations: true,
+    r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+  });
 }
 
 export async function updateAdminProduct(
@@ -627,7 +643,11 @@ export async function updateAdminProduct(
     return null;
   }
 
-  return mapProductRow(data as DbProductRow, { lang, includeTranslations: true });
+  return mapProductRow(data as DbProductRow, {
+    lang,
+    includeTranslations: true,
+    r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+  });
 }
 
 export async function fetchProductBySlug(
@@ -772,7 +792,11 @@ export async function fetchProductBySlug(
       product_stats: stats ?? undefined,
     };
 
-    return mapProductRow(mergedProduct, { lang, includeTranslations: true });
+    return mapProductRow(mergedProduct, {
+      lang,
+      includeTranslations: true,
+      r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+    });
   }
 
   if (!translation?.products) {
@@ -822,6 +846,7 @@ export async function fetchProductBySlug(
   return mapProductRow(mergedProduct as DbProductRow, {
     lang: translation.lang,
     includeTranslations: true,
+    r2BaseUrl: env.R2_PUBLIC_BASE_URL,
   });
 }
 
@@ -883,6 +908,7 @@ async function fetchProductByIdPublic(
   return mapProductRow(mergedProduct as DbProductRow, {
     lang,
     includeTranslations: true,
+    r2BaseUrl: env.R2_PUBLIC_BASE_URL,
   });
 }
 
@@ -1115,7 +1141,10 @@ export async function searchProducts(
           },
         ],
       };
-      return mapProductRow(merged as DbProductRow, { lang });
+      return mapProductRow(merged as DbProductRow, {
+        lang,
+        r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+      });
     })
     .filter((item): item is Product => Boolean(item));
 }
