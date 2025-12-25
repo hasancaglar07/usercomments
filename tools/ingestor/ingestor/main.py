@@ -746,55 +746,67 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         def _sync_discovery_flow():
             cat_urls = [url for url, _ in category_map.items()]
             random.shuffle(cat_urls)
-            all_review_urls = set()
+            
+            # Using a list of lists to interleave URLs from different categories
+            links_by_category: List[List[str]] = []
             product_urls = set()
 
-            # First pass: Get links from category pages
-            # Shuffle or limit categories to avoid scanning same ones always?
-            # For now, scan all but limit pages
-            logger.info("Scanning %d existing categories...", len(cat_urls))
+            logger.info("Scanning %d existing categories for varied content...", len(cat_urls))
             for idx, c_url in enumerate(cat_urls):
-                # We can randomize or limits this loop if needed
-                if idx > 30: break # Safety break to avoid huge cycles per run
+                if idx > 40: break # Increased variety scan
                 
+                cat_links = set()
                 for page_url in build_page_urls(c_url, config.category_pages_to_scan):
                     try:
                         p_html = http.get(page_url).text
                         found_links = discover_review_links(p_html, config.source_base_url, logger)
                         for link in found_links:
                             if "-n" in link:
-                                all_review_urls.add(link)
+                                cat_links.add(link)
                             else:
                                 product_urls.add(link)
                     except Exception as e:
                         logger.warning("Page scan failed %s: %s", page_url, e)
+                
+                if cat_links:
+                    links_by_category.append(list(cat_links))
 
-            # Second pass: Visit product pages to find deep review links
-            logger.info("Deep discovery: Scanning %d product pages for reviews...", len(product_urls))
-            for p_idx, p_url in enumerate(list(product_urls)[:50]): 
-                try:
-                    p_html = http.get(p_url).text
-                    deep_links = discover_review_links(p_html, config.source_base_url, logger)
-                    for d_link in deep_links:
-                        if "-n" in d_link:
-                            all_review_urls.add(d_link)
-                    if p_idx % 10 == 0:
-                        logger.info("Deep scan progress: %d/%d", p_idx, len(product_urls))
-                except Exception as e:
-                    logger.warning("Deep scan failed for %s: %s", p_url, e)
+            # Interleave the cat_links to ensure variety in source_map ordering
+            interleaved_reviews = []
+            max_links = max([len(l) for l in links_by_category]) if links_by_category else 0
+            for i in range(max_links):
+                for cat_list in links_by_category:
+                    if i < len(cat_list):
+                        interleaved_reviews.append(cat_list[i])
 
-            unique_reviews = sorted(list(all_review_urls))
-            logger.info("Discovery complete. Total unique deep reviews found: %d", len(unique_reviews))
+            # Also deep scan some products across varied categories
+            if product_urls:
+                logger.info("Deep discovery: Scanning up to 50 product pages for missing reviews...")
+                p_list = list(product_urls)
+                random.shuffle(p_list)
+                for p_idx, p_url in enumerate(p_list[:50]):
+                    try:
+                        p_html = http.get(p_url).text
+                        deep_links = discover_review_links(p_html, config.source_base_url, logger)
+                        for d_link in deep_links:
+                            if "-n" in d_link and d_link not in interleaved_reviews:
+                                interleaved_reviews.append(d_link)
+                        if p_idx % 15 == 0:
+                            logger.info("Deep scan progress: %d/%d", p_idx, min(50, len(product_urls)))
+                    except Exception as e:
+                        logger.warning("Deep scan failed for %s: %s", p_url, e)
+
+            logger.info("Discovery complete. Total unique reviews found (interleaved): %d", len(interleaved_reviews))
             
             # Upsert sources
             items = []
-            for url in unique_reviews:
+            for url in interleaved_reviews:
                  slug = urlparse(url).path.rstrip("/").split("/")[-1]
                  items.append({"source_url": url, "source_slug": slug})
             
             if items:
                 upsert_source_map(supabase, items, logger)
-            return len(unique_reviews)
+            return len(interleaved_reviews)
 
         # Run discovery in thread to avoid blocking main loop
         new_count = await asyncio.to_thread(_sync_discovery_flow)

@@ -40,7 +40,9 @@ export default async function SiteLayout({
     const headerCategoryIds = [930, 932, 929, 937, 934, 936, 935, 940, 941, 938];
 
     const categoryMap = new Map();
-    (allCategories || []).forEach(cat => categoryMap.set(cat.id, cat));
+    if (Array.isArray(allCategories)) { // Added Array.isArray check
+      allCategories.forEach(cat => categoryMap.set(cat.id, cat));
+    }
 
     categories = headerCategoryIds
       .map(id => categoryMap.get(id))
