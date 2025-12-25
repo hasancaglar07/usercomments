@@ -197,19 +197,18 @@ export function ReviewCardHomepage({
               <span className="text-[11px] text-text-muted mt-0.5">{authorMeta}</span>
             </div>
           </div>
-          <span className="text-xs font-medium text-text-muted bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
-            {postedLabel}
-          </span>
+          <div className="ml-auto shrink-0">
+            <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
+          </div>
         </div>
 
         {/* Content: Title & Rating */}
-        <div className="mb-3">
+        <div className="mb-2">
           <Link href={href} className="group-hover:text-primary transition-colors">
-            <h3 className="text-[17px] sm:text-xl font-bold text-text-main dark:text-white leading-tight mb-2 line-clamp-2">
+            <h3 className="text-[17px] sm:text-xl font-bold text-text-main dark:text-white leading-tight line-clamp-2">
               {review.title}
             </h3>
           </Link>
-          <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
         </div>
 
         {/* Excerpt */}
@@ -260,6 +259,9 @@ export function ReviewCardHomepage({
               <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
               <span>{commentsLabel}</span>
             </button>
+            <span className="ml-auto block text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
+              {postedLabel}
+            </span>
           </div>
         </div>
       </div>

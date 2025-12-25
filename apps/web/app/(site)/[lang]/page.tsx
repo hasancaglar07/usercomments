@@ -20,6 +20,7 @@ import {
   getCategories,
   getLatestReviews,
   getPopularReviews,
+  getUserProfile,
 } from "@/src/lib/api";
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
@@ -234,11 +235,33 @@ export default async function Page(props: HomePageProps) {
       recentCards = buildHomepageCards(latestWithPhotos, categories, lang);
       popularFeedCards = buildHomepageCards(popularWithPhotos, categories, lang);
       nextCursor = latestResult.nextCursor;
-      topReviewers = buildTopReviewers(
-        popularReviews,
-        allowMockFallback ? homepageTopReviewers : [],
-        lang
-      );
+      // Extract top reviewers and fetch their stats to show correct review counts
+      const uniqueUsernames = Array.from(new Set(popularReviews.map((r) => r.author.username))).slice(0, 3);
+      const userProfiles = await Promise.all(uniqueUsernames.map((u) => getUserProfile(u).catch(() => null)));
+
+      const realTopReviewers: HomepageTopReviewer[] = userProfiles
+        .filter((p): p is NonNullable<typeof p> => !!p)
+        .map((profile, index) => ({
+          profile: {
+            username: profile.username,
+            displayName: profile.displayName ?? profile.username,
+          },
+          avatarUrl: profile.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
+          avatarAlt: t(lang, "homepage.avatarAlt", { username: profile.username }),
+          rankLabel: `#${index + 1}`,
+          reviewCountLabel: t(lang, "homepage.topReviewers.reviewCountLabel", {
+            count: formatCompactNumber(profile.stats?.reviewCount ?? 0, lang),
+          }),
+        }));
+
+      topReviewers =
+        realTopReviewers.length > 0
+          ? realTopReviewers
+          : buildTopReviewers(
+            popularReviews,
+            allowMockFallback ? homepageTopReviewers : [],
+            lang
+          );
       popularCategories = categories.slice(0, 7);
 
       // Determine what to show in the Trending section based on the selected tab
