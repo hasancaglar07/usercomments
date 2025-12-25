@@ -16,7 +16,7 @@ export async function fetchUserProfileRecord(
   const { data, error } = await supabase
     .from("profiles")
     .select("user_id, username, bio, profile_pic_url, created_at")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
 
   if (error) {

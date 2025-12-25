@@ -730,6 +730,15 @@ export const TRANSLATIONS = {
     "terms.contact.body":
       "If you have any questions about these Terms, please contact us:",
     "terms.contact.support": "Visit Support Center",
+    // FAQ Schema translations for Google Rich Results
+    "faq.whatArePros": "What are the pros of {product}?",
+    "faq.whyGood": "Why is {feature} considered good?",
+    "faq.whatAreCons": "What are the cons of {product}?",
+    "faq.anyIssues": "Are there any issues with {feature}?",
+    "faq.isWorthIt": "Is {product} worth buying?",
+    "faq.worthItYes": "Yes, {product} is highly recommended with an average rating of {rating}/5 based on real user experiences.",
+    "faq.worthItMaybe": "{product} has mixed reviews with an average rating of {rating}/5. Consider reading detailed user experiences before deciding.",
+    "faq.worthItNo": "{product} has received lower ratings ({rating}/5). We recommend checking alternative products.",
   },
   tr: {
     "language.label": "Dil",
@@ -1461,6 +1470,15 @@ export const TRANSLATIONS = {
     "terms.contact.body":
       "Bu Şartlarla ilgili sorularınız varsa lütfen bizimle iletişime geçin:",
     "terms.contact.support": "Destek Merkezini Ziyaret Et",
+    // FAQ Schema translations for Google Rich Results
+    "faq.whatArePros": "{product} ürününün artıları nelerdir?",
+    "faq.whyGood": "{feature} neden iyi kabul ediliyor?",
+    "faq.whatAreCons": "{product} ürününün eksileri nelerdir?",
+    "faq.anyIssues": "{feature} ile ilgili sorunlar var mı?",
+    "faq.isWorthIt": "{product} almaya değer mi?",
+    "faq.worthItYes": "Evet, {product} gerçek kullanıcı deneyimlerine göre {rating}/5 ortalama puanla şiddetle tavsiye edilir.",
+    "faq.worthItMaybe": "{product} karışık yorumlar almış, ortalama puanı {rating}/5. Karar vermeden önce detaylı kullanıcı deneyimlerini okumanızı öneririz.",
+    "faq.worthItNo": "{product} düşük puan almış ({rating}/5). Alternatif ürünlere bakmanızı öneririz.",
   },
   es: {
     "language.label": "Idioma",
@@ -2200,6 +2218,15 @@ export const TRANSLATIONS = {
     "terms.contact.body":
       "Si tienes alguna pregunta sobre estos Términos, contáctanos:",
     "terms.contact.support": "Visitar el centro de soporte",
+    // FAQ Schema translations for Google Rich Results
+    "faq.whatArePros": "¿Cuáles son las ventajas de {product}?",
+    "faq.whyGood": "¿Por qué {feature} se considera bueno?",
+    "faq.whatAreCons": "¿Cuáles son las desventajas de {product}?",
+    "faq.anyIssues": "¿Hay problemas con {feature}?",
+    "faq.isWorthIt": "¿Vale la pena comprar {product}?",
+    "faq.worthItYes": "Sí, {product} es muy recomendado con una calificación promedio de {rating}/5 basada en experiencias reales de usuarios.",
+    "faq.worthItMaybe": "{product} tiene opiniones mixtas con una calificación promedio de {rating}/5. Considera leer experiencias detalladas antes de decidir.",
+    "faq.worthItNo": "{product} ha recibido calificaciones bajas ({rating}/5). Recomendamos revisar productos alternativos.",
   },
   de: {
     "language.label": "Sprache",
@@ -2530,6 +2557,15 @@ export const TRANSLATIONS = {
     "pagination.previous": "Zurück",
     "pagination.next": "Weiter",
     "pagination.label": "Seitennummerierung",
+    // FAQ Schema translations for Google Rich Results
+    "faq.whatArePros": "Was sind die Vorteile von {product}?",
+    "faq.whyGood": "Warum gilt {feature} als gut?",
+    "faq.whatAreCons": "Was sind die Nachteile von {product}?",
+    "faq.anyIssues": "Gibt es Probleme mit {feature}?",
+    "faq.isWorthIt": "Lohnt sich der Kauf von {product}?",
+    "faq.worthItYes": "Ja, {product} wird mit einer durchschnittlichen Bewertung von {rating}/5 basierend auf echten Nutzererfahrungen sehr empfohlen.",
+    "faq.worthItMaybe": "{product} hat gemischte Bewertungen mit einem Durchschnitt von {rating}/5. Lies detaillierte Nutzererfahrungen, bevor du dich entscheidest.",
+    "faq.worthItNo": "{product} hat niedrige Bewertungen erhalten ({rating}/5). Wir empfehlen, alternative Produkte zu prüfen.",
   },
   ar: {
     "language.label": "اللغة",
@@ -2854,6 +2890,15 @@ export const TRANSLATIONS = {
     "pagination.previous": "السابق",
     "pagination.next": "التالي",
     "pagination.label": "ترقيم الصفحات",
+    // FAQ Schema translations for Google Rich Results
+    "faq.whatArePros": "ما هي مميزات {product}؟",
+    "faq.whyGood": "لماذا تُعتبر {feature} جيدة؟",
+    "faq.whatAreCons": "ما هي عيوب {product}؟",
+    "faq.anyIssues": "هل توجد مشاكل مع {feature}؟",
+    "faq.isWorthIt": "هل يستحق شراء {product}؟",
+    "faq.worthItYes": "نعم، {product} موصى به بشدة بمتوسط تقييم {rating}/5 بناءً على تجارب المستخدمين الحقيقية.",
+    "faq.worthItMaybe": "حصل {product} على آراء متباينة بمتوسط تقييم {rating}/5. ننصح بقراءة تجارب المستخدمين التفصيلية قبل اتخاذ القرار.",
+    "faq.worthItNo": "حصل {product} على تقييمات منخفضة ({rating}/5). ننصح بالاطلاع على منتجات بديلة.",
   },
 } as const;
 

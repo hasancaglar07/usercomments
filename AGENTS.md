@@ -185,6 +185,7 @@ If no new rule is detected → do not update the file.
 \- SEO: SEO kritik; mümkün olduğunca SSR/SSG ve sitemap doğruluğunu koru.
 \- SEO: Birden fazla seçenek varsa en SEO-avantajlı URL/routing yaklaşımını seç, çünkü organik görünürlük kritik.
 \- UX: Kullanıcı odaklı, çok kolay ve akıcı akışlar tasarla; admin akışıyla tam uyumlu olsun, çünkü bu sayfa kritik.
+\- Admin UI: Ferah, geniş ve rahat kullanılan ekranlar tasarla; arama ve bulma akışları sayfalara sıkışmamalı.
 
 \### Dislikes
 

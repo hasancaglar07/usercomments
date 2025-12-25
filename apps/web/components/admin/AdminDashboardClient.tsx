@@ -217,8 +217,10 @@ function buildReviewPreviewBlocks(contentHtml: string): ReviewPreviewBlock[] {
   return blocks;
 }
 
-const DEFAULT_PAGE_SIZE = 20;
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const DEFAULT_PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
+const ADMIN_SEARCH_PAGE_SIZE = 100;
+const SEARCH_DEBOUNCE_MS = 350;
 const REVIEW_COMMENT_PAGE_SIZE = 5;
 
 const reviewStatusFilters = [
@@ -480,6 +482,11 @@ export default function AdminDashboardClient() {
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewPageSize, setReviewPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [reviewQuery, setReviewQuery] = useState("");
+  const [reviewSearchResults, setReviewSearchResults] = useState<AdminReview[] | null>(
+    null
+  );
+  const [reviewSearchLoading, setReviewSearchLoading] = useState(false);
+  const [reviewSearchError, setReviewSearchError] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
@@ -532,6 +539,11 @@ export default function AdminDashboardClient() {
   const [productPage, setProductPage] = useState(1);
   const [productPageSize, setProductPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [productQuery, setProductQuery] = useState("");
+  const [productSearchResults, setProductSearchResults] = useState<AdminProduct[] | null>(
+    null
+  );
+  const [productSearchLoading, setProductSearchLoading] = useState(false);
+  const [productSearchError, setProductSearchError] = useState<string | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
   const [productMessage, setProductMessage] = useState<string | null>(null);
@@ -580,6 +592,9 @@ export default function AdminDashboardClient() {
   const [newProductStatus, setNewProductStatus] =
     useState<ProductStatus>("published");
   const newProductFileInputRef = useRef<HTMLInputElement | null>(null);
+  const reviewSearchRequestIdRef = useRef(0);
+  const productSearchRequestIdRef = useRef(0);
+  const commentSearchRequestIdRef = useRef(0);
 
   const [comments, setComments] = useState<AdminComment[]>([]);
   const [commentPageInfo, setCommentPageInfo] = useState<PaginationInfo | null>(null);
@@ -589,6 +604,11 @@ export default function AdminDashboardClient() {
   const [commentPage, setCommentPage] = useState(1);
   const [commentPageSize, setCommentPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [commentQuery, setCommentQuery] = useState("");
+  const [commentSearchResults, setCommentSearchResults] = useState<
+    AdminComment[] | null
+  >(null);
+  const [commentSearchLoading, setCommentSearchLoading] = useState(false);
+  const [commentSearchError, setCommentSearchError] = useState<string | null>(null);
   const [commentReviewFilter, setCommentReviewFilter] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -685,13 +705,20 @@ export default function AdminDashboardClient() {
   const commentFilterLabel =
     commentStatusFilter === "all" ? "All" : commentStatusFilter;
   const reportFilterLabel = reportStatusFilter === "all" ? "All" : reportStatusFilter;
+  const reviewSearchActive = reviewQuery.trim().length > 0;
+  const productSearchActive = productQuery.trim().length > 0;
+  const commentSearchActive = commentQuery.trim().length > 0;
+  const reviewListLoading = reviewSearchActive ? reviewSearchLoading : reviewLoading;
+  const productListLoading = productSearchActive ? productSearchLoading : productLoading;
+  const commentListLoading = commentSearchActive ? commentSearchLoading : commentLoading;
 
   const filteredReviews = useMemo(() => {
     const query = reviewQuery.trim().toLowerCase();
+    const reviewItems = reviewSearchActive ? reviewSearchResults ?? [] : reviews;
     if (!query) {
-      return reviews;
+      return reviewItems;
     }
-    return reviews.filter((review) => {
+    return reviewItems.filter((review) => {
       const haystack = [
         review.title,
         review.slug,
@@ -703,14 +730,15 @@ export default function AdminDashboardClient() {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [reviews, reviewQuery]);
+  }, [reviewQuery, reviewSearchActive, reviewSearchResults, reviews]);
 
   const filteredProducts = useMemo(() => {
     const query = productQuery.trim().toLowerCase();
+    const productItems = productSearchActive ? productSearchResults ?? [] : products;
     if (!query) {
-      return products;
+      return productItems;
     }
-    return products.filter((product) => {
+    return productItems.filter((product) => {
       const categoryNames = (product.categoryIds ?? [])
         .map((id) => categoryLookup.get(id)?.name)
         .filter((name): name is string => Boolean(name))
@@ -726,14 +754,15 @@ export default function AdminDashboardClient() {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [categoryLookup, productQuery, products]);
+  }, [categoryLookup, productQuery, productSearchActive, productSearchResults, products]);
 
   const filteredComments = useMemo(() => {
     const query = commentQuery.trim().toLowerCase();
+    const commentItems = commentSearchActive ? commentSearchResults ?? [] : comments;
     if (!query) {
-      return comments;
+      return commentItems;
     }
-    return comments.filter((comment) => {
+    return commentItems.filter((comment) => {
       const haystack = [
         comment.text,
         comment.author.username,
@@ -745,7 +774,7 @@ export default function AdminDashboardClient() {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [comments, commentQuery]);
+  }, [commentQuery, commentSearchActive, commentSearchResults, comments]);
 
   const filteredReports = useMemo(() => {
     const query = reportQuery.trim().toLowerCase();
@@ -1439,6 +1468,168 @@ export default function AdminDashboardClient() {
     handleAccessError,
   ]);
 
+  const loadAllReviews = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        setReviewSearchResults(null);
+        setReviewSearchError(null);
+        setReviewSearchLoading(false);
+        return;
+      }
+      const requestId = reviewSearchRequestIdRef.current + 1;
+      reviewSearchRequestIdRef.current = requestId;
+      setReviewSearchLoading(true);
+      setReviewSearchError(null);
+      try {
+        const status = reviewStatusFilter === "all" ? undefined : reviewStatusFilter;
+        let page = 1;
+        let totalPages = 1;
+        const items: AdminReview[] = [];
+        do {
+          const result = await getAdminReviews({
+            status,
+            page,
+            pageSize: ADMIN_SEARCH_PAGE_SIZE,
+            lang,
+          });
+          if (reviewSearchRequestIdRef.current !== requestId) {
+            return;
+          }
+          items.push(...result.items);
+          totalPages = result.pageInfo?.totalPages ?? page;
+          page += 1;
+        } while (page <= totalPages);
+        if (reviewSearchRequestIdRef.current !== requestId) {
+          return;
+        }
+        setReviewSearchResults(items);
+        setSelectedReviewIds([]);
+      } catch (error) {
+        console.error("Failed to search reviews", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setReviewSearchError("Unable to search all reviews.");
+      } finally {
+        if (reviewSearchRequestIdRef.current === requestId) {
+          setReviewSearchLoading(false);
+        }
+      }
+    },
+    [extractErrorMessage, handleAccessError, lang, reviewStatusFilter]
+  );
+
+  const loadAllProducts = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        setProductSearchResults(null);
+        setProductSearchError(null);
+        setProductSearchLoading(false);
+        return;
+      }
+      const requestId = productSearchRequestIdRef.current + 1;
+      productSearchRequestIdRef.current = requestId;
+      setProductSearchLoading(true);
+      setProductSearchError(null);
+      try {
+        const status = productStatusFilter === "all" ? undefined : productStatusFilter;
+        let page = 1;
+        let totalPages = 1;
+        const items: AdminProduct[] = [];
+        do {
+          const result = await getAdminProducts({
+            status,
+            page,
+            pageSize: ADMIN_SEARCH_PAGE_SIZE,
+            lang,
+          });
+          if (productSearchRequestIdRef.current !== requestId) {
+            return;
+          }
+          items.push(...result.items);
+          totalPages = result.pageInfo?.totalPages ?? page;
+          page += 1;
+        } while (page <= totalPages);
+        if (productSearchRequestIdRef.current !== requestId) {
+          return;
+        }
+        setProductSearchResults(items);
+        setSelectedProductIds([]);
+      } catch (error) {
+        console.error("Failed to search products", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setProductSearchError("Unable to search all products.");
+      } finally {
+        if (productSearchRequestIdRef.current === requestId) {
+          setProductSearchLoading(false);
+        }
+      }
+    },
+    [extractErrorMessage, handleAccessError, lang, productStatusFilter]
+  );
+
+  const loadAllComments = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        setCommentSearchResults(null);
+        setCommentSearchError(null);
+        setCommentSearchLoading(false);
+        return;
+      }
+      const requestId = commentSearchRequestIdRef.current + 1;
+      commentSearchRequestIdRef.current = requestId;
+      setCommentSearchLoading(true);
+      setCommentSearchError(null);
+      try {
+        const status = commentStatusFilter === "all" ? undefined : commentStatusFilter;
+        const reviewFilter = commentReviewFilter.trim();
+        if (reviewFilter) {
+          const parsed = z.string().uuid().safeParse(reviewFilter);
+          if (!parsed.success) {
+            setCommentSearchError("Review ID must be a valid UUID.");
+            setCommentSearchLoading(false);
+            return;
+          }
+        }
+        let page = 1;
+        let totalPages = 1;
+        const items: AdminComment[] = [];
+        do {
+          const result = await getAdminComments({
+            status,
+            reviewId: reviewFilter || undefined,
+            page,
+            pageSize: ADMIN_SEARCH_PAGE_SIZE,
+          });
+          if (commentSearchRequestIdRef.current !== requestId) {
+            return;
+          }
+          items.push(...result.items);
+          totalPages = result.pageInfo?.totalPages ?? page;
+          page += 1;
+        } while (page <= totalPages);
+        if (commentSearchRequestIdRef.current !== requestId) {
+          return;
+        }
+        setCommentSearchResults(items);
+        setSelectedCommentIds([]);
+      } catch (error) {
+        console.error("Failed to search comments", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setCommentSearchError("Unable to search all comments.");
+      } finally {
+        if (commentSearchRequestIdRef.current === requestId) {
+          setCommentSearchLoading(false);
+        }
+      }
+    },
+    [commentReviewFilter, commentStatusFilter, extractErrorMessage, handleAccessError]
+  );
+
   const loadReports = useCallback(async () => {
     setReportsLoading(true);
     setReportsError(null);
@@ -1600,6 +1791,66 @@ export default function AdminDashboardClient() {
     }
     loadComments();
   }, [loadComments, ready]);
+
+  useEffect(() => {
+    if (!ready || activeTab !== "reviews") {
+      return;
+    }
+    const trimmed = reviewQuery.trim();
+    if (!trimmed) {
+      reviewSearchRequestIdRef.current += 1;
+      setReviewSearchResults(null);
+      setReviewSearchError(null);
+      setReviewSearchLoading(false);
+      return;
+    }
+    setReviewSearchLoading(true);
+    setReviewSearchError(null);
+    const timeoutId = window.setTimeout(() => {
+      loadAllReviews(trimmed);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTab, loadAllReviews, ready, reviewQuery]);
+
+  useEffect(() => {
+    if (!ready || activeTab !== "products") {
+      return;
+    }
+    const trimmed = productQuery.trim();
+    if (!trimmed) {
+      productSearchRequestIdRef.current += 1;
+      setProductSearchResults(null);
+      setProductSearchError(null);
+      setProductSearchLoading(false);
+      return;
+    }
+    setProductSearchLoading(true);
+    setProductSearchError(null);
+    const timeoutId = window.setTimeout(() => {
+      loadAllProducts(trimmed);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTab, loadAllProducts, productQuery, ready]);
+
+  useEffect(() => {
+    if (!ready || activeTab !== "comments") {
+      return;
+    }
+    const trimmed = commentQuery.trim();
+    if (!trimmed) {
+      commentSearchRequestIdRef.current += 1;
+      setCommentSearchResults(null);
+      setCommentSearchError(null);
+      setCommentSearchLoading(false);
+      return;
+    }
+    setCommentSearchLoading(true);
+    setCommentSearchError(null);
+    const timeoutId = window.setTimeout(() => {
+      loadAllComments(trimmed);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTab, commentQuery, loadAllComments, ready]);
 
   useEffect(() => {
     if (!ready) {
@@ -2547,7 +2798,7 @@ export default function AdminDashboardClient() {
     reviewCommentsPageInfo?.totalItems ?? reviewComments.length;
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-12">
         <div className="flex flex-col gap-4 mb-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -2630,7 +2881,7 @@ export default function AdminDashboardClient() {
             Loading admin workspace...
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
             <aside className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">
                 Workspaces
@@ -2661,7 +2912,7 @@ export default function AdminDashboardClient() {
               </div>
             </aside>
 
-            <section className="space-y-6">
+            <section className="space-y-8">
               {activeTab === "reviews" ? (
                 <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
@@ -2676,20 +2927,22 @@ export default function AdminDashboardClient() {
                     <button
                       type="button"
                       className="self-start sm:self-auto rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={loadReviews}
-                      disabled={reviewLoading}
+                      onClick={() =>
+                        reviewSearchActive ? loadAllReviews(reviewQuery) : loadReviews()
+                      }
+                      disabled={reviewListLoading}
                     >
                       Refresh
                     </button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-5 mb-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(360px,1fr)_minmax(160px,200px)_minmax(160px,200px)] mb-4">
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Status filter
                       </label>
                       <select
-                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 disabled:opacity-60"
                         value={reviewStatusFilter}
                         onChange={(event) => {
                           setReviewStatusFilter(event.target.value as ReviewStatusFilter);
@@ -2713,18 +2966,22 @@ export default function AdminDashboardClient() {
                         value={reviewQuery}
                         onChange={(event) => setReviewQuery(event.target.value)}
                       />
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                        Search runs across all pages.
+                      </p>
                     </div>
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Page size
                       </label>
                       <select
-                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 disabled:opacity-60"
                         value={reviewPageSize}
                         onChange={(event) => {
                           setReviewPageSize(Number(event.target.value));
                           setReviewPage(1);
                         }}
+                        disabled={reviewSearchActive}
                       >
                         {PAGE_SIZE_OPTIONS.map((size) => (
                           <option key={size} value={size}>
@@ -2737,8 +2994,17 @@ export default function AdminDashboardClient() {
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Results
                       </label>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
-                        {formatCompactNumber(filteredReviews.length)} shown
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
+                        <span>
+                          {reviewSearchActive && reviewSearchLoading
+                            ? "Searching all pages..."
+                            : `${formatCompactNumber(filteredReviews.length)} shown`}
+                        </span>
+                        {reviewSearchActive ? (
+                          <span className="rounded-full bg-slate-200/70 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                            All pages
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -2775,13 +3041,18 @@ export default function AdminDashboardClient() {
                       {reviewError}
                     </div>
                   ) : null}
+                  {reviewSearchError ? (
+                    <div className="mb-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                      {reviewSearchError}
+                    </div>
+                  ) : null}
                   {reviewMessage ? (
                     <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
                       {reviewMessage}
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <label className="flex items-center gap-2">
@@ -2806,9 +3077,11 @@ export default function AdminDashboardClient() {
                         <span>{formatCompactNumber(filteredReviews.length)} items</span>
                       </div>
 
-                      {reviewLoading ? (
+                      {reviewListLoading ? (
                         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-500 dark:text-slate-400">
-                          Loading reviews...
+                          {reviewSearchActive
+                            ? "Searching reviews across all pages..."
+                            : "Loading reviews..."}
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -2878,10 +3151,12 @@ export default function AdminDashboardClient() {
                           ) : null}
                         </div>
                       )}
-                      <PaginationControls
-                        pagination={reviewPageInfo}
-                        onPageChange={setReviewPage}
-                      />
+                      {!reviewSearchActive ? (
+                        <PaginationControls
+                          pagination={reviewPageInfo}
+                          onPageChange={setReviewPage}
+                        />
+                      ) : null}
                     </div>
 
                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
@@ -3263,20 +3538,24 @@ export default function AdminDashboardClient() {
                     <button
                       type="button"
                       className="self-start sm:self-auto rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={loadProducts}
-                      disabled={productLoading}
+                      onClick={() =>
+                        productSearchActive
+                          ? loadAllProducts(productQuery)
+                          : loadProducts()
+                      }
+                      disabled={productListLoading}
                     >
                       Refresh
                     </button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-5 mb-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(360px,1fr)_minmax(160px,200px)_minmax(160px,200px)_minmax(160px,200px)] mb-4">
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Status filter
                       </label>
                       <select
-                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 disabled:opacity-60"
                         value={productStatusFilter}
                         onChange={(event) => {
                           setProductStatusFilter(event.target.value as ProductStatusFilter);
@@ -3300,18 +3579,22 @@ export default function AdminDashboardClient() {
                         value={productQuery}
                         onChange={(event) => setProductQuery(event.target.value)}
                       />
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                        Search runs across all pages.
+                      </p>
                     </div>
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Page size
                       </label>
                       <select
-                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 disabled:opacity-60"
                         value={productPageSize}
                         onChange={(event) => {
                           setProductPageSize(Number(event.target.value));
                           setProductPage(1);
                         }}
+                        disabled={productSearchActive}
                       >
                         {PAGE_SIZE_OPTIONS.map((size) => (
                           <option key={size} value={size}>
@@ -3324,8 +3607,17 @@ export default function AdminDashboardClient() {
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Results
                       </label>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
-                        {formatCompactNumber(filteredProducts.length)} shown
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
+                        <span>
+                          {productSearchActive && productSearchLoading
+                            ? "Searching all pages..."
+                            : `${formatCompactNumber(filteredProducts.length)} shown`}
+                        </span>
+                        {productSearchActive ? (
+                          <span className="rounded-full bg-slate-200/70 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                            All pages
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                     <div className="grid gap-2">
@@ -3394,7 +3686,7 @@ export default function AdminDashboardClient() {
                     )}
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                     <div className="space-y-4">
                       <form
                         className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 space-y-3"
@@ -3645,16 +3937,21 @@ export default function AdminDashboardClient() {
                         </button>
                       </div>
 
-                      {productError ? (
-                        <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
-                          {productError}
-                        </div>
-                      ) : null}
-                      {productMessage ? (
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
-                          {productMessage}
-                        </div>
-                      ) : null}
+                  {productError ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                      {productError}
+                    </div>
+                  ) : null}
+                  {productSearchError ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                      {productSearchError}
+                    </div>
+                  ) : null}
+                  {productMessage ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
+                      {productMessage}
+                    </div>
+                  ) : null}
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
@@ -3680,9 +3977,11 @@ export default function AdminDashboardClient() {
                           <span>{formatCompactNumber(filteredProducts.length)} items</span>
                         </div>
 
-                        {productLoading ? (
+                        {productListLoading ? (
                           <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-500 dark:text-slate-400">
-                            Loading products...
+                            {productSearchActive
+                              ? "Searching products across all pages..."
+                              : "Loading products..."}
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -3778,10 +4077,12 @@ export default function AdminDashboardClient() {
                             ) : null}
                           </div>
                         )}
-                        <PaginationControls
-                          pagination={productPageInfo}
-                          onPageChange={setProductPage}
-                        />
+                        {!productSearchActive ? (
+                          <PaginationControls
+                            pagination={productPageInfo}
+                            onPageChange={setProductPage}
+                          />
+                        ) : null}
                       </div>
                     </div>
 
@@ -4259,14 +4560,18 @@ export default function AdminDashboardClient() {
                     <button
                       type="button"
                       className="self-start sm:self-auto rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                      onClick={loadComments}
-                      disabled={commentLoading}
+                      onClick={() =>
+                        commentSearchActive
+                          ? loadAllComments(commentQuery)
+                          : loadComments()
+                      }
+                      disabled={commentListLoading}
                     >
                       Refresh
                     </button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-4 mb-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(320px,1fr)_minmax(220px,260px)_minmax(160px,200px)_minmax(160px,200px)] mb-4">
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Status filter
@@ -4296,6 +4601,9 @@ export default function AdminDashboardClient() {
                         value={commentQuery}
                         onChange={(event) => setCommentQuery(event.target.value)}
                       />
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                        Search runs across all pages.
+                      </p>
                     </div>
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
@@ -4316,12 +4624,13 @@ export default function AdminDashboardClient() {
                         Page size
                       </label>
                       <select
-                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm disabled:opacity-60"
                         value={commentPageSize}
                         onChange={(event) => {
                           setCommentPageSize(Number(event.target.value));
                           setCommentPage(1);
                         }}
+                        disabled={commentSearchActive}
                       >
                         {PAGE_SIZE_OPTIONS.map((size) => (
                           <option key={size} value={size}>
@@ -4334,8 +4643,17 @@ export default function AdminDashboardClient() {
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Results
                       </label>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
-                        {formatCompactNumber(filteredComments.length)} shown
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2">
+                        <span>
+                          {commentSearchActive && commentSearchLoading
+                            ? "Searching all pages..."
+                            : `${formatCompactNumber(filteredComments.length)} shown`}
+                        </span>
+                        {commentSearchActive ? (
+                          <span className="rounded-full bg-slate-200/70 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                            All pages
+                          </span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -4372,13 +4690,18 @@ export default function AdminDashboardClient() {
                       {commentError}
                     </div>
                   ) : null}
+                  {commentSearchError ? (
+                    <div className="mb-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                      {commentSearchError}
+                    </div>
+                  ) : null}
                   {commentMessage ? (
                     <div className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
                       {commentMessage}
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <label className="flex items-center gap-2">
@@ -4403,9 +4726,11 @@ export default function AdminDashboardClient() {
                         <span>{formatCompactNumber(filteredComments.length)} items</span>
                       </div>
 
-                      {commentLoading ? (
+                      {commentListLoading ? (
                         <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-500 dark:text-slate-400">
-                          Loading comments...
+                          {commentSearchActive
+                            ? "Searching comments across all pages..."
+                            : "Loading comments..."}
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -4466,10 +4791,12 @@ export default function AdminDashboardClient() {
                           ) : null}
                         </div>
                       )}
-                      <PaginationControls
-                        pagination={commentPageInfo}
-                        onPageChange={setCommentPage}
-                      />
+                      {!commentSearchActive ? (
+                        <PaginationControls
+                          pagination={commentPageInfo}
+                          onPageChange={setCommentPage}
+                        />
+                      ) : null}
                     </div>
 
                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4">
@@ -4562,7 +4889,7 @@ export default function AdminDashboardClient() {
                     </button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-4 mb-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(180px,220px)_minmax(180px,220px)_minmax(360px,1fr)_minmax(160px,200px)] mb-4">
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Status filter
@@ -4670,7 +4997,7 @@ export default function AdminDashboardClient() {
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <label className="flex items-center gap-2">
@@ -5026,7 +5353,7 @@ export default function AdminDashboardClient() {
                     </button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3 mb-4">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(160px,200px)_minmax(160px,200px)] mb-4">
                     <div className="grid gap-2">
                       <label className="text-xs text-slate-500 dark:text-slate-400">
                         Search
@@ -5078,7 +5405,7 @@ export default function AdminDashboardClient() {
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <label className="flex items-center gap-2">

@@ -215,13 +215,13 @@ export default async function Page(props: PageProps) {
     const productSlug = review?.product?.slug;
     const relatedPromise = review?.categoryId
       ? getCategoryPage(
-          review.categoryId,
-          1,
-          RELATED_FETCH_LIMIT,
-          "latest",
-          undefined,
-          lang
-        ).catch(() => null)
+        review.categoryId,
+        1,
+        RELATED_FETCH_LIMIT,
+        "latest",
+        undefined,
+        lang
+      ).catch(() => null)
       : Promise.resolve(null);
     const [fetchedComments, fetchedCategories, fetchedProduct, relatedResult] = await Promise.all([
       review
@@ -338,24 +338,24 @@ export default async function Page(props: PageProps) {
   const positiveNotes =
     review.pros && review.pros.length > 0
       ? {
-          "@type": "ItemList",
-          itemListElement: review.pros.map((note, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            name: note,
-          })),
-        }
+        "@type": "ItemList",
+        itemListElement: review.pros.map((note, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: note,
+        })),
+      }
       : undefined;
   const negativeNotes =
     review.cons && review.cons.length > 0
       ? {
-          "@type": "ItemList",
-          itemListElement: review.cons.map((note, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            name: note,
-          })),
-        }
+        "@type": "ItemList",
+        itemListElement: review.cons.map((note, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: note,
+        })),
+      }
       : undefined;
   const breadcrumbItems = [
     {
@@ -425,11 +425,11 @@ export default async function Page(props: PageProps) {
     reviewRating:
       ratingAvg > 0
         ? {
-            "@type": "Rating",
-            ratingValue: reviewRatingValue ?? ratingAvg,
-            bestRating: 5,
-            worstRating: 1,
-          }
+          "@type": "Rating",
+          ratingValue: reviewRatingValue ?? ratingAvg,
+          bestRating: 5,
+          worstRating: 1,
+        }
         : undefined,
     reviewBody: review.excerpt ?? undefined,
     datePublished: review.createdAt,
@@ -447,12 +447,73 @@ export default async function Page(props: PageProps) {
     url: reviewUrl,
   };
 
+  // Build FAQ schema from pros and cons for rich snippets
+  const faqItems: { question: string; answer: string }[] = [];
+
+  // Add pros as FAQ items
+  if (review.pros && review.pros.length > 0) {
+    faqItems.push({
+      question: t(lang, "faq.whatArePros", { product: productName }),
+      answer: review.pros.join(". ") + ".",
+    });
+    // Individual pros as separate FAQ items (max 2)
+    review.pros.slice(0, 2).forEach((pro, idx) => {
+      faqItems.push({
+        question: t(lang, "faq.whyGood", { feature: pro.split(" ").slice(0, 5).join(" ") }),
+        answer: pro,
+      });
+    });
+  }
+
+  // Add cons as FAQ items
+  if (review.cons && review.cons.length > 0) {
+    faqItems.push({
+      question: t(lang, "faq.whatAreCons", { product: productName }),
+      answer: review.cons.join(". ") + ".",
+    });
+    // Individual cons as separate FAQ items (max 2)
+    review.cons.slice(0, 2).forEach((con, idx) => {
+      faqItems.push({
+        question: t(lang, "faq.anyIssues", { feature: con.split(" ").slice(0, 5).join(" ") }),
+        answer: con,
+      });
+    });
+  }
+
+  // Add general review questions
+  if (ratingAvg > 0) {
+    faqItems.push({
+      question: t(lang, "faq.isWorthIt", { product: productName }),
+      answer: ratingAvg >= 4
+        ? t(lang, "faq.worthItYes", { product: productName, rating: ratingAvg.toFixed(1) })
+        : ratingAvg >= 3
+          ? t(lang, "faq.worthItMaybe", { product: productName, rating: ratingAvg.toFixed(1) })
+          : t(lang, "faq.worthItNo", { product: productName, rating: ratingAvg.toFixed(1) }),
+    });
+  }
+
+  const faqJsonLd = faqItems.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  } : null;
+
   return (
     <>
       <script type="application/ld+json">
         {JSON.stringify(breadcrumbJsonLd)}
       </script>
       <script type="application/ld+json">{JSON.stringify(reviewJsonLd)}</script>
+      {faqJsonLd && (
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      )}
       <ReviewDetailClient reviewId={review.id} />
 
       <div className="w-full flex justify-center py-6 px-4 md:px-10 lg:px-20 bg-background-light dark:bg-background-dark">

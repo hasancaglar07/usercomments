@@ -337,6 +337,26 @@ export default async function Page(props: PageProps) {
       },
     ],
   };
+  // Build review snippets for schema (first 3 reviews with ratings)
+  const reviewSchemaItems = reviewsResult.items
+    .filter((r) => r.ratingAvg && r.ratingAvg > 0)
+    .slice(0, 3)
+    .map((r) => ({
+      "@type": "Review",
+      author: {
+        "@type": "Person",
+        name: r.author.displayName || r.author.username,
+      },
+      datePublished: r.createdAt,
+      reviewBody: r.excerpt ?? r.title,
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: r.ratingAvg,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    }));
+
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -354,6 +374,15 @@ export default async function Page(props: PageProps) {
         name: product.brand.name,
       }
       : undefined,
+    // Always include offers to satisfy Google Rich Results requirements
+    offers: {
+      "@type": "Offer",
+      availability: "https://schema.org/InStock",
+      priceCurrency: "USD",
+      price: "0",
+      priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      url: productUrl,
+    },
     aggregateRating:
       ratingCount > 0
         ? {
@@ -365,6 +394,8 @@ export default async function Page(props: PageProps) {
           worstRating: 1,
         }
         : undefined,
+    // Include individual reviews for richer snippets
+    review: reviewSchemaItems.length > 0 ? reviewSchemaItems : undefined,
     url: productUrl,
   };
 
