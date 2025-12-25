@@ -109,14 +109,14 @@ export default async function SiteLayout({
       <body>
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap&text=account_circle,add_circle,analytics,chat_bubble,check,chevron_left,chevron_right,close,cloud_upload,cookie,dataset,delete,diamond,do_not_disturb_on,error,expand_more,flag,forum,gavel,group,history_edu,info,link,lock,mail,military_tech,person,rate_review,remove_circle,sentiment_dissatisfied,share,star,thumb_up,verified,visibility"
         />
         <AuthProvider>
           <Script
             async
             src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8614212887540857"
             crossOrigin="anonymous"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
           />
           <Script
             src="https://www.googletagmanager.com/gtag/js?id=G-829FXRQW1V"
