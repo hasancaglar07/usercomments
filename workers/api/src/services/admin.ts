@@ -206,6 +206,15 @@ function normalizeStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
+function buildIlikePattern(query?: string): string | null {
+  const normalized = query?.trim().replace(/,/g, " ") ?? "";
+  if (!normalized) {
+    return null;
+  }
+  const escaped = normalized.replace(/[%_]/g, "\\$&");
+  return `%${escaped}%`;
+}
+
 function pickRelation<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -398,6 +407,7 @@ async function ensureUniqueSlug(
 export async function fetchAdminReviews(
   env: ParsedEnv,
   options: {
+    q?: string;
     status?: ReviewStatus;
     page: number;
     pageSize: number;
@@ -405,15 +415,27 @@ export async function fetchAdminReviews(
   }
 ): Promise<ReviewListResult> {
   const supabase = getSupabaseClient(env);
-  const { status, page, pageSize, lang } = options;
+  const { q, status, page, pageSize, lang } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const pattern = buildIlikePattern(q);
 
   let query = supabase
     .from("reviews")
     .select(adminReviewSelect, { count: "exact" })
     .order("created_at", { ascending: false });
 
+  if (pattern) {
+    query = query.or(
+      [
+        `title.ilike.${pattern}`,
+        `slug.ilike.${pattern}`,
+        `excerpt.ilike.${pattern}`,
+        `profiles.username.ilike.${pattern}`,
+        `review_translations.title.ilike.${pattern}`,
+      ].join(",")
+    );
+  }
   if (status) {
     query = query.eq("status", status);
   }
@@ -620,6 +642,7 @@ export async function updateAdminReview(
 export async function fetchAdminComments(
   env: ParsedEnv,
   options: {
+    q?: string;
     status?: CommentStatus;
     reviewId?: string;
     page: number;
@@ -627,15 +650,26 @@ export async function fetchAdminComments(
   }
 ): Promise<CommentListResult> {
   const supabase = getSupabaseClient(env);
-  const { status, reviewId, page, pageSize } = options;
+  const { q, status, reviewId, page, pageSize } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const pattern = buildIlikePattern(q);
 
   let query = supabase
     .from("comments")
     .select(adminCommentSelect, { count: "exact" })
     .order("created_at", { ascending: false });
 
+  if (pattern) {
+    query = query.or(
+      [
+        `text.ilike.${pattern}`,
+        `profiles.username.ilike.${pattern}`,
+        `reviews.title.ilike.${pattern}`,
+        `reviews.slug.ilike.${pattern}`,
+      ].join(",")
+    );
+  }
   if (status) {
     query = query.eq("status", status);
   }
@@ -681,18 +715,24 @@ export async function updateAdminComment(
 
 export async function fetchAdminUsers(
   env: ParsedEnv,
-  options: { page: number; pageSize: number }
+  options: { q?: string; page: number; pageSize: number }
 ): Promise<UserListResult> {
   const supabase = getSupabaseClient(env);
-  const { page, pageSize } = options;
+  const { q, page, pageSize } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const pattern = buildIlikePattern(q);
 
-  const { data, error, count } = await supabase
+  let query = supabase
     .from("profiles")
     .select("user_id, username, role, created_at", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .order("created_at", { ascending: false });
+
+  if (pattern) {
+    query = query.or([`username.ilike.${pattern}`, `role.ilike.${pattern}`].join(","));
+  }
+
+  const { data, error, count } = await query.range(from, to);
 
   if (error) {
     throw error;

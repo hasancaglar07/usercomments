@@ -1760,10 +1760,10 @@ async function handleAdminUploadHealth({
 async function handleAdminProducts({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const { status, page, pageSize, lang } = adminProductQuerySchema.parse(
+  const { q, status, page, pageSize, lang } = adminProductQuerySchema.parse(
     getQueryObject(url)
   );
-  const result = await fetchAdminProducts(env, { status, page, pageSize, lang });
+  const result = await fetchAdminProducts(env, { q, status, page, pageSize, lang });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -1907,10 +1907,10 @@ async function handleAdminProductTranslations({
 async function handleAdminReviews({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const { status, page, pageSize, lang } = adminReviewQuerySchema.parse(
+  const { q, status, page, pageSize, lang } = adminReviewQuerySchema.parse(
     getQueryObject(url)
   );
-  const result = await fetchAdminReviews(env, { status, page, pageSize, lang });
+  const result = await fetchAdminReviews(env, { q, status, page, pageSize, lang });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -1931,18 +1931,24 @@ async function handleAdminReviewDetail({ env, request, params }: HandlerContext)
 async function handleAdminComments({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const { status, reviewId, page, pageSize } = adminCommentQuerySchema.parse(
+  const { q, status, reviewId, page, pageSize } = adminCommentQuerySchema.parse(
     getQueryObject(url)
   );
-  const result = await fetchAdminComments(env, { status, reviewId, page, pageSize });
+  const result = await fetchAdminComments(env, {
+    q,
+    status,
+    reviewId,
+    page,
+    pageSize,
+  });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 
 async function handleAdminUsers({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const { page, pageSize } = adminUserQuerySchema.parse(getQueryObject(url));
-  const result = await fetchAdminUsers(env, { page, pageSize });
+  const { q, page, pageSize } = adminUserQuerySchema.parse(getQueryObject(url));
+  const result = await fetchAdminUsers(env, { q, page, pageSize });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 

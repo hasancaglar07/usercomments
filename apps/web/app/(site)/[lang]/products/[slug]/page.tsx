@@ -392,6 +392,8 @@ export default async function Page(props: PageProps) {
     description: product.description ?? undefined,
     image: productImageUrls,
     category: categoryNames,
+    sku: product.id, // Added SKU
+    mpn: product.id, // Added MPN
     inLanguage: lang,
     datePublished: product.createdAt ?? undefined,
     dateModified: product.updatedAt ?? undefined,

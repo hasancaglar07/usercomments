@@ -81,6 +81,15 @@ type DbProductRow = {
   product_categories?: { category_id: number | null }[] | null;
 };
 
+function buildIlikePattern(query?: string): string | null {
+  const normalized = query?.trim().replace(/,/g, " ") ?? "";
+  if (!normalized) {
+    return null;
+  }
+  const escaped = normalized.replace(/[%_]/g, "\\$&");
+  return `%${escaped}%`;
+}
+
 const productListSelect = `
   id,
   slug,
@@ -344,6 +353,7 @@ async function fetchProductStatsForId(
 export async function fetchAdminProducts(
   env: ParsedEnv,
   options: {
+    q?: string;
     status?: ProductStatus;
     page: number;
     pageSize: number;
@@ -351,15 +361,27 @@ export async function fetchAdminProducts(
   }
 ): Promise<AdminProductListResult> {
   const supabase = getSupabaseClient(env);
-  const { status, page, pageSize, lang } = options;
+  const { q, status, page, pageSize, lang } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const pattern = buildIlikePattern(q);
 
   let query = supabase
     .from("products")
     .select(adminProductSelect, { count: "exact" })
     .order("created_at", { ascending: false });
 
+  if (pattern) {
+    query = query.or(
+      [
+        `name.ilike.${pattern}`,
+        `slug.ilike.${pattern}`,
+        `description.ilike.${pattern}`,
+        `brands.name.ilike.${pattern}`,
+        `product_translations.name.ilike.${pattern}`,
+      ].join(",")
+    );
+  }
   if (status) {
     query = query.eq("status", status);
   }
