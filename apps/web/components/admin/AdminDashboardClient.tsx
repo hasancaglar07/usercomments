@@ -140,6 +140,13 @@ type ReviewPreviewBlock =
   | { type: "paragraph"; lines: string[] }
   | { type: "list"; items: string[] };
 
+type GlobalSearchResults = {
+  reviews: AdminReview[];
+  products: AdminProduct[];
+  comments: AdminComment[];
+  users: AdminUser[];
+};
+
 type TranslationDraft = {
   lang: SupportedLanguage;
   name: string;
@@ -221,6 +228,7 @@ const DEFAULT_PAGE_SIZE = 50;
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 const ADMIN_SEARCH_PAGE_SIZE = 100;
 const SEARCH_DEBOUNCE_MS = 350;
+const GLOBAL_PREVIEW_LIMIT = 6;
 const REVIEW_COMMENT_PAGE_SIZE = 5;
 
 const reviewStatusFilters = [
@@ -448,6 +456,46 @@ function toggleNumericSelection(selected: number[], id: number) {
   return [...selected, id];
 }
 
+function buildMatchScore(query: string, fields: Array<string | null | undefined>) {
+  if (!query) {
+    return 0;
+  }
+  let score = 0;
+  fields.forEach((field) => {
+    if (!field) {
+      return;
+    }
+    const normalized = field.toLowerCase();
+    if (normalized === query) {
+      score += 6;
+    } else if (normalized.startsWith(query)) {
+      score += 3;
+    } else if (normalized.includes(query)) {
+      score += 1;
+    }
+  });
+  return score;
+}
+
+function rankMatches<T>(
+  items: T[],
+  query: string,
+  fieldsForItem: (item: T) => Array<string | null | undefined>
+) {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+  return items
+    .map((item) => ({
+      item,
+      score: buildMatchScore(normalized, fieldsForItem(item)),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.item);
+}
+
 export default function AdminDashboardClient() {
   const router = useRouter();
   const params = useParams();
@@ -458,6 +506,12 @@ export default function AdminDashboardClient() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("reviews");
+  const [globalQuery, setGlobalQuery] = useState("");
+  const [globalResults, setGlobalResults] = useState<GlobalSearchResults | null>(
+    null
+  );
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [globalSearchError, setGlobalSearchError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryPageInfo, setCategoryPageInfo] = useState<PaginationInfo | null>(null);
@@ -595,6 +649,7 @@ export default function AdminDashboardClient() {
   const reviewSearchRequestIdRef = useRef(0);
   const productSearchRequestIdRef = useRef(0);
   const commentSearchRequestIdRef = useRef(0);
+  const globalSearchRequestIdRef = useRef(0);
 
   const [comments, setComments] = useState<AdminComment[]>([]);
   const [commentPageInfo, setCommentPageInfo] = useState<PaginationInfo | null>(null);
@@ -705,6 +760,7 @@ export default function AdminDashboardClient() {
   const commentFilterLabel =
     commentStatusFilter === "all" ? "All" : commentStatusFilter;
   const reportFilterLabel = reportStatusFilter === "all" ? "All" : reportStatusFilter;
+  const globalSearchActive = globalQuery.trim().length > 0;
   const reviewSearchActive = reviewQuery.trim().length > 0;
   const productSearchActive = productQuery.trim().length > 0;
   const commentSearchActive = commentQuery.trim().length > 0;
@@ -1630,6 +1686,143 @@ export default function AdminDashboardClient() {
     [commentReviewFilter, commentStatusFilter, extractErrorMessage, handleAccessError]
   );
 
+  const loadGlobalSearch = useCallback(
+    async (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        globalSearchRequestIdRef.current += 1;
+        setGlobalResults(null);
+        setGlobalSearchError(null);
+        setGlobalSearchLoading(false);
+        return;
+      }
+      const requestId = globalSearchRequestIdRef.current + 1;
+      globalSearchRequestIdRef.current = requestId;
+      setGlobalSearchLoading(true);
+      setGlobalSearchError(null);
+      try {
+        const fetchAllReviews = async () => {
+          let page = 1;
+          let totalPages = 1;
+          const items: AdminReview[] = [];
+          do {
+            const result = await getAdminReviews({
+              page,
+              pageSize: ADMIN_SEARCH_PAGE_SIZE,
+              lang,
+            });
+            items.push(...result.items);
+            totalPages = result.pageInfo?.totalPages ?? page;
+            page += 1;
+          } while (page <= totalPages);
+          return items;
+        };
+
+        const fetchAllProducts = async () => {
+          let page = 1;
+          let totalPages = 1;
+          const items: AdminProduct[] = [];
+          do {
+            const result = await getAdminProducts({
+              page,
+              pageSize: ADMIN_SEARCH_PAGE_SIZE,
+              lang,
+            });
+            items.push(...result.items);
+            totalPages = result.pageInfo?.totalPages ?? page;
+            page += 1;
+          } while (page <= totalPages);
+          return items;
+        };
+
+        const fetchAllComments = async () => {
+          let page = 1;
+          let totalPages = 1;
+          const items: AdminComment[] = [];
+          do {
+            const result = await getAdminComments({
+              page,
+              pageSize: ADMIN_SEARCH_PAGE_SIZE,
+            });
+            items.push(...result.items);
+            totalPages = result.pageInfo?.totalPages ?? page;
+            page += 1;
+          } while (page <= totalPages);
+          return items;
+        };
+
+        const fetchAllUsers = async () => {
+          let page = 1;
+          let totalPages = 1;
+          const items: AdminUser[] = [];
+          do {
+            const result = await getAdminUsers({
+              page,
+              pageSize: ADMIN_SEARCH_PAGE_SIZE,
+            });
+            items.push(...result.items);
+            totalPages = result.pageInfo?.totalPages ?? page;
+            page += 1;
+          } while (page <= totalPages);
+          return items;
+        };
+
+        const [allReviews, allProducts, allComments, allUsers] = await Promise.all([
+          fetchAllReviews(),
+          fetchAllProducts(),
+          fetchAllComments(),
+          fetchAllUsers(),
+        ]);
+
+        if (globalSearchRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        const queryLower = trimmed.toLowerCase();
+        const rankedReviews = rankMatches(allReviews, queryLower, (review) => [
+          review.title,
+          review.slug,
+          review.author.username,
+          review.excerpt,
+        ]);
+        const rankedProducts = rankMatches(allProducts, queryLower, (product) => {
+          const categoryNames = (product.categoryIds ?? [])
+            .map((id) => categoryLookup.get(id)?.name)
+            .filter((name): name is string => Boolean(name))
+            .join(" ");
+          return [product.name, product.slug, product.brand?.name, categoryNames];
+        });
+        const rankedComments = rankMatches(allComments, queryLower, (comment) => [
+          comment.text,
+          comment.author.username,
+          comment.review?.title,
+          comment.review?.slug,
+        ]);
+        const rankedUsers = rankMatches(allUsers, queryLower, (user) => [
+          user.username,
+          user.role,
+        ]);
+
+        setGlobalResults({
+          reviews: rankedReviews,
+          products: rankedProducts,
+          comments: rankedComments,
+          users: rankedUsers,
+        });
+      } catch (error) {
+        console.error("Failed to run global search", error);
+        const message = extractErrorMessage(error);
+        handleAccessError(message);
+        setGlobalSearchError("Unable to run global search.");
+      } finally {
+        if (globalSearchRequestIdRef.current === requestId) {
+          setGlobalSearchLoading(false);
+        }
+      }
+    },
+    [categoryLookup, extractErrorMessage, handleAccessError, lang]
+  );
+
   const loadReports = useCallback(async () => {
     setReportsLoading(true);
     setReportsError(null);
@@ -1791,6 +1984,26 @@ export default function AdminDashboardClient() {
     }
     loadComments();
   }, [loadComments, ready]);
+
+  useEffect(() => {
+    if (!ready) {
+      return;
+    }
+    const trimmed = globalQuery.trim();
+    if (!trimmed) {
+      globalSearchRequestIdRef.current += 1;
+      setGlobalResults(null);
+      setGlobalSearchError(null);
+      setGlobalSearchLoading(false);
+      return;
+    }
+    setGlobalSearchLoading(true);
+    setGlobalSearchError(null);
+    const timeoutId = window.setTimeout(() => {
+      loadGlobalSearch(trimmed);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [globalQuery, loadGlobalSearch, ready]);
 
   useEffect(() => {
     if (!ready || activeTab !== "reviews") {
@@ -2788,6 +3001,30 @@ export default function AdminDashboardClient() {
     }
   };
 
+  const openReviewInAdmin = (reviewId: string) => {
+    setActiveTab("reviews");
+    setReviewQuery(globalQuery);
+    setActiveReviewId(reviewId);
+  };
+
+  const openProductInAdmin = (productId: string) => {
+    setActiveTab("products");
+    setProductQuery(globalQuery);
+    setActiveProductId(productId);
+  };
+
+  const openCommentInAdmin = (commentId: string) => {
+    setActiveTab("comments");
+    setCommentQuery(globalQuery);
+    setActiveCommentId(commentId);
+  };
+
+  const openUserInAdmin = (userId: string) => {
+    setActiveTab("users");
+    setUserQuery(globalQuery);
+    setActiveUserId(userId);
+  };
+
   const categoryCount = categoryPageInfo?.totalItems ?? categories.length;
   const productTotal = productPageInfo?.totalItems ?? products.length;
   const reviewTotal = reviewPageInfo?.totalItems ?? reviews.length;
@@ -2796,6 +3033,10 @@ export default function AdminDashboardClient() {
   const userTotal = userPageInfo?.totalItems ?? users.length;
   const reviewCommentTotal =
     reviewCommentsPageInfo?.totalItems ?? reviewComments.length;
+  const globalReviewCount = globalResults?.reviews.length ?? 0;
+  const globalProductCount = globalResults?.products.length ?? 0;
+  const globalCommentCount = globalResults?.comments.length ?? 0;
+  const globalUserCount = globalResults?.users.length ?? 0;
   return (
     <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen">
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 py-12">
@@ -2867,6 +3108,320 @@ export default function AdminDashboardClient() {
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Active profiles</p>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Global Search
+                </label>
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-3 text-sm text-slate-900 dark:text-slate-100"
+                  placeholder="Search reviews, products, comments, and users..."
+                  value={globalQuery}
+                  onChange={(event) => setGlobalQuery(event.target.value)}
+                />
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  One search across all admin workspaces, ranked by relevance.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
+                  onClick={() => loadGlobalSearch(globalQuery)}
+                  disabled={!globalSearchActive || globalSearchLoading}
+                >
+                  Search
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  onClick={() => {
+                    globalSearchRequestIdRef.current += 1;
+                    setGlobalQuery("");
+                    setGlobalResults(null);
+                    setGlobalSearchError(null);
+                    setGlobalSearchLoading(false);
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {globalSearchError ? (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                {globalSearchError}
+              </div>
+            ) : null}
+
+            {globalSearchLoading ? (
+              <div className="mt-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-500 dark:text-slate-400">
+                Searching across all workspaces...
+              </div>
+            ) : globalSearchActive && globalResults ? (
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Reviews
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatCompactNumber(globalReviewCount)} matches
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setActiveTab("reviews");
+                        setReviewQuery(globalQuery);
+                      }}
+                    >
+                      Open workspace
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {globalResults.reviews.slice(0, GLOBAL_PREVIEW_LIMIT).map((review) => (
+                      <div
+                        key={`global-review-${review.id}`}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            {review.title}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            @{review.author.username} · {review.slug}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                            onClick={() => openReviewInAdmin(review.id)}
+                          >
+                            Admin
+                          </button>
+                          <Link
+                            href={localizePath(`/content/${review.slug}`, lang)}
+                            className="text-[11px] font-semibold text-primary hover:underline"
+                          >
+                            Live
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                    {globalReviewCount === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        No review matches.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Products
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatCompactNumber(globalProductCount)} matches
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setActiveTab("products");
+                        setProductQuery(globalQuery);
+                      }}
+                    >
+                      Open workspace
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {globalResults.products.slice(0, GLOBAL_PREVIEW_LIMIT).map((product) => (
+                      <div
+                        key={`global-product-${product.id}`}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            {product.name}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {product.brand?.name ? `${product.brand.name} · ` : ""}
+                            {product.slug}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                            onClick={() => openProductInAdmin(product.id)}
+                          >
+                            Admin
+                          </button>
+                          <Link
+                            href={localizePath(`/products/${product.slug}`, lang)}
+                            className="text-[11px] font-semibold text-primary hover:underline"
+                          >
+                            Live
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                    {globalProductCount === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        No product matches.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Comments
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatCompactNumber(globalCommentCount)} matches
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setActiveTab("comments");
+                        setCommentQuery(globalQuery);
+                      }}
+                    >
+                      Open workspace
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {globalResults.comments.slice(0, GLOBAL_PREVIEW_LIMIT).map((comment) => {
+                      const preview =
+                        comment.text.length > 90
+                          ? `${comment.text.slice(0, 90)}...`
+                          : comment.text;
+                      return (
+                        <div
+                          key={`global-comment-${comment.id}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-700 dark:text-slate-200">
+                              {preview}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              @{comment.author.username}
+                              {comment.review?.title ? ` · ${comment.review.title}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                              onClick={() => openCommentInAdmin(comment.id)}
+                            >
+                              Admin
+                            </button>
+                            {comment.review?.slug ? (
+                              <Link
+                                href={localizePath(`/content/${comment.review.slug}`, lang)}
+                                className="text-[11px] font-semibold text-primary hover:underline"
+                              >
+                                Live
+                              </Link>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {globalCommentCount === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        No comment matches.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-400">
+                        Users
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatCompactNumber(globalUserCount)} matches
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setActiveTab("users");
+                        setUserQuery(globalQuery);
+                      }}
+                    >
+                      Open workspace
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-3">
+                    {globalResults.users.slice(0, GLOBAL_PREVIEW_LIMIT).map((user) => (
+                      <div
+                        key={`global-user-${user.userId}`}
+                        className="flex items-start justify-between gap-3"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            @{user.username}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {user.role}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                            onClick={() => openUserInAdmin(user.userId)}
+                          >
+                            Admin
+                          </button>
+                          <Link
+                            href={localizePath(`/users/${user.username}`, lang)}
+                            className="text-[11px] font-semibold text-primary hover:underline"
+                          >
+                            Live
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                    {globalUserCount === 0 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        No user matches.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : globalSearchActive ? (
+              <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                No matches yet.
+              </p>
+            ) : (
+              <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                Start typing to search across all admin workspaces.
+              </p>
+            )}
           </div>
         </div>
 

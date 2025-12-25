@@ -79,19 +79,15 @@ class Config:
         langs = [lang for lang in langs if not (lang in seen or seen.add(lang))]
 
         source_base_url = os.getenv("SOURCE_BASE_URL", "https://irecommend.ru").rstrip("/")
-        max_new_reviews_per_loop = env_int("MAX_NEW_REVIEWS_PER_LOOP", 20)
-        if max_new_reviews_per_loop > 20:
-            max_new_reviews_per_loop = 20
-
         return Config(
             source_base_url=source_base_url,
             langs=langs,
-            loop_min_seconds=env_int("LOOP_MIN_SECONDS", 60),
-            loop_max_seconds=env_int("LOOP_MAX_SECONDS", 120),
+            loop_min_seconds=env_int("LOOP_MIN_SECONDS", 480),
+            loop_max_seconds=env_int("LOOP_MAX_SECONDS", 900),
             category_pages_to_scan=env_int("CATEGORY_PAGES_TO_SCAN", 2),
             http_timeout_seconds=env_int("HTTP_TIMEOUT_SECONDS", 30),
             http_max_retries=env_int("HTTP_MAX_RETRIES", 4),
-            max_new_reviews_per_loop=env_int("MAX_NEW_REVIEWS_PER_LOOP", 10),
+            max_new_reviews_per_loop=env_int("MAX_NEW_REVIEWS_PER_LOOP", 1),
             image_crop_right_pct=env_float("IMAGE_CROP_RIGHT_PCT", 0.15),
             image_max_width=env_int("IMAGE_MAX_WIDTH", 1600),
             image_webp_quality=env_int("IMAGE_WEBP_QUALITY", 82),
@@ -119,7 +115,7 @@ class Config:
             fallback_review_image_url=os.getenv("FALLBACK_REVIEW_IMAGE_URL"),
             cache_purge_url=env_optional("CACHE_PURGE_URL"),
             cache_purge_secret=env_optional("CACHE_PURGE_SECRET"),
-            daily_review_limit=env_int("DAILY_REVIEW_LIMIT", 50),
+            daily_review_limit=env_int("DAILY_REVIEW_LIMIT", 140),
         )
 
 

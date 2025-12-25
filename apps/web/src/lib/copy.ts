@@ -274,6 +274,11 @@ export const TRANSLATIONS = {
     "productDetail.empty.description":
       "Be the first to review this product and share your experience.",
     "productDetail.empty.cta": "Write the first review",
+    "productDetail.faq.title": "Frequently Asked Questions",
+    "productDetail.faq.whatIs": "What is {productName}?",
+    "productDetail.faq.isRecommended": "Is {productName} recommended?",
+    "productDetail.faq.ratingAnswer": "Yes, it has a rating of {rating}/5 based on {count} reviews.",
+    "productDetail.faq.noRatingsYet": "There are no ratings yet. Be the first to review!",
     "reviewDetail.meta.notFoundTitle": "Review Not Found",
     "reviewDetail.meta.notFoundDescription": "The requested review could not be found.",
     "reviewDetail.meta.descriptionFallback": "Read the full review and user experiences.",
@@ -1007,7 +1012,12 @@ export const TRANSLATIONS = {
     "productDetail.empty.title": "Henüz yorum yok",
     "productDetail.empty.description":
       "Bu ürüne ilk yorumu yazıp deneyimini paylaş.",
-    "productDetail.empty.cta": "İlk yorumu yaz",
+    "productDetail.empty.cta": "İlk yorumu yazın",
+    "productDetail.faq.title": "Sıkça Sorulan Sorular",
+    "productDetail.faq.whatIs": "{productName} nedir?",
+    "productDetail.faq.isRecommended": "{productName} tavsiye ediliyor mu?",
+    "productDetail.faq.ratingAnswer": "Evet, {count} incelemeye dayanarak 5 üzerinden {rating} puana sahip.",
+    "productDetail.faq.noRatingsYet": "Henüz derecelendirme yok. İlk inceleyen siz olun!",
     "reviewDetail.meta.notFoundTitle": "Yorum Bulunamadı",
     "reviewDetail.meta.notFoundDescription": "İstenen yorum bulunamadı.",
     "reviewDetail.meta.descriptionFallback": "Tam incelemeyi ve kullanıcı deneyimlerini oku.",
@@ -1454,7 +1464,8 @@ export const TRANSLATIONS = {
     "terms.section3.body1":
       "Hizmetimiz; belirli bilgi, metin, grafik, video veya diğer materyalleri (İçerik) yayınlamanıza, bağlamanıza, depolamanıza, paylaşmanıza ve diğer şekillerde erişilebilir kılmanıza olanak tanır. Hizmete gönderdiğiniz İçerikten, bunun yasallığı, güvenilirliği ve uygunluğundan siz sorumlusunuz.",
     "terms.section3.note.label": "Önemli Not:",
-    "terms.section3.note.bodyPrefix": "Saldırgan, zararlı veya",
+    "terms.section3.note.bodyPrefix":
+      "Saldırgan, zararlı veya",
     "terms.section3.note.link": "Topluluk Kurallarımıza",
     "terms.section3.note.bodySuffix":
       "aykırı olduğunu düşündüğümüz içerikleri kaldırma hakkımız saklıdır.",
@@ -1740,7 +1751,12 @@ export const TRANSLATIONS = {
     "productDetail.empty.title": "Aún no hay reseñas",
     "productDetail.empty.description":
       "Sé el primero en reseñar este producto y compartir tu experiencia.",
-    "productDetail.empty.cta": "Escribe la primera reseña",
+    "productDetail.empty.cta": "Escribe la primera opinión",
+    "productDetail.faq.title": "Preguntas frecuentes",
+    "productDetail.faq.whatIs": "¿Qué es {productName}?",
+    "productDetail.faq.isRecommended": "¿Se recomienda {productName}?",
+    "productDetail.faq.ratingAnswer": "Sí, tiene una calificación de {rating}/5 basada en {count} opiniones.",
+    "productDetail.faq.noRatingsYet": "Aún no hay valoraciones. ¡Sé el primero en opinar!",
     "reviewDetail.meta.notFoundTitle": "Reseña no encontrada",
     "reviewDetail.meta.notFoundDescription": "No se pudo encontrar la reseña solicitada.",
     "reviewDetail.meta.descriptionFallback":
@@ -2826,6 +2842,11 @@ export const TRANSLATIONS = {
     "productDetail.empty.description":
       "كن أول من يراجع هذا المنتج ويشارك تجربته.",
     "productDetail.empty.cta": "اكتب أول مراجعة",
+    "productDetail.faq.title": "أسئلة مكررة",
+    "productDetail.faq.whatIs": "ما هو {productName}؟",
+    "productDetail.faq.isRecommended": "هل يوصى بـ {productName}؟",
+    "productDetail.faq.ratingAnswer": "نعم، حصل على تقييم {rating}/5 بناءً على {count} مراجعة.",
+    "productDetail.faq.noRatingsYet": "لا توجد تقييمات بعد. كن أول من يراجع!",
     "reviewDetail.meta.notFoundTitle": "المراجعة غير موجودة",
     "reviewDetail.meta.notFoundDescription": "لم يتم العثور على المراجعة المطلوبة.",
     "reviewDetail.meta.descriptionFallback": "اقرأ المراجعة الكاملة وتجارب المستخدمين.",

@@ -335,6 +335,7 @@ const userRoleSchema = z.object({
 });
 
 const adminReviewQuerySchema = z.object({
+  q: z.string().trim().optional(),
   status: z.enum(["published", "hidden", "deleted", "pending", "draft"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce
@@ -347,6 +348,7 @@ const adminReviewQuerySchema = z.object({
 });
 
 const adminProductQuerySchema = z.object({
+  q: z.string().trim().optional(),
   status: productStatusSchema.optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce
@@ -438,6 +440,7 @@ const adminReviewUpdateSchema = z
   );
 
 const adminCommentQuerySchema = z.object({
+  q: z.string().trim().optional(),
   status: z.enum(["published", "hidden", "deleted"]).optional(),
   reviewId: z.string().uuid().optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -454,6 +457,7 @@ const adminCommentUpdateSchema = z.object({
 });
 
 const adminUserQuerySchema = z.object({
+  q: z.string().trim().optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce
     .number()

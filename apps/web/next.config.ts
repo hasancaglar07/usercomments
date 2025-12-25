@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/sitemap-:path*.xml",
+        destination: "/sitemaps/sitemap-:path*.xml",
+      },
+    ];
+  },
   async headers() {
     return [
       {

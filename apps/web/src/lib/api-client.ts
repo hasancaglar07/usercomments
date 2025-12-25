@@ -259,12 +259,16 @@ export async function getAdminUploadHealth(): Promise<UploadHealth> {
 }
 
 export async function getAdminProducts(options: {
+  q?: string;
   status?: ProductStatus;
   page?: number;
   pageSize?: number;
   lang?: SupportedLanguage;
 }): Promise<PaginatedResult<AdminProduct>> {
   const params = new URLSearchParams();
+  if (options.q) {
+    params.set("q", options.q);
+  }
   if (options.status) {
     params.set("status", options.status);
   }
@@ -383,12 +387,16 @@ export async function bulkUpdateAdminProductStatus(
 }
 
 export async function getAdminReviews(options: {
+  q?: string;
   status?: ReviewStatus;
   page?: number;
   pageSize?: number;
   lang?: SupportedLanguage;
 }): Promise<PaginatedResult<AdminReview>> {
   const params = new URLSearchParams();
+  if (options.q) {
+    params.set("q", options.q);
+  }
   if (options.status) {
     params.set("status", options.status);
   }
@@ -466,12 +474,16 @@ export async function updateAdminReview(
 }
 
 export async function getAdminComments(options: {
+  q?: string;
   status?: CommentStatus;
   reviewId?: string;
   page?: number;
   pageSize?: number;
 }): Promise<PaginatedResult<AdminComment>> {
   const params = new URLSearchParams();
+  if (options.q) {
+    params.set("q", options.q);
+  }
   if (options.status) {
     params.set("status", options.status);
   }
@@ -539,10 +551,14 @@ export async function bulkUpdateAdminReportStatus(
 }
 
 export async function getAdminUsers(options: {
+  q?: string;
   page?: number;
   pageSize?: number;
 }): Promise<PaginatedResult<AdminUser>> {
   const params = new URLSearchParams();
+  if (options.q) {
+    params.set("q", options.q);
+  }
   if (options.page) {
     params.set("page", String(options.page));
   }

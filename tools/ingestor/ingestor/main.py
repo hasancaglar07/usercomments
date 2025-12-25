@@ -744,16 +744,24 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         logger.info("Discovering new content from detailed scan of EXISTING categories...")
 
         def _sync_discovery_flow():
-            cat_urls = [url for url, _ in category_map.items()]
-            random.shuffle(cat_urls)
+            # Prioritize top-level categories for broader variety as requested
+            top_cat_urls = [u for u, cid in category_map.items() if cid not in parent_map]
+            sub_cat_urls = [u for u, cid in category_map.items() if cid in parent_map]
+            
+            random.shuffle(top_cat_urls)
+            random.shuffle(sub_cat_urls)
+            
+            # Select 3 top categories and 2 subcategories for good mix
+            targets = top_cat_urls[:3] + sub_cat_urls[:2]
+            random.shuffle(targets)
             
             # Using a list of lists to interleave URLs from different categories
             links_by_category: List[List[str]] = []
             product_urls = set()
 
-            logger.info("Scanning %d existing categories for varied content...", len(cat_urls))
-            for idx, c_url in enumerate(cat_urls):
-                if idx > 40: break # Increased variety scan
+            logger.info("Scanning %d selected categories (Top+Sub) for varied content...", len(targets))
+            for idx, c_url in enumerate(targets):
+                # Limit already applied by slicing targets
                 
                 cat_links = set()
                 for page_url in build_page_urls(c_url, config.category_pages_to_scan):
@@ -784,7 +792,7 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
                 logger.info("Deep discovery: Scanning up to 50 product pages for missing reviews...")
                 p_list = list(product_urls)
                 random.shuffle(p_list)
-                for p_idx, p_url in enumerate(p_list[:50]):
+                for p_idx, p_url in enumerate(p_list[:20]):
                     try:
                         p_html = http.get(p_url).text
                         deep_links = discover_review_links(p_html, config.source_base_url, logger)

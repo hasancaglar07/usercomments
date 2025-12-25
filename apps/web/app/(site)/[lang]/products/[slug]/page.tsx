@@ -332,6 +332,12 @@ export default async function Page(props: PageProps) {
       {
         "@type": "ListItem",
         position: 3,
+        name: primaryCategoryLabel,
+        item: toAbsoluteUrl(localizePath(`/catalog/reviews/${primaryCategoryId}`, lang)),
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
         name: product.name,
         item: productUrl,
       },
@@ -346,6 +352,7 @@ export default async function Page(props: PageProps) {
       author: {
         "@type": "Person",
         name: r.author.displayName || r.author.username,
+        url: toAbsoluteUrl(localizePath(`/users/${r.author.username}`, lang)),
       },
       datePublished: r.createdAt,
       reviewBody: r.excerpt ?? r.title,
@@ -355,6 +362,26 @@ export default async function Page(props: PageProps) {
         bestRating: 5,
         worstRating: 1,
       },
+      positiveNotes: r.pros?.length
+        ? {
+          "@type": "ItemList",
+          itemListElement: r.pros.map((pro, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: pro,
+          })),
+        }
+        : undefined,
+      negativeNotes: r.cons?.length
+        ? {
+          "@type": "ItemList",
+          itemListElement: r.cons.map((con, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: con,
+          })),
+        }
+        : undefined,
     }));
 
   const productJsonLd = {
@@ -375,14 +402,15 @@ export default async function Page(props: PageProps) {
       }
       : undefined,
     // Always include offers to satisfy Google Rich Results requirements
-    offers: {
+    offers: [{
       "@type": "Offer",
       availability: "https://schema.org/InStock",
       priceCurrency: "USD",
-      price: "0",
+      price: "0.00",
       priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       url: productUrl,
-    },
+      itemCondition: "https://schema.org/NewCondition",
+    }],
     aggregateRating:
       ratingCount > 0
         ? {
@@ -403,13 +431,42 @@ export default async function Page(props: PageProps) {
   const aggregatedPros = Array.from(new Set(reviewsResult.items.flatMap(r => r.pros || []))).slice(0, 4);
   const aggregatedCons = Array.from(new Set(reviewsResult.items.flatMap(r => r.cons || []))).slice(0, 4);
 
+  // NEW: Generate Synthetic FAQs for SEO and User Experience
+  const faqItems = [
+    {
+      question: t(lang, "productDetail.faq.whatIs", { productName: product.name }),
+      answer: product.description || t(lang, "productDetail.descriptionFallback"),
+    },
+    {
+      question: t(lang, "productDetail.faq.isRecommended", { productName: product.name }),
+      answer: ratingCount > 0
+        ? t(lang, "productDetail.faq.ratingAnswer", {
+          rating: ratingAvg.toFixed(1),
+          count: formatNumber(ratingCount, lang)
+        })
+        : t(lang, "productDetail.faq.noRatingsYet"),
+    }
+  ];
+
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqItems.map(item => ({
+      "@type": "Question",
+      "name": item.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": item.answer
+      }
+    }))
+  };
+
   return (
     <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
       <div className="layout-content-container flex flex-col max-w-6xl w-full gap-8">
         <script type="application/ld+json">{JSON.stringify(productJsonLd)}</script>
-        <script type="application/ld+json">
-          {JSON.stringify(breadcrumbJsonLd)}
-        </script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd)}</script>
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
           <div className="grid gap-8 md:grid-cols-[260px_1fr]">
             {/* Left Column: Image */}
@@ -574,6 +631,26 @@ export default async function Page(props: PageProps) {
               product.slug
             )}`}
           />
+        )}
+
+        {faqItems.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
+              {t(lang, "productDetail.faq.title")}
+            </h2>
+            <div className="space-y-6">
+              {faqItems.map((item, index) => (
+                <div key={index} className="border-b border-slate-100 dark:border-slate-800 last:border-0 pb-6 last:pb-0">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+                    {item.question}
+                  </h3>
+                  <div className="text-slate-600 dark:text-slate-400 prose dark:prose-invert max-w-none text-sm leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: item.answer }}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
         )}
 
         {relatedProducts.length > 0 || relatedReviewCards.length > 0 ? (
