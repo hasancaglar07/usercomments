@@ -8,8 +8,9 @@ import {
   CatalogSortSelect,
 } from "@/components/catalog/CatalogFilters";
 import type { ReviewCardCatalogData } from "@/components/cards/ReviewCard";
-import type { CatalogPopularTopic, CatalogTopAuthor } from "@/components/layout/Sidebar";
-import type { Category, Review } from "@/src/types";
+import type { CatalogTopAuthor } from "@/components/layout/Sidebar";
+import type { Category, Review, UserProfile } from "@/src/types";
+import { buildPopularTopics } from "@/components/layout/PopularReviewsWidget";
 import { Suspense } from "react";
 import {
   FALLBACK_AVATARS,
@@ -25,6 +26,7 @@ import {
   getCatalogPage,
   getCategories,
   getPopularReviews,
+  getUserProfile,
 } from "@/src/lib/api";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
@@ -37,7 +39,6 @@ import {
 } from "@/data/mock/reviews";
 import { catalogTopAuthors } from "@/data/mock/users";
 
-export const runtime = "edge";
 export const revalidate = 60;
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -211,36 +212,18 @@ function buildCatalogCards(
   });
 }
 
-function buildPopularTopics(
-  reviews: Review[],
-  categories: Category[],
-  lang: string
-): CatalogPopularTopic[] {
-  const resolvedLang = normalizeLanguage(lang);
-  return reviews.map((review, index) => {
-    const categoryLabel =
-      getCategoryLabel(categories, review.categoryId) ??
-      t(resolvedLang, "common.general");
-    return {
-      slug: review.slug,
-      rankLabel: String(index + 1).padStart(2, "0"),
-      title: review.title,
-      metaLabel: t(resolvedLang, "catalog.popularTopicMeta", {
-        category: categoryLabel,
-        count: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
-      }),
-    };
-  });
-}
-
 function buildTopAuthors(
   reviews: Review[],
+  profiles: UserProfile[],
   fallback: CatalogTopAuthor[],
   lang: string
 ): CatalogTopAuthor[] {
   const authors: CatalogTopAuthor[] = [];
   const seen = new Set<string>();
   const resolvedLang = normalizeLanguage(lang);
+  const profileMap = new Map(
+    profiles.map((profile) => [profile.username.toLowerCase(), profile])
+  );
 
   for (const review of reviews) {
     const username = review.author.username;
@@ -250,22 +233,33 @@ function buildTopAuthors(
     seen.add(username);
 
     const rankIndex = authors.length;
+    const profile = profileMap.get(username.toLowerCase());
+    const reviewCount = profile?.stats?.reviewCount ?? review.ratingCount ?? 0;
+    const karmaValue =
+      profile?.stats?.karma ??
+      profile?.stats?.reputation ??
+      review.votesUp ??
+      0;
+
     authors.push({
       profile: {
         username,
-        displayName: review.author.displayName ?? username,
+        displayName:
+          profile?.displayName ?? review.author.displayName ?? username,
       },
       avatarUrl:
-        review.author.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, rankIndex),
+        profile?.profilePicUrl ??
+        review.author.profilePicUrl ??
+        pickFrom(FALLBACK_AVATARS, rankIndex),
       avatarAlt: t(resolvedLang, "catalog.avatarAlt", { username }),
       avatarDataAlt: t(resolvedLang, "catalog.avatarDataAlt", { username }),
       rankLabel: `#${rankIndex + 1}`,
       rankClassName: TOP_AUTHOR_RANKS[rankIndex] ?? TOP_AUTHOR_RANKS[0],
       reviewsLabel: t(resolvedLang, "catalog.topAuthorReviews", {
-        count: formatCompactNumber(review.ratingCount ?? 0, resolvedLang),
+        count: formatCompactNumber(reviewCount, resolvedLang),
       }),
       karmaLabel: t(resolvedLang, "catalog.topAuthorKarma", {
-        count: formatCompactNumber(review.votesUp ?? 0, resolvedLang),
+        count: formatCompactNumber(karmaValue, resolvedLang),
       }),
     });
 
@@ -308,9 +302,29 @@ export default async function Page(props: CatalogPageProps) {
       categories = categoryItems;
       cards = buildCatalogCards(catalogResult.items, categories, lang);
       pagination = catalogResult.pageInfo;
-      popularTopics = buildPopularTopics(popularReviews, categories, lang);
+      const topAuthorUsernames = Array.from(
+        new Set(
+          popularReviews
+            .map((review) => review.author.username)
+            .filter((username): username is string => Boolean(username))
+        )
+      ).slice(0, 3);
+      const profileResults = await Promise.allSettled(
+        topAuthorUsernames.map((username) => getUserProfile(username))
+      );
+      const topAuthorProfiles = profileResults
+        .map((result) => (result.status === "fulfilled" ? result.value : null))
+        .filter((profile): profile is UserProfile => Boolean(profile));
+
+      popularTopics = buildPopularTopics(
+        popularReviews,
+        categories,
+        lang,
+        POPULAR_LIMIT
+      );
       topAuthors = buildTopAuthors(
         popularReviews,
+        topAuthorProfiles,
         allowMockFallback ? catalogTopAuthors : [],
         lang
       );

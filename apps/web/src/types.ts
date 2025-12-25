@@ -132,6 +132,23 @@ export type UserProfile = {
   };
 };
 
+export type LeaderboardMetric = "active" | "helpful" | "trending";
+export type LeaderboardTimeframe = "all" | "month" | "week";
+
+export type LeaderboardEntry = {
+  profile: UserProfile;
+  stats: {
+    reviewCount: number;
+    totalViews: number;
+    reputation: number;
+    helpfulVotes?: number;
+    recentReviewCount?: number;
+    recentHelpfulVotes?: number;
+    recentViews?: number;
+  };
+  rank?: number;
+};
+
 export type Category = {
   id: number;
   name: string;

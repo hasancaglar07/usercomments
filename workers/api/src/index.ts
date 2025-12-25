@@ -47,6 +47,8 @@ import {
 import { searchReviews } from "./services/search";
 import { fetchUserProfileRecord } from "./services/users";
 import { createPresignedUploadUrl } from "./services/uploads";
+import { fetchLeaderboard, refreshLeaderboardStats } from "./services/leaderboard";
+import { fetchFollowingUsers, followUser, unfollowUser } from "./services/follows";
 import {
   createReport,
   fetchReports,
@@ -80,6 +82,7 @@ import {
 } from "./services/sitemap";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage } from "./utils/i18n";
 import type { UploadHealth } from "./types";
+import { hashString } from "./utils/crypto";
 
 const MAX_SITEMAP_PAGE_SIZE = 50000;
 const R2_ENV_KEYS = [
@@ -134,6 +137,14 @@ const limitSchema = z.coerce
   .max(MAX_PAGE_SIZE)
   .default(DEFAULT_PAGE_SIZE);
 
+const LEADERBOARD_MAX_PAGE_SIZE = 100;
+const leaderboardPageSizeSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .max(LEADERBOARD_MAX_PAGE_SIZE)
+  .default(DEFAULT_PAGE_SIZE);
+
 const langSchema = z
   .string()
   .optional()
@@ -185,6 +196,14 @@ const popularQuerySchema = z.object({
 const latestQuerySchema = z.object({
   cursor: cursorSchema,
   limit: limitSchema,
+  lang: langSchema,
+});
+
+const leaderboardQuerySchema = z.object({
+  metric: z.enum(["active", "helpful", "trending"]).default("active"),
+  timeframe: z.enum(["all", "month", "week"]).default("all"),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: leaderboardPageSizeSchema,
   lang: langSchema,
 });
 
@@ -478,6 +497,22 @@ const userListQuerySchema = z.object({
     .max(MAX_PAGE_SIZE)
     .default(DEFAULT_PAGE_SIZE),
   lang: langSchema,
+});
+
+const followListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(MAX_PAGE_SIZE),
+  usernames: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value ? value.split(",").map((item) => item.trim()).filter(Boolean) : []
+    ),
 });
 
 const adminCategoryCreateSchema = z.object({
@@ -1181,7 +1216,15 @@ async function handleReviewView({ env, params, request }: HandlerContext): Promi
   if (!meta || meta.status !== "published") {
     return errorResponse(404, "Review not found");
   }
-  const result = await incrementReviewViews(env, id);
+  const user = await getAuthUser(request, env);
+  const ip = getClientIp(request);
+  const ipHash = ip && ip !== "unknown" ? await hashString(ip) : null;
+  const result = await incrementReviewViews(env, {
+    reviewId: id,
+    reviewAuthorId: meta.authorId ?? null,
+    viewerUserId: user?.id ?? null,
+    ipHash,
+  });
   if (!result) {
     return errorResponse(404, "Review not found");
   }
@@ -1354,6 +1397,49 @@ async function handleReportUser({ env, request, params }: HandlerContext): Promi
   return jsonResponse(report, { status: 201, headers: { "Cache-Control": "no-store" } });
 }
 
+async function handleMyFollowing({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  const { page, pageSize, usernames } = followListQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchFollowingUsers(env, user.id, {
+    page,
+    pageSize,
+    usernames,
+  });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleFollowUser({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  enforceRateLimit(request, env, user.id);
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+  if (record.userId === user.id) {
+    return errorResponse(400, "Cannot follow yourself");
+  }
+  await followUser(env, user.id, record.userId);
+  return jsonResponse({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleUnfollowUser({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  enforceRateLimit(request, env, user.id);
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+  if (record.userId === user.id) {
+    return errorResponse(400, "Cannot unfollow yourself");
+  }
+  await unfollowUser(env, user.id, record.userId);
+  return jsonResponse({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+}
+
 async function handleUserProfile({ env, params }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
   const record = await fetchUserProfileRecord(env, username);
@@ -1471,6 +1557,19 @@ async function handleSearch({ env, url }: HandlerContext): Promise<Response> {
     page,
     pageSize,
     lang,
+  });
+  return jsonResponse(result);
+}
+
+async function handleLeaderboard({ env, url }: HandlerContext): Promise<Response> {
+  const { metric, timeframe, page, pageSize } = leaderboardQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchLeaderboard(env, {
+    metric,
+    timeframe,
+    page,
+    pageSize,
   });
   return jsonResponse(result);
 }
@@ -2346,6 +2445,24 @@ const routes: Route[] = [
   },
   {
     method: "GET",
+    pattern: new URLPattern({ pathname: "/api/users/me/following" }),
+    handler: handleMyFollowing,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/users/:username/follow" }),
+    handler: handleFollowUser,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/users/:username/unfollow" }),
+    handler: handleUnfollowUser,
+    noStore: true,
+  },
+  {
+    method: "GET",
     pattern: new URLPattern({ pathname: "/api/users/:username/reviews" }),
     handler: handleUserReviews,
     cacheTtl: (env) => env.CACHE_TTL_USER_REVIEWS_SEC,
@@ -2391,6 +2508,12 @@ const routes: Route[] = [
     pattern: new URLPattern({ pathname: "/api/search" }),
     handler: handleSearch,
     cacheTtl: (env) => env.CACHE_TTL_SEARCH_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/leaderboard" }),
+    handler: handleLeaderboard,
+    cacheTtl: (env) => env.CACHE_TTL_USER_SEC,
   },
   {
     method: "POST",
@@ -2679,5 +2802,9 @@ export default {
       const withCors = applyCors(response, request);
       return addRequestId(withCors, requestId);
     }
+  },
+  async scheduled(_: ScheduledController, env: Env, ctx: ExecutionContext) {
+    const parsedEnv = getEnv(env);
+    ctx.waitUntil(refreshLeaderboardStats(parsedEnv));
   },
 };

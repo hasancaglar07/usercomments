@@ -14,7 +14,7 @@ export default function Footer({ lang }: FooterProps) {
   const catalogHref = localizePath("/catalog", lang);
   const topRatedHref = localizePath("/catalog?sort=rating", lang);
   const recentHref = localizePath("/catalog?sort=latest", lang);
-  const leaderboardHref = localizePath("/catalog?sort=popular", lang);
+  const leaderboardHref = localizePath("/leaderboard", lang);
   const termsHref = localizePath("/terms-of-use", lang);
   const privacyHref = localizePath("/privacy-policy", lang);
   const contactHref = localizePath("/contact", lang);
@@ -22,176 +22,186 @@ export default function Footer({ lang }: FooterProps) {
   const addReviewHref = localizePath("/node/add/review", lang);
 
   return (
-    <footer className="bg-background-light dark:bg-surface-dark border-t border-gray-200 dark:border-gray-800 mt-12 py-10">
+    <footer className="bg-white dark:bg-slate-950 border-t border-gray-100 dark:border-gray-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="col-span-1">
-            <Link className="flex items-center gap-2 mb-4" href={homeHref}>
-              <span className="material-symbols-outlined text-primary text-2xl">
-                forum
-              </span>
-              <h2 className="text-xl font-bold text-text-main dark:text-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-y-12 gap-x-8 mb-16">
+          {/* Brand Column */}
+          <div className="lg:col-span-3 space-y-6">
+            <Link className="flex items-center gap-2" href={homeHref}>
+              <div className="flex items-center justify-center size-10 rounded-xl bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-2xl">forum</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
                 UserReview
-              </h2>
+              </span>
             </Link>
-            <p className="text-sm text-text-muted mb-4 italic">
-              {t(resolvedLang, "footer.tagline")}
-            </p>
-            <p className="text-sm text-text-muted mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-w-sm">
               {t(resolvedLang, "footer.description")}
             </p>
             <div className="flex gap-4">
               <a
-                className="text-gray-400 hover:text-primary transition-colors"
                 href="https://facebook.com"
-                rel="noreferrer"
                 target="_blank"
+                rel="noreferrer"
+                className="size-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-primary hover:text-white transition-all duration-200"
+                aria-label={t(resolvedLang, "footer.social.facebook")}
               >
-                <span className="sr-only">{t(resolvedLang, "footer.social.facebook")}</span>FB
+                <span className="text-sm font-bold uppercase">FB</span>
               </a>
               <a
-                className="text-gray-400 hover:text-primary transition-colors"
                 href="https://twitter.com"
-                rel="noreferrer"
                 target="_blank"
+                rel="noreferrer"
+                className="size-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-primary hover:text-white transition-all duration-200"
+                aria-label={t(resolvedLang, "footer.social.twitter")}
               >
-                <span className="sr-only">{t(resolvedLang, "footer.social.twitter")}</span>TW
+                <span className="text-sm font-bold uppercase">TW</span>
               </a>
               <a
-                className="text-gray-400 hover:text-primary transition-colors"
                 href="https://instagram.com"
-                rel="noreferrer"
                 target="_blank"
+                rel="noreferrer"
+                className="size-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-primary hover:text-white transition-all duration-200"
+                aria-label={t(resolvedLang, "footer.social.instagram")}
               >
-                <span className="sr-only">{t(resolvedLang, "footer.social.instagram")}</span>IG
+                <span className="text-sm font-bold uppercase">IG</span>
               </a>
             </div>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-text-main dark:text-white uppercase tracking-wider mb-4">
+
+          {/* Explore Column */}
+          <div className="lg:col-span-2 lg:col-start-4">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-6">
               {t(resolvedLang, "footer.explore")}
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-4">
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={catalogHref}
-                >
+                <Link href={catalogHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
                   {t(resolvedLang, "footer.categories")}
                 </Link>
               </li>
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={topRatedHref}
-                >
+                <Link href={leaderboardHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  {t(resolvedLang, "footer.leaderboard")}
+                </Link>
+              </li>
+              <li>
+                <Link href={topRatedHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
                   {t(resolvedLang, "footer.topRated")}
                 </Link>
               </li>
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={recentHref}
-                >
+                <Link href={recentHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
                   {t(resolvedLang, "footer.recentReviews")}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={leaderboardHref}
-                >
-                  {t(resolvedLang, "footer.leaderboard")}
                 </Link>
               </li>
             </ul>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-text-main dark:text-white uppercase tracking-wider mb-4">
+
+          {/* Company Column */}
+          <div className="lg:col-span-2">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-6">
               {t(resolvedLang, "footer.community")}
             </h3>
-            <ul className="space-y-2">
+            <ul className="space-y-4">
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={termsHref}
-                >
-                  {t(resolvedLang, "footer.rules")}
+                <Link href={aboutHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  {t(resolvedLang, "footer.aboutUs")}
+                </Link>
+              </li>
+              {/* Added Mock 'Careers' and 'Press' links pointing to About for professional look */}
+              <li>
+                <Link href={aboutHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  Careers
                 </Link>
               </li>
               <li>
-                <AuthCtaButton
-                  as="a"
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  authenticatedHref={addReviewHref}
-                >
-                  {t(resolvedLang, "footer.writeReview")}
-                </AuthCtaButton>
+                <Link href={aboutHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  Press & Media
+                </Link>
               </li>
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={contactHref}
-                >
+                <Link href={contactHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  {t(resolvedLang, "footer.contactUs")}
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Support Column */}
+          <div className="lg:col-span-2">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-6">
+              Support
+            </h3>
+            <ul className="space-y-4">
+              <li>
+                <Link href={contactHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
                   {t(resolvedLang, "footer.helpCenter")}
                 </Link>
               </li>
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={contactHref}
-                >
-                  {t(resolvedLang, "footer.contactUs")}
+                <Link href={privacyHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  Safety Center
                 </Link>
               </li>
               <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={privacyHref}
-                >
+                <Link href={termsHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                  {t(resolvedLang, "footer.rules")}
+                </Link>
+              </li>
+              <li>
+                <Link href={privacyHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
                   {t(resolvedLang, "footer.privacyPolicy")}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
-                  href={aboutHref}
-                >
-                  {t(resolvedLang, "footer.aboutUs")}
                 </Link>
               </li>
             </ul>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-text-main dark:text-white uppercase tracking-wider mb-4">
+
+          {/* Newsletter Column */}
+          <div className="lg:col-span-3">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-6">
               {t(resolvedLang, "footer.newsletter")}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
               {t(resolvedLang, "footer.newsletterDescription")}
             </p>
-            <div className="flex gap-2">
+            <form className="flex gap-2 mb-6">
               <input
-                className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder={t(resolvedLang, "footer.newsletterPlaceholder")}
                 type="email"
+                placeholder={t(resolvedLang, "footer.newsletterPlaceholder")}
+                className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
-              <button className="bg-primary hover:bg-primary-dark text-white px-3 py-2 rounded text-sm font-bold transition-colors">
+              <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-colors">
                 {t(resolvedLang, "footer.newsletterButton")}
               </button>
-            </div>
+            </form>
+            <AuthCtaButton
+              as="a"
+              className="inline-flex items-center justify-center w-full px-4 py-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200 gap-2"
+              authenticatedHref={addReviewHref}
+            >
+              <span className="material-symbols-outlined text-[20px]">rate_review</span>
+              {t(resolvedLang, "footer.writeReview")}
+            </AuthCtaButton>
           </div>
         </div>
-        <div className="border-t border-gray-100 dark:border-gray-800 mt-10 pt-6 text-center text-sm text-gray-500 flex flex-col gap-2">
-          <span>{t(resolvedLang, "footer.rights")}</span>
-          <span className="font-medium text-primary">
-            {t(resolvedLang, "footer.byline")}
-          </span>
+
+        {/* Bottom Bar */}
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row items-center gap-4 text-sm text-gray-500">
+            <span>© {new Date().getFullYear()} UserReview. {t(resolvedLang, "footer.rights")}</span>
+            <span className="hidden md:inline text-gray-300">•</span>
+            <span className="flex items-center gap-1">
+              Made with <span className="text-red-500 text-lg">♥</span> for the community
+            </span>
+          </div>
+
           <LanguageSwitcher
             currentLang={normalizeLanguage(lang)}
             label={t(resolvedLang, "language.label")}
-            className="flex items-center justify-center gap-3 text-xs text-gray-500"
-            labelClassName="uppercase tracking-wide"
-            selectClassName="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-600 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="flex items-center gap-3 text-sm text-gray-500"
+            labelClassName="hidden sm:inline font-medium"
+            selectClassName="bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>

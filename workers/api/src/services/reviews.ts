@@ -441,6 +441,7 @@ export async function fetchReviewMetaById(
   productSlug?: string | null;
   productTranslations?: { lang: string; slug: string }[];
   status: string;
+  authorId?: string | null;
   authorUsername?: string | null;
   translations?: { lang: string; slug: string }[];
 } | null> {
@@ -448,7 +449,7 @@ export async function fetchReviewMetaById(
   const { data, error } = await supabase
     .from("reviews")
     .select(
-      "slug, category_id, status, product_id, profiles(username), review_translations(lang, slug), products(slug, product_translations(lang, slug))"
+      "slug, category_id, status, product_id, user_id, profiles(username), review_translations(lang, slug), products(slug, product_translations(lang, slug))"
     )
     .eq("id", id)
     .maybeSingle();
@@ -492,6 +493,7 @@ export async function fetchReviewMetaById(
     productSlug: defaultProductTranslation?.slug ?? productRelation?.slug ?? null,
     productTranslations: productTranslations.length > 0 ? productTranslations : undefined,
     status: data.status ?? "published",
+    authorId: data.user_id ?? null,
     authorUsername: Array.isArray(data.profiles)
       ? data.profiles[0]?.username ?? null
       : (data.profiles as any)?.username ?? null,
@@ -816,11 +818,16 @@ export async function addVote(
 
 export async function incrementReviewViews(
   env: ParsedEnv,
-  reviewId: string
+  payload: {
+    reviewId: string;
+    reviewAuthorId?: string | null;
+    viewerUserId?: string | null;
+    ipHash?: string | null;
+  }
 ): Promise<{ views: number } | null> {
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase.rpc("increment_review_view", {
-    review_id: reviewId,
+    review_id: payload.reviewId,
   });
 
   if (error) {
@@ -833,6 +840,22 @@ export async function incrementReviewViews(
 
   const rawViews = data[0]?.views ?? 0;
   const views = typeof rawViews === "number" ? rawViews : Number(rawViews);
+
+  if (payload.reviewAuthorId) {
+    const { error: viewError } = await supabase
+      .from("review_views")
+      .insert({
+        review_id: payload.reviewId,
+        review_author_id: payload.reviewAuthorId,
+        viewer_user_id: payload.viewerUserId ?? null,
+        ip_hash: payload.ipHash ?? null,
+      });
+
+    if (viewError) {
+      console.error("Failed to record review view:", viewError.message);
+    }
+  }
+
   return { views: Number.isFinite(views) ? views : 0 };
 }
 

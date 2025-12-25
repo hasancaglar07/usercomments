@@ -1,6 +1,9 @@
 import type {
   Category,
   Comment,
+  LeaderboardEntry,
+  LeaderboardMetric,
+  LeaderboardTimeframe,
   PaginationInfo,
   Product,
   Review,
@@ -177,6 +180,31 @@ export async function getLatestComments(
   );
 }
 
+export async function getLeaderboard(
+  metric: LeaderboardMetric,
+  timeframe: LeaderboardTimeframe,
+  page: number,
+  pageSize: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  fetchOptions?: FetchOptions
+): Promise<PaginatedResult<LeaderboardEntry>> {
+  const searchParams = new URLSearchParams({
+    metric,
+    timeframe,
+    page: String(page),
+    pageSize: String(pageSize),
+    lang,
+  });
+  const options: FetchOptions = {
+    next: { revalidate: 60 },
+    ...fetchOptions,
+  };
+  return fetchJson<PaginatedResult<LeaderboardEntry>>(
+    `/api/leaderboard?${searchParams}`,
+    options
+  );
+}
+
 export async function getCatalogPage(
   page: number,
   pageSize: number,
@@ -225,6 +253,78 @@ export async function getUserProfile(username: string): Promise<UserProfile> {
   return fetchJson<UserProfile>(`/api/users/${encodeURIComponent(username)}`, {
     next: { revalidate: 60 },
   });
+}
+
+type FollowingListResponse = {
+  items: Array<{ username?: string } | string>;
+};
+
+type FollowActionResponse = {
+  ok: boolean;
+};
+
+export async function getMyFollowing(
+  accessToken: string,
+  usernames?: string[]
+): Promise<string[]> {
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+  const searchParams = new URLSearchParams();
+  if (usernames && usernames.length > 0) {
+    searchParams.set("usernames", usernames.join(","));
+  }
+  const query = searchParams.toString();
+  const result = await fetchJson<FollowingListResponse>(
+    query ? `/api/users/me/following?${query}` : "/api/users/me/following",
+    {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  return result.items
+    .map((item) => (typeof item === "string" ? item : item.username))
+    .filter((username): username is string => Boolean(username));
+}
+
+export async function followUser(
+  username: string,
+  accessToken: string
+): Promise<FollowActionResponse> {
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+  return fetchJson<FollowActionResponse>(
+    `/api/users/${encodeURIComponent(username)}/follow`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+}
+
+export async function unfollowUser(
+  username: string,
+  accessToken: string
+): Promise<FollowActionResponse> {
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+  return fetchJson<FollowActionResponse>(
+    `/api/users/${encodeURIComponent(username)}/unfollow`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
 }
 
 export async function getUserReviews(

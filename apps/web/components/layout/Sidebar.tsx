@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import RecentComments from "@/components/home/RecentComments";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
+import PopularReviewsWidget from "@/components/layout/PopularReviewsWidget";
+import TopAuthorsWidget from "@/components/layout/TopAuthorsWidget";
 import {
   UserProfileAchievementsTrigger,
   UserProfileShareLink,
@@ -30,7 +32,7 @@ export function SidebarHomepage({
   popularCategories,
 }: SidebarHomepageProps) {
   const resolvedLang = normalizeLanguage(lang);
-  const leaderboardHref = localizePath("/catalog?sort=popular", lang);
+  const leaderboardHref = localizePath("/leaderboard", lang);
   return (
     <div className="w-full lg:w-1/3 flex flex-col gap-6">
       <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
@@ -124,6 +126,8 @@ export type CatalogPopularTopic = {
   rankLabel: string;
   title: string;
   metaLabel: string;
+  thumbnailUrl?: string;
+  thumbnailAlt?: string;
 };
 
 export type CatalogTopAuthor = {
@@ -145,92 +149,10 @@ export type SidebarCatalogProps = {
 
 export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatalogProps) {
   const resolvedLang = normalizeLanguage(lang);
-  const leaderboardHref = localizePath("/catalog?sort=popular", lang);
   return (
     <div className="lg:col-span-4 space-y-8">
-      <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-slate-900 dark:text-white">
-            {t(resolvedLang, "sidebar.popularRightNow")}
-          </h3>
-          <span className="material-symbols-outlined text-secondary">
-            local_fire_department
-          </span>
-        </div>
-        <ul className="space-y-4">
-          {popularTopics.map((topic, index) => (
-            <li key={`${topic.rankLabel}-${index}`}>
-              <Link
-                className="flex gap-3 items-start group cursor-pointer"
-                href={localizePath(`/content/${topic.slug}`, lang)}
-              >
-                <div className="text-2xl font-black text-slate-200 dark:text-slate-700 leading-none group-hover:text-primary transition-colors">
-                  {topic.rankLabel}
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">
-                    {topic.title}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1">{topic.metaLabel}</p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-5">
-        <h3 className="font-bold text-slate-900 dark:text-white mb-4">
-          {t(resolvedLang, "sidebar.topAuthorsWeek")}
-        </h3>
-        <div className="space-y-4">
-          {topAuthors.map((author) => (
-            <div
-              key={author.profile.username}
-              className="flex items-center justify-between group"
-            >
-              <Link
-                className="flex items-center gap-3 cursor-pointer"
-                href={localizePath(
-                  `/users/${encodeURIComponent(author.profile.username.toLowerCase())}`,
-                  lang
-                )}
-              >
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    alt={author.avatarAlt}
-                    className="size-10 rounded-full border-2 border-white dark:border-slate-800 shadow-sm"
-                    data-alt={author.avatarDataAlt}
-                    src={author.avatarUrl}
-                  />
-                  <div className={author.rankClassName}>
-                    {author.rankLabel}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors">
-                    {author.profile.displayName ?? author.profile.username}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {author.reviewsLabel} • {author.karmaLabel}
-                  </p>
-                </div>
-              </Link>
-              <button className="text-primary hover:bg-blue-50 dark:hover:bg-slate-800 p-1 rounded transition-colors shrink-0">
-                <span className="material-symbols-outlined text-[20px]">
-                  person_add
-                </span>
-              </button>
-            </div>
-          ))}
-        </div>
-        <Link
-          className="mt-4 block w-full text-xs font-bold text-primary hover:underline text-center"
-          href={leaderboardHref}
-        >
-          {t(resolvedLang, "sidebar.viewLeaderboard")}
-        </Link>
-      </div>
+      <PopularReviewsWidget lang={lang} topics={popularTopics} />
+      <TopAuthorsWidget lang={lang} authors={topAuthors} />
       <div className="bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-lg p-6 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10">
           <span className="material-symbols-outlined text-[120px]">

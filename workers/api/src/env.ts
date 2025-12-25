@@ -32,6 +32,7 @@ export type Env = {
 export type ParsedEnv = {
   SUPABASE_URL: string;
   SUPABASE_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
   R2_ENDPOINT?: string;
   R2_REGION: string;
   R2_ACCESS_KEY_ID?: string;
