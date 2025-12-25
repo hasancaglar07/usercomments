@@ -5,7 +5,7 @@ import { t } from "@/src/lib/copy";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
 export default async function RecentComments({ lang }: { lang: SupportedLanguage }) {
-    const { items: comments } = await getLatestComments(5);
+    const { items: comments } = await getLatestComments(5, lang); // Pass lang
 
     if (!comments || comments.length === 0) return null;
 
@@ -46,7 +46,7 @@ export default async function RecentComments({ lang }: { lang: SupportedLanguage
                             </p>
                             {comment.review && (
                                 <div className="mt-1 pt-2 border-t border-slate-50 dark:border-slate-800/50">
-                                    <Link href={`/${lang}/reviews/${comment.review.slug}`} className="text-primary hover:underline font-medium text-xs line-clamp-1 block">
+                                    <Link href={`/${lang}/content/${comment.review.slug}`} className="text-primary hover:underline font-medium text-xs line-clamp-1 block">
                                         ↳ {comment.review.title}
                                     </Link>
                                 </div>

@@ -1082,8 +1082,8 @@ async function handleLatestReviews({ env, url }: HandlerContext): Promise<Respon
 }
 
 async function handleLatestComments({ env, url }: HandlerContext): Promise<Response> {
-  const { limit } = z.object({ limit: limitSchema }).parse(getQueryObject(url));
-  const comments = await fetchLatestComments(env, limit);
+  const { limit, lang } = z.object({ limit: limitSchema, lang: langSchema }).parse(getQueryObject(url));
+  const comments = await fetchLatestComments(env, limit, lang);
   return jsonResponse({ items: comments });
 }
 

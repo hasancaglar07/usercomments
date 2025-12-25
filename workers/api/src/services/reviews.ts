@@ -564,26 +564,48 @@ export async function fetchReviewComments(
 
 export async function fetchLatestComments(
   env: ParsedEnv,
-  limit: number
+  limit: number,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<Comment[]> {
   const supabase = getSupabaseClient(env);
-  const { data, error } = await supabase
+  let query = supabase
     .from("comments")
     .select(
-      "id, review_id, text, created_at, profiles(username, profile_pic_url), reviews(slug, title)"
+      "id, review_id, text, created_at, profiles(username, profile_pic_url), reviews!inner(slug, review_translations!inner(title, slug, lang))"
     )
     .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (lang) {
+    query = query.eq("reviews.review_translations.lang", lang);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw error;
   }
 
   // Cast row to match DbComment structure, including reviews relation
-  return (data ?? []).map((row) =>
-    mapCommentRow(row as any, { r2BaseUrl: env.R2_PUBLIC_BASE_URL })
-  );
+  return (data ?? []).map((row: any) => {
+    const reviewData = Array.isArray(row.reviews) ? row.reviews[0] : row.reviews;
+    const translation = Array.isArray(reviewData?.review_translations)
+      ? reviewData.review_translations[0]
+      : null;
+
+    const transformedRow = {
+      ...row,
+      reviews: reviewData
+        ? {
+          slug: translation?.slug ?? reviewData.slug,
+          title: translation?.title ?? "",
+        }
+        : null,
+    };
+
+    return mapCommentRow(transformedRow as any, { r2BaseUrl: env.R2_PUBLIC_BASE_URL });
+  });
 }
 
 export async function createReview(

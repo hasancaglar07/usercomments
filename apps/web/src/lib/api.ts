@@ -167,9 +167,10 @@ export async function getLatestReviews(
 }
 
 export async function getLatestComments(
-  limit = 5
+  limit = 5,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE
 ): Promise<{ items: Comment[] }> {
-  const searchParams = new URLSearchParams({ limit: String(limit) });
+  const searchParams = new URLSearchParams({ limit: String(limit), lang });
   return fetchJson<{ items: Comment[] }>(
     `/api/comments/latest?${searchParams}`,
     { next: { revalidate: 60 } }
