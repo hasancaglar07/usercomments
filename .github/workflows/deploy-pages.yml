@@ -31,6 +31,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://gmpvaxfyawnqbdyyybbf.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtcHZheGZ5YXducWJkeXl5YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzNDIzNjQsImV4cCI6MjA4MTkxODM2NH0.0bAXNixUdto8r0vXU89f8NFhQQqWIQV4DjghFqp3hEc
           NEXT_PUBLIC_API_BASE_URL: https://irecommend-api.usercomments.workers.dev
+          NEXT_PUBLIC_SITE_URL: https://userreview.net
+          NEXT_PUBLIC_IMAGE_CDN_BASE_URL: https://images.userreview.net
         run: npx @cloudflare/next-on-pages
 
       - name: Deploy to Cloudflare Pages

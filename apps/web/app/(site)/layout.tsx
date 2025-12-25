@@ -55,31 +55,40 @@ export default async function SiteLayout({
     console.error("Failed to load header categories", error);
   }
 
-  const localizedSiteUrl = toAbsoluteUrl(localizePath("/", lang));
-  const searchTarget = toAbsoluteUrl(
-    localizePath("/search?q={search_term_string}", lang)
-  );
-  const websiteJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${localizedSiteUrl}#website`,
-    name: SITE_NAME,
-    url: localizedSiteUrl,
-    inLanguage: lang,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: searchTarget,
-      "query-input": "required name=search_term_string",
-    },
-  };
-  const organizationJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": `${localizedSiteUrl}#organization`,
-    name: SITE_NAME,
-    url: localizedSiteUrl,
-    logo: toAbsoluteUrl("/favicon.png"),
-  };
+  let websiteJsonLd = {};
+  let organizationJsonLd = {};
+
+  try {
+    const localizedSiteUrl = toAbsoluteUrl(localizePath("/", lang));
+    const searchTarget = toAbsoluteUrl(
+      localizePath("/search?q={search_term_string}", lang)
+    );
+
+    websiteJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": `${localizedSiteUrl}#website`,
+      name: SITE_NAME,
+      url: localizedSiteUrl,
+      inLanguage: lang,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: searchTarget,
+        "query-input": "required name=search_term_string",
+      },
+    };
+
+    organizationJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": `${localizedSiteUrl}#organization`,
+      name: SITE_NAME,
+      url: localizedSiteUrl,
+      logo: toAbsoluteUrl("/favicon.png"),
+    };
+  } catch (error) {
+    console.error("Error generating SEO JSON-LD:", error);
+  }
 
   return (
     <html lang={lang} dir={dir} className="light">
@@ -89,15 +98,19 @@ export default async function SiteLayout({
             src="https://www.googletagmanager.com/gtag/js?id=G-829FXRQW1V"
             strategy="afterInteractive"
           />
-          <Script id="google-analytics" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
+          <Script
+            id="google-analytics"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
 
-              gtag('config', 'G-829FXRQW1V');
-            `}
-          </Script>
+                gtag('config', 'G-829FXRQW1V');
+              `,
+            }}
+          />
           <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
           <script type="application/ld+json">
             {JSON.stringify(organizationJsonLd)}
