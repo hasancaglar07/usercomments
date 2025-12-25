@@ -59,6 +59,17 @@ type ReportUserRow = {
   bio: string | null;
 };
 
+const REPORT_SEARCH_ID_LIMIT = 200;
+
+function buildIlikePattern(query?: string): string | null {
+  const normalized = query?.trim().replace(/,/g, " ") ?? "";
+  if (!normalized) {
+    return null;
+  }
+  const escaped = normalized.replace(/[%_]/g, "\\$&");
+  return `%${escaped}%`;
+}
+
 function pickRelation<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -138,15 +149,18 @@ export async function createReport(
 export async function fetchReports(
   env: ParsedEnv,
   options: {
+    q?: string;
     status?: ReportStatus;
+    targetType?: Report["targetType"];
     page: number;
     pageSize: number;
   }
 ): Promise<{ items: AdminReport[]; pageInfo: PaginationInfo }> {
   const supabase = getSupabaseClient(env);
-  const { status, page, pageSize } = options;
+  const { q, status, targetType, page, pageSize } = options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
+  const pattern = buildIlikePattern(q);
 
   let query = supabase
     .from("reports")
@@ -158,6 +172,64 @@ export async function fetchReports(
 
   if (status) {
     query = query.eq("status", status);
+  }
+  if (targetType) {
+    query = query.eq("target_type", targetType);
+  }
+  if (pattern) {
+    const targetIds = new Set<string>();
+    const searchTargets = targetType
+      ? [targetType]
+      : (["review", "comment", "user"] as Report["targetType"][]);
+
+    const searchPromises = searchTargets.map((type) => {
+      if (type === "review") {
+        return supabase
+          .from("reviews")
+          .select("id")
+          .or(`title.ilike.${pattern},slug.ilike.${pattern}`)
+          .limit(REPORT_SEARCH_ID_LIMIT);
+      }
+      if (type === "comment") {
+        return supabase
+          .from("comments")
+          .select("id")
+          .ilike("text", pattern)
+          .limit(REPORT_SEARCH_ID_LIMIT);
+      }
+      return supabase
+        .from("profiles")
+        .select("user_id")
+        .ilike("username", pattern)
+        .limit(REPORT_SEARCH_ID_LIMIT);
+    });
+
+    const results = await Promise.all(searchPromises);
+    results.forEach((result, index) => {
+      if (result.error) {
+        throw result.error;
+      }
+      const type = searchTargets[index];
+      (result.data ?? []).forEach((row) => {
+        const id =
+          type === "user"
+            ? (row as { user_id: string }).user_id
+            : (row as { id: string }).id;
+        if (targetIds.size < REPORT_SEARCH_ID_LIMIT) {
+          targetIds.add(id);
+        }
+      });
+    });
+
+    const conditions = [
+      `reason.ilike.${pattern}`,
+      `details.ilike.${pattern}`,
+      `target_id.ilike.${pattern}`,
+    ];
+    if (targetIds.size > 0) {
+      conditions.push(`target_id.in.(${Array.from(targetIds).join(",")})`);
+    }
+    query = query.or(conditions.join(","));
   }
 
   const { data, error, count } = await query.range(from, to);

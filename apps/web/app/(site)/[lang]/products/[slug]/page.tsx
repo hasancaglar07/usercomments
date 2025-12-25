@@ -294,7 +294,9 @@ export default async function Page(props: PageProps) {
   const recommendRate =
     recommendTotal > 0 ? Math.round((recommendUp / recommendTotal) * 100) : null;
   const categoryNames = categoryLabels.length > 0 ? categoryLabels : undefined;
-  const productImageUrls = product.images?.map((image) => toAbsoluteUrl(image.url));
+  const productImageUrls = product.images?.length
+    ? product.images.map((image) => toAbsoluteUrl(image.url))
+    : [toAbsoluteUrl(DEFAULT_REVIEW_IMAGE)];
   const productImage = getOptimizedImageUrl(
     product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE,
     900
@@ -389,11 +391,11 @@ export default async function Page(props: PageProps) {
     "@type": "Product",
     "@id": `${productUrl}#product`,
     name: product.name,
-    description: product.description ?? undefined,
+    description: product.description ?? t(lang, "productDetail.descriptionFallback"),
     image: productImageUrls,
     category: categoryNames,
-    sku: product.id, // Added SKU
-    mpn: product.id, // Added MPN
+    sku: String(product.id),
+    mpn: String(product.id),
     inLanguage: lang,
     datePublished: product.createdAt ?? undefined,
     dateModified: product.updatedAt ?? undefined,
@@ -403,16 +405,15 @@ export default async function Page(props: PageProps) {
         name: product.brand.name,
       }
       : undefined,
-    // Always include offers to satisfy Google Rich Results requirements
-    offers: [{
+    offers: {
       "@type": "Offer",
       availability: "https://schema.org/InStock",
       priceCurrency: "USD",
-      price: "0.00",
-      priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      price: "0",
+      priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
       url: productUrl,
       itemCondition: "https://schema.org/NewCondition",
-    }],
+    },
     aggregateRating:
       ratingCount > 0
         ? {
@@ -420,11 +421,10 @@ export default async function Page(props: PageProps) {
           ratingValue: ratingValue ?? ratingAvg,
           ratingCount,
           reviewCount,
-          bestRating: 5,
-          worstRating: 1,
+          bestRating: "5",
+          worstRating: "1",
         }
         : undefined,
-    // Include individual reviews for richer snippets
     review: reviewSchemaItems.length > 0 ? reviewSchemaItems : undefined,
     url: productUrl,
   };

@@ -301,7 +301,9 @@ const reportBodySchema = z.object({
 });
 
 const reportQuerySchema = z.object({
+  q: z.string().trim().optional(),
   status: z.enum(["open", "resolved", "rejected"]).optional(),
+  targetType: z.enum(["review", "comment", "user"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce
     .number()
@@ -1966,8 +1968,10 @@ async function handleAdminUserDetail({ env, request, params }: HandlerContext): 
 async function handleAdminReports({ env, request, url }: HandlerContext): Promise<Response> {
   const user = await requireAuth(request, env);
   requireRole(user, "admin");
-  const { status, page, pageSize } = reportQuerySchema.parse(getQueryObject(url));
-  const result = await fetchReports(env, { status, page, pageSize });
+  const { q, status, targetType, page, pageSize } = reportQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchReports(env, { q, status, targetType, page, pageSize });
   return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
 }
 

@@ -13,8 +13,10 @@ import {
   getCategoryPage,
   getProductBySlug,
 } from "@/src/lib/api";
+import TableOfContents from "@/components/content/TableOfContents";
 import {
   DEFAULT_AVATAR,
+
   DEFAULT_REVIEW_IMAGE,
   FALLBACK_AVATARS,
   FALLBACK_REVIEW_IMAGES,
@@ -99,8 +101,14 @@ export async function generateMetadata(
   });
 }
 
+type ContentBlock =
+  | { type: "p"; content: string }
+  | { type: "h2"; content: string; id: string }
+  | { type: "h3"; content: string; id: string };
+
 type ReviewContent = {
-  paragraphs: string[];
+  blocks: ContentBlock[];
+  paragraphs: string[]; // Keep for backward compatibility if needed, or derived
   pros: string[];
   cons: string[];
 };
@@ -113,34 +121,44 @@ function parseReviewContent(
     contentText && contentText.trim().length > 0
       ? contentText
       : fallbackText ?? "";
-  const normalized = baseText.replace(/\r\n/g, "\n").trim();
-  const sanitized = normalized
+
+  // Basic HTML tag stripping but try to preserve header semantics if possible
+  // For now, we assume the input might contain Markdown headers ## or ###
+  let normalized = baseText.replace(/\r\n/g, "\n").trim();
+
+  // Should we convert HTML h2/h3 to Markdown ## before stripping?
+  normalized = normalized
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "\n\n## $1\n\n")
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "\n\n### $1\n\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<[^>]+>/g, "")
     .trim();
 
-  if (!sanitized) {
-    return { paragraphs: [], pros: [], cons: [] };
+  if (!normalized) {
+    return { blocks: [], paragraphs: [], pros: [], cons: [] };
   }
 
-  const sections = sanitized
+  const sections = normalized
     .split(/\n{2,}/)
     .map((section) => section.trim())
     .filter(Boolean);
-  const paragraphs: string[] = [];
+
+  const blocks: ContentBlock[] = [];
+  const paragraphs: string[] = []; // Legacy support
   const pros: string[] = [];
   const cons: string[] = [];
+
+  let headerCount = 0;
 
   sections.forEach((section) => {
     const lines = section
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
-    if (lines.length === 0) {
-      return;
-    }
+    if (lines.length === 0) return;
 
+    // Check for Pros/Cons lists
     const heading = lines[0].replace(/:$/, "").toLowerCase();
     if (heading === "pros" || heading === "cons") {
       const items = lines
@@ -155,10 +173,40 @@ function parseReviewContent(
       return;
     }
 
-    paragraphs.push(lines.join("\n"));
+    // Check for Markdown headers
+    const firstLine = lines[0];
+    if (firstLine.startsWith("### ")) {
+      const text = firstLine.substring(4).trim();
+      const id = `heading-${headerCount++}`;
+      blocks.push({ type: "h3", content: text, id });
+      // If there are more lines in this section, they are a paragraph following the header
+      if (lines.length > 1) {
+        const pContent = lines.slice(1).join("\n");
+        blocks.push({ type: "p", content: pContent });
+        paragraphs.push(pContent);
+      }
+      return;
+    }
+
+    if (firstLine.startsWith("## ")) {
+      const text = firstLine.substring(3).trim();
+      const id = `heading-${headerCount++}`;
+      blocks.push({ type: "h2", content: text, id });
+      if (lines.length > 1) {
+        const pContent = lines.slice(1).join("\n");
+        blocks.push({ type: "p", content: pContent });
+        paragraphs.push(pContent);
+      }
+      return;
+    }
+
+    // Default paragraph
+    const pContent = lines.join("\n");
+    blocks.push({ type: "p", content: pContent });
+    paragraphs.push(pContent);
   });
 
-  return { paragraphs, pros, cons };
+  return { blocks, paragraphs, pros, cons };
 }
 
 function buildRelatedCards(
@@ -444,6 +492,24 @@ export default async function Page(props: PageProps) {
     publisher: {
       "@id": organizationId,
     },
+    comment: comments.map((c) => ({
+      "@type": "Comment",
+      text: c.text,
+      datePublished: c.createdAt,
+      author: {
+        "@type": "Person",
+        name: c.author.displayName || c.author.username,
+        url: toAbsoluteUrl(
+          localizePath(
+            `/users/${encodeURIComponent(c.author.username.toLowerCase())}`,
+            lang
+          )
+        ),
+        image: c.author.profilePicUrl
+          ? toAbsoluteUrl(c.author.profilePicUrl)
+          : undefined,
+      },
+    })),
     url: reviewUrl,
   };
 
@@ -777,27 +843,50 @@ export default async function Page(props: PageProps) {
                 )}
 
                 {/* Main Content Body */}
-                <div className="p-6 md:p-8 prose dark:prose-invert prose-slate max-w-none">
-                  {extracted.paragraphs.length > 0 ? (
-                    extracted.paragraphs.map((paragraph, index) => (
-                      <p
-                        key={`paragraph-${index}`}
-                        className="text-slate-600 dark:text-slate-300 leading-relaxed mb-6"
-                      >
-                        {paragraph.split("\n").map((line, lineIndex, lines) => (
-                          <span key={`line-${lineIndex}`}>
-                            {line}
-                            {lineIndex < lines.length - 1 ? (
-                              <br />
-                            ) : null}
-                          </span>
-                        ))}
+                <div className="flex flex-col-reverse lg:flex-row gap-8">
+                  <div className="flex-1 p-6 md:p-8 prose dark:prose-invert prose-slate max-w-none">
+                    {extracted.blocks.length > 0 ? (
+                      extracted.blocks.map((block, index) => {
+                        if (block.type === "h2") {
+                          return (
+                            <h2 key={`block-${index}`} id={block.id} className="text-2xl font-bold text-slate-900 dark:text-white mt-8 mb-4">
+                              {block.content}
+                            </h2>
+                          );
+                        }
+                        if (block.type === "h3") {
+                          return (
+                            <h3 key={`block-${index}`} id={block.id} className="text-xl font-semibold text-slate-800 dark:text-slate-100 mt-6 mb-3">
+                              {block.content}
+                            </h3>
+                          );
+                        }
+                        return (
+                          <p
+                            key={`block-${index}`}
+                            className="text-slate-600 dark:text-slate-300 leading-relaxed mb-6"
+                          >
+                            {block.content.split("\n").map((line, lineIndex, lines) => (
+                              <span key={`line-${lineIndex}`}>
+                                {line}
+                                {lineIndex < lines.length - 1 ? (
+                                  <br />
+                                ) : null}
+                              </span>
+                            ))}
+                          </p>
+                        );
+                      })
+                    ) : (
+                      <p className="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
+                        {review.excerpt ?? ""}
                       </p>
-                    ))
-                  ) : (
-                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
-                      {review.excerpt ?? ""}
-                    </p>
+                    )}
+                  </div>
+                  {extracted.blocks.some(b => b.type === "h2" || b.type === "h3") && (
+                    <div className="p-6 lg:pl-0 lg:pt-8 w-full lg:w-auto">
+                      <TableOfContents contentSelector=".prose" titleLabel={t(lang, "common.tableOfContents")} />
+                    </div>
                   )}
                 </div>
 
@@ -978,7 +1067,7 @@ export default async function Page(props: PageProps) {
             </aside>
           </div>
         </div>
-      </div>
+      </div >
     </>
   );
 }

@@ -129,7 +129,24 @@ type DbAdminUserDetail = DbAdminUser & {
   profile_pic_url: string | null;
 };
 
-const adminReviewSelect = `
+const adminReviewListSelect = `
+  id,
+  slug,
+  title,
+  excerpt,
+  status,
+  created_at,
+  updated_at,
+  rating_avg,
+  rating_count,
+  votes_up,
+  votes_down,
+  comment_count,
+  review_translations(lang, slug, title, excerpt),
+  profiles(username, profile_pic_url)
+`;
+
+const adminReviewDetailSelect = `
   id,
   slug,
   title,
@@ -153,11 +170,7 @@ const adminReviewSelect = `
   product_id,
   review_translations(lang, slug, title, excerpt, content_html),
   profiles(username, profile_pic_url),
-  products(id, slug, name)
-`;
-
-const adminReviewDetailSelect = `
-  ${adminReviewSelect},
+  products(id, slug, name),
   content_html
 `;
 
@@ -422,7 +435,7 @@ export async function fetchAdminReviews(
 
   let query = supabase
     .from("reviews")
-    .select(adminReviewSelect, { count: "exact" })
+    .select(adminReviewListSelect, { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (pattern) {

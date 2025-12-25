@@ -745,36 +745,13 @@ export default function AdminDashboardClient() {
   const reviewSearchActive = reviewQuery.trim().length > 0;
   const productSearchActive = productQuery.trim().length > 0;
   const commentSearchActive = commentQuery.trim().length > 0;
+  const reportSearchActive = reportQuery.trim().length > 0;
+  const userSearchActive = userQuery.trim().length > 0;
 
   const filteredReviews = useMemo(() => reviews, [reviews]);
   const filteredProducts = useMemo(() => products, [products]);
   const filteredComments = useMemo(() => comments, [comments]);
-
-  const filteredReports = useMemo(() => {
-    const query = reportQuery.trim().toLowerCase();
-    return reports.filter((report) => {
-      if (reportTargetFilter !== "all" && report.targetType !== reportTargetFilter) {
-        return false;
-      }
-      if (!query) {
-        return true;
-      }
-      const targetDetail =
-        report.target?.review?.title ||
-        report.target?.comment?.text ||
-        report.target?.user?.username;
-      const haystack = [
-        report.reason,
-        report.details,
-        report.targetId,
-        targetDetail,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [reports, reportQuery, reportTargetFilter]);
+  const filteredReports = useMemo(() => reports, [reports]);
 
   const filteredUsers = useMemo(() => {
     const query = userQuery.trim().toLowerCase();
@@ -1559,8 +1536,13 @@ export default function AdminDashboardClient() {
     setReportsError(null);
     try {
       const status = reportStatusFilter === "all" ? undefined : reportStatusFilter;
+      const targetType =
+        reportTargetFilter === "all" ? undefined : reportTargetFilter;
+      const query = reportQuery.trim();
       const result = await getAdminReports({
+        q: query || undefined,
         status,
+        targetType,
         page: reportPage,
         pageSize: reportPageSize,
       });
@@ -1580,7 +1562,9 @@ export default function AdminDashboardClient() {
     handleAccessError,
     reportPage,
     reportPageSize,
+    reportQuery,
     reportStatusFilter,
+    reportTargetFilter,
   ]);
 
   const loadUsers = useCallback(async () => {
@@ -1694,32 +1678,11 @@ export default function AdminDashboardClient() {
   }, [loadCategories, ready]);
 
   useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    loadReviews();
-  }, [loadReviews, ready]);
-
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    loadProducts();
-  }, [loadProducts, ready]);
-
-  useEffect(() => {
     if (!ready || activeTab !== "products" || uploadHealth) {
       return;
     }
     loadUploadHealth();
   }, [activeTab, loadUploadHealth, ready, uploadHealth]);
-
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    loadComments();
-  }, [loadComments, ready]);
 
   useEffect(() => {
     if (!ready) {
@@ -1745,55 +1708,66 @@ export default function AdminDashboardClient() {
     if (!ready || activeTab !== "reviews") {
       return;
     }
-    const timeoutId = window.setTimeout(() => {
-      loadReviews();
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [activeTab, loadReviews, ready, reviewQuery]);
+    if (reviewSearchActive) {
+      const timeoutId = window.setTimeout(() => {
+        loadReviews();
+      }, SEARCH_DEBOUNCE_MS);
+      return () => window.clearTimeout(timeoutId);
+    }
+    loadReviews();
+  }, [activeTab, loadReviews, ready, reviewSearchActive]);
 
   useEffect(() => {
     if (!ready || activeTab !== "products") {
       return;
     }
-    const timeoutId = window.setTimeout(() => {
-      loadProducts();
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [activeTab, loadProducts, productQuery, ready]);
+    if (productSearchActive) {
+      const timeoutId = window.setTimeout(() => {
+        loadProducts();
+      }, SEARCH_DEBOUNCE_MS);
+      return () => window.clearTimeout(timeoutId);
+    }
+    loadProducts();
+  }, [activeTab, loadProducts, productSearchActive, ready]);
 
   useEffect(() => {
     if (!ready || activeTab !== "comments") {
       return;
     }
-    const timeoutId = window.setTimeout(() => {
-      loadComments();
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [activeTab, commentQuery, loadComments, ready]);
+    if (commentSearchActive) {
+      const timeoutId = window.setTimeout(() => {
+        loadComments();
+      }, SEARCH_DEBOUNCE_MS);
+      return () => window.clearTimeout(timeoutId);
+    }
+    loadComments();
+  }, [activeTab, commentSearchActive, loadComments, ready]);
 
   useEffect(() => {
-    if (!ready) {
+    if (!ready || activeTab !== "reports") {
       return;
+    }
+    if (reportSearchActive) {
+      const timeoutId = window.setTimeout(() => {
+        loadReports();
+      }, SEARCH_DEBOUNCE_MS);
+      return () => window.clearTimeout(timeoutId);
     }
     loadReports();
-  }, [loadReports, ready]);
-
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-    loadUsers();
-  }, [loadUsers, ready]);
+  }, [activeTab, loadReports, ready, reportSearchActive]);
 
   useEffect(() => {
     if (!ready || activeTab !== "users") {
       return;
     }
-    const timeoutId = window.setTimeout(() => {
-      loadUsers();
-    }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeoutId);
-  }, [activeTab, loadUsers, ready, userQuery]);
+    if (userSearchActive) {
+      const timeoutId = window.setTimeout(() => {
+        loadUsers();
+      }, SEARCH_DEBOUNCE_MS);
+      return () => window.clearTimeout(timeoutId);
+    }
+    loadUsers();
+  }, [activeTab, loadUsers, ready, userSearchActive]);
 
   useEffect(() => {
     if (!activeReviewId) {
@@ -5178,9 +5152,12 @@ export default function AdminDashboardClient() {
                       <select
                         className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
                         value={reportTargetFilter}
-                        onChange={(event) =>
-                          setReportTargetFilter(event.target.value as ReportTargetFilter)
-                        }
+                        onChange={(event) => {
+                          setReportTargetFilter(
+                            event.target.value as ReportTargetFilter
+                          );
+                          setReportPage(1);
+                        }}
                       >
                         {reportTargetFilters.map((target) => (
                           <option key={target} value={target}>
@@ -5197,7 +5174,10 @@ export default function AdminDashboardClient() {
                         className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
                         placeholder="Reason or target"
                         value={reportQuery}
-                        onChange={(event) => setReportQuery(event.target.value)}
+                        onChange={(event) => {
+                          setReportQuery(event.target.value);
+                          setReportPage(1);
+                        }}
                       />
                     </div>
                     <div className="grid gap-2">

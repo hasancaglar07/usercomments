@@ -1,7 +1,11 @@
 
-const IMAGE_OPTIMIZER = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "none";
+const IMAGE_OPTIMIZER = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "wsrv";
 const IMAGE_CDN_BASE_URL =
   process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL?.replace(/\/$/, "") ?? "";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.SITE_URL ||
+  "https://userreview.net";
 
 function isOptimizableUrl(url: string): boolean {
   if (url.startsWith("data:") || url.startsWith("blob:")) {
@@ -41,13 +45,16 @@ export function getOptimizedImageUrl(
   if (IMAGE_OPTIMIZER === "cloudflare") {
     return buildCloudflareImageUrl(url, width, quality);
   }
-  if (IMAGE_OPTIMIZER === "none") {
-    return url;
-  }
 
   // wsrv.nl provides free resizing + compression (WebP/AVIF) for remote images.
   try {
-    const urlObj = new URL(url);
+    let targetUrl = url;
+    if (url.startsWith("/")) {
+      targetUrl = `${SITE_URL}${url}`;
+    }
+
+    // Ensure we have a valid absolute URL for wsrv
+    const urlObj = new URL(targetUrl);
     const encodedUrl = encodeURIComponent(urlObj.href);
     return `https://wsrv.nl/?url=${encodedUrl}&w=${width}&q=${quality}&output=webp&il`;
   } catch {

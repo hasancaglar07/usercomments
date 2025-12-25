@@ -13,6 +13,7 @@ import type {
   ProductStatus,
   Report,
   ReportStatus,
+  ReportTargetType,
   Review,
   ReviewStatus,
   UploadHealth,
@@ -513,13 +514,21 @@ export async function updateAdminComment(
 }
 
 export async function getAdminReports(options: {
+  q?: string;
   status?: ReportStatus;
+  targetType?: ReportTargetType;
   page?: number;
   pageSize?: number;
 }): Promise<PaginatedResult<AdminReport>> {
   const params = new URLSearchParams();
+  if (options.q) {
+    params.set("q", options.q);
+  }
   if (options.status) {
     params.set("status", options.status);
+  }
+  if (options.targetType) {
+    params.set("targetType", options.targetType);
   }
   if (options.page) {
     params.set("page", String(options.page));

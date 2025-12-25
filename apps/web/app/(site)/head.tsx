@@ -16,11 +16,6 @@ export default function Head() {
       href: "/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
       type: "font/woff2",
     },
-    {
-      href:
-        "/stitch_assets/fonts/kJEPBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzBwG-RpA6RzaxHMPdY40KH8nGzv3fzfVJO1Q.woff2",
-      type: "font/woff2",
-    },
   ];
   const apiOrigin = getOrigin(process.env.NEXT_PUBLIC_API_BASE_URL);
   const imageCdnOrigin = getOrigin(process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL);

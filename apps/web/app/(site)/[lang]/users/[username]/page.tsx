@@ -74,12 +74,12 @@ export async function generateMetadata(
   return shouldIndex
     ? metadata
     : {
-        ...metadata,
-        robots: {
-          index: false,
-          follow: true,
-        },
-      };
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
 }
 
 type UserProfilePageProps = {
@@ -360,11 +360,34 @@ export default async function Page(props: UserProfilePageProps) {
     return `?${params.toString()}`;
   };
 
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "@id": `${localizePath(`/users/${profile.username}`, lang)}#profile`,
+    mainEntity: {
+      "@type": "Person",
+      name: profile.displayName ?? profile.username,
+      identifier: profile.username,
+      description: profile.bio || undefined,
+      image: profileAvatarUrl,
+      interactionStatistic: [
+        {
+          "@type": "InteractionCounter",
+          interactionType: "https://schema.org/WriteAction",
+          userInteractionCount: reviewCount,
+        },
+      ],
+    },
+  };
+
   return (
     <UserProfileActionsClient
       username={profile.username}
       displayName={profile.displayName ?? profile.username}
     >
+      <script type="application/ld+json">
+        {JSON.stringify(profileJsonLd)}
+      </script>
       <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 md:px-10 py-8 flex flex-col gap-6">
         {errorMessage ? (
           <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">

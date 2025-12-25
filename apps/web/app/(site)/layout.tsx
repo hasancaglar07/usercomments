@@ -1,6 +1,7 @@
 import "../../styles/globals.css";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Inter } from "next/font/google"; // Import Font
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import { AuthProvider } from "../../components/auth/AuthProvider";
@@ -10,6 +11,9 @@ import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
 
 export const runtime = "edge";
+
+// Initialize Font
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 const SITE_NAME = "UserReview";
 export const metadata: Metadata = {
@@ -90,14 +94,23 @@ export default async function SiteLayout({
       name: SITE_NAME,
       url: localizedSiteUrl,
       logo: toAbsoluteUrl("/favicon.png"),
+      sameAs: [
+        "https://twitter.com/UserReviewNet",
+        "https://www.facebook.com/UserReviewNet",
+        "https://www.instagram.com/UserReviewNet",
+      ],
     };
   } catch (error) {
     console.error("Error generating SEO JSON-LD:", error);
   }
 
   return (
-    <html lang={lang} dir={dir} className="light">
+    <html lang={lang} dir={dir} className={`light ${inter.className}`}>
       <body>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
+        />
         <AuthProvider>
           <Script
             async
