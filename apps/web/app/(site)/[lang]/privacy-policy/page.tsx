@@ -133,7 +133,7 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             <span className="material-symbols-outlined text-[18px]">
                                                 calendar_today
                                             </span>
-                                            Last Updated: October 24, 2023
+                                            Last Updated: December 24, 2024
                                         </span>
                                         <span className="hidden sm:inline text-slate-300">|</span>
                                         <span className="flex items-center gap-1.5">
@@ -149,7 +149,7 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                 <div className="prose prose-slate dark:prose-invert max-w-none space-y-12">
                                     <section className="scroll-mt-28" id="introduction">
                                         <p className="text-lg leading-8 text-slate-600 dark:text-slate-300">
-                                            Welcome to iRecommend. We value your trust and are committed to protecting your personal information. This Privacy Policy outlines how we collect, use, disclose, and safeguard your data when you visit our website or use our services. By accessing or using iRecommend, you agree to the terms of this Privacy Policy.
+                                            Welcome to UserReview. We value your trust and are committed to protecting your personal information. This Privacy Policy outlines how we collect, use, disclose, and safeguard your data when you visit our website or use our services. By accessing or using UserReview, you agree to the terms of this Privacy Policy.
                                         </p>
                                     </section>
 
@@ -269,19 +269,18 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                                 <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">For questions about this policy or our privacy practices.</p>
                                                 <a
                                                     className="inline-flex items-center gap-2 text-primary hover:text-blue-600 font-semibold transition-colors"
-                                                    href="mailto:privacy@irecommend.ru"
+                                                    href="mailto:support@userreview.net"
                                                 >
                                                     <span className="material-symbols-outlined text-lg">mail</span>
-                                                    privacy@irecommend.ru
+                                                    support@userreview.net
                                                 </a>
                                             </div>
                                             <div className="hidden md:block w-px h-24 bg-slate-200 dark:bg-slate-700"></div>
                                             <div className="flex-1">
                                                 <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Mailing Address</h4>
                                                 <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-                                                    iRecommend Legal Dept.<br />
-                                                    123 Innovation Drive, Suite 400<br />
-                                                    Tech City, TC 94000
+                                                    UserReview Legal Dept.<br />
+                                                    Istanbul, Turkey
                                                 </p>
                                             </div>
                                         </div>

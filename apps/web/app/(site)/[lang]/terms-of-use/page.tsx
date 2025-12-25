@@ -143,7 +143,7 @@ export default async function Page(props: TermsPageProps) {
                                 </div>
                                 <p className="text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
                                     Please read these terms carefully before using our platform.
-                                    By accessing or using iRecommend, you agree to be bound by
+                                    By accessing or using UserReview, you agree to be bound by
                                     these terms.
                                 </p>
                                 <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-slate-400">
@@ -154,7 +154,7 @@ export default async function Page(props: TermsPageProps) {
                                         <span>
                                             Last updated:{" "}
                                             <span className="text-slate-700 dark:text-slate-300 font-medium">
-                                                October 24, 2023
+                                                December 24, 2024
                                             </span>
                                         </span>
                                     </div>
@@ -196,9 +196,9 @@ export default async function Page(props: TermsPageProps) {
                                     Introduction
                                 </h2>
                                 <p className="mb-4">
-                                    Welcome to iRecommend. These Terms of Use govern your use of
-                                    our website located at iRecommend.com (the &quot;Service&quot;) operated
-                                    by iRecommend Inc. (&quot;us&quot;, &quot;we&quot;, or &quot;our&quot;).
+                                    Welcome to UserReview. These Terms of Use govern your use of
+                                    our website located at userreview.net (the &quot;Service&quot;) operated
+                                    by UserReview (&quot;us&quot;, &quot;we&quot;, or &quot;our&quot;).
                                 </p>
                                 <p className="mb-6">
                                     By accessing or using the Service, you agree to be bound by
@@ -279,12 +279,11 @@ export default async function Page(props: TermsPageProps) {
                                 <p className="mb-6">
                                     The Service and its original content (excluding Content
                                     provided by users), features and functionality are and will
-                                    remain the exclusive property of iRecommend Inc. and its
+                                    remain the exclusive property of UserReview and its
                                     licensors. The Service is protected by copyright, trademark,
-                                    and other laws of both the United States and foreign
-                                    countries. Our trademarks and trade dress may not be used in
+                                    and other laws. Our trademarks and trade dress may not be used in
                                     connection with any product or service without the prior
-                                    written consent of iRecommend Inc.
+                                    written consent of UserReview.
                                 </p>
 
                                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 mt-8 flex items-center gap-2">
@@ -313,12 +312,12 @@ export default async function Page(props: TermsPageProps) {
                                 <div className="flex flex-col sm:flex-row gap-4">
                                     <a
                                         className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"
-                                        href="mailto:legal@irecommend.com"
+                                        href="mailto:support@userreview.net"
                                     >
                                         <span className="material-symbols-outlined text-[20px]">
                                             mail
                                         </span>
-                                        legal@irecommend.com
+                                        support@userreview.net
                                     </a>
                                     <Link
                                         className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"

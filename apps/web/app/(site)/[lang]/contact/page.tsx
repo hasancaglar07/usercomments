@@ -156,9 +156,9 @@ export default async function Page(props: ContactPageProps) {
                           </span>
                           <a
                             className="text-base font-semibold text-text-main-light dark:text-text-main-dark hover:text-primary transition-colors"
-                            href="mailto:support@irecommend.com"
+                            href="mailto:support@userreview.net"
                           >
-                            support@irecommend.com
+                            support@userreview.net
                           </a>
                         </div>
                       </div>
@@ -174,9 +174,9 @@ export default async function Page(props: ContactPageProps) {
                           </span>
                           <a
                             className="text-base font-semibold text-text-main-light dark:text-text-main-dark hover:text-primary transition-colors"
-                            href="mailto:business@irecommend.com"
+                            href="mailto:support@userreview.net"
                           >
-                            business@irecommend.com
+                            support@userreview.net
                           </a>
                         </div>
                       </div>
@@ -192,9 +192,9 @@ export default async function Page(props: ContactPageProps) {
                           </span>
                           <a
                             className="text-base font-semibold text-text-main-light dark:text-text-main-dark hover:text-primary transition-colors"
-                            href="mailto:mods@irecommend.com"
+                            href="mailto:support@userreview.net"
                           >
-                            mods@irecommend.com
+                            support@userreview.net
                           </a>
                         </div>
                       </div>

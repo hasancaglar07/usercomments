@@ -35,6 +35,8 @@ export const TRANSLATIONS = {
     "footer.writeReview": "Write a Review",
     "footer.helpCenter": "Help Center",
     "footer.contactUs": "Contact Us",
+    "footer.privacyPolicy": "Privacy Policy",
+    "footer.aboutUs": "About Us",
     "footer.newsletter": "Newsletter",
     "footer.newsletterDescription":
       "Subscribe to get the best reviews directly to your inbox.",
@@ -763,6 +765,8 @@ export const TRANSLATIONS = {
     "footer.writeReview": "Yorum Yaz",
     "footer.helpCenter": "Yardım Merkezi",
     "footer.contactUs": "Bize Ulaşın",
+    "footer.privacyPolicy": "Gizlilik Politikası",
+    "footer.aboutUs": "Hakkımızda",
     "footer.newsletter": "Bülten",
     "footer.newsletterDescription":
       "En iyi yorumları doğrudan gelen kutunuza almak için abone olun.",

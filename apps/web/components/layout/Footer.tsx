@@ -16,7 +16,9 @@ export default function Footer({ lang }: FooterProps) {
   const recentHref = localizePath("/catalog?sort=latest", lang);
   const leaderboardHref = localizePath("/catalog?sort=popular", lang);
   const termsHref = localizePath("/terms-of-use", lang);
+  const privacyHref = localizePath("/privacy-policy", lang);
   const contactHref = localizePath("/contact", lang);
+  const aboutHref = localizePath("/about-us", lang);
   const addReviewHref = localizePath("/node/add/review", lang);
 
   return (
@@ -140,6 +142,22 @@ export default function Footer({ lang }: FooterProps) {
                   href={contactHref}
                 >
                   {t(resolvedLang, "footer.contactUs")}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
+                  href={privacyHref}
+                >
+                  {t(resolvedLang, "footer.privacyPolicy")}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary"
+                  href={aboutHref}
+                >
+                  {t(resolvedLang, "footer.aboutUs")}
                 </Link>
               </li>
             </ul>
