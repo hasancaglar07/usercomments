@@ -26,8 +26,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/sitemap-:path*.xml",
-        destination: "/sitemaps/sitemap-:path*.xml",
+        source: "/sitemap-:slug.xml",
+        destination: "/sitemaps/sitemap-:slug.xml",
       },
     ];
   },

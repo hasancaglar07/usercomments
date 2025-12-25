@@ -26,11 +26,11 @@ export function buildUrlset(entries: SitemapEntry[]): string {
       const lastmod = entry.lastmod ? `<lastmod>${entry.lastmod}</lastmod>` : "";
       const images = entry.images?.length
         ? entry.images
-            .map(
-              (image) =>
-                `<image:image><image:loc>${escapeXml(image)}</image:loc></image:image>`
-            )
-            .join("")
+          .map(
+            (image) =>
+              `<image:image><image:loc>${escapeXml(image)}</image:loc></image:image>`
+          )
+          .join("")
         : "";
       return `<url><loc>${escapeXml(entry.loc)}</loc>${lastmod}${images}</url>`;
     })

@@ -11,12 +11,18 @@ function getOrigin(value?: string): string | null {
 
 export default function Head() {
   const origins = new Set<string>();
-  const fontPreloads = [
-    {
-      href: "/stitch_assets/fonts/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yw.woff2",
-      type: "font/woff2",
-    },
+  /* REMOVED: Custom font preloads to avoid double download / LCP blocking.
+   * Browsers will download fonts as needed from CSS.
+   */
+  const fontPreloads: { href: string; type: string }[] = [];
+
+  // Add Google Fonts domains to preconnect list
+  const googleFontsOrigins = [
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com"
   ];
+
+  googleFontsOrigins.forEach(origin => origins.add(origin));
   const apiOrigin = getOrigin(process.env.NEXT_PUBLIC_API_BASE_URL);
   const imageCdnOrigin = getOrigin(process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL);
   const optimizer = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "none";
