@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, useRef } from "react";
 import {
     ReviewCardHomepage,
+    ReviewCardTrending,
     type ReviewCardHomepageData,
 } from "@/components/cards/ReviewCard";
 import { getPopularReviews } from "@/src/lib/api";
@@ -24,10 +25,10 @@ type TrendingSectionProps = {
 };
 
 const TRENDING_TABS = [
-    { key: "popular", labelKey: "homepage.trendingTabs.popular" },
     { key: "popular6h", labelKey: "homepage.trendingTabs.popular6h" },
     { key: "popular24h", labelKey: "homepage.trendingTabs.popular24h" },
     { key: "popular1w", labelKey: "homepage.trendingTabs.popular1w" },
+    { key: "popular", labelKey: "homepage.trendingTabs.popular" },
     // { key: "latest", labelKey: "homepage.trendingTabs.latest" },
     // { key: "rating", labelKey: "homepage.trendingTabs.rating" },
 ] as const;
@@ -48,7 +49,7 @@ function mapTabToTimeWindow(tab: TrendingTab): "6h" | "24h" | "week" | undefined
 }
 
 // Client-side mapper (partial duplication of page.tsx logic, but necessary for client fetching)
-function mapReviewToCard(review: Review, lang: string, index: number): ReviewCardHomepageData {
+function mapReviewToCard(review: Review, lang: SupportedLanguage, index: number): ReviewCardHomepageData {
     // Note: We don't have categories here easily unless we fetch them or pass them. 
     // For simplicity/speed, we might omit category name or fetch it.
     // However, the card mostly relies on review data.
@@ -126,18 +127,18 @@ export default function TrendingSection({ lang, initialTab, initialData }: Trend
     const showSkeleton = isLoading && !dataCache[activeTab];
 
     return (
-        <section className="mb-10">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-                <h2 className="text-3xl font-black tracking-tight text-text-main dark:text-white flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-xl">
-                        <span className="material-symbols-outlined text-secondary" style={{ fontSize: "32px", fontVariationSettings: "'FILL' 1" }}>
+        <section className="mb-4 sm:mb-10">
+            <div className="flex items-center gap-2 sm:justify-between sm:gap-x-4 mb-1 sm:mb-8 overflow-hidden">
+                <h2 className="flex text-sm sm:text-3xl font-black tracking-tight text-text-main dark:text-white items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
+                    <div className="hidden sm:block p-1.5 sm:p-2 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-xl">
+                        <span className="material-symbols-outlined text-secondary" style={{ fontSize: "24px", fontVariationSettings: "'FILL' 1" }}>
                             trending_up
                         </span>
                     </div>
                     {t(lang, "homepage.trendingTitle")}
                 </h2>
 
-                <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm">
+                <div className="flex flex-1 sm:flex-none gap-1.5 p-1 overflow-x-auto no-scrollbar sm:flex-wrap bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm">
                     {TRENDING_TABS.map((tab) => {
                         const isActive = tab.key === activeTab;
                         return (
@@ -145,7 +146,9 @@ export default function TrendingSection({ lang, initialTab, initialData }: Trend
                                 key={tab.key}
                                 type="button"
                                 className={
-                                    isActive ? ACTIVE_TRENDING_TAB_CLASS : INACTIVE_TRENDING_TAB_CLASS
+                                    isActive
+                                        ? "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold rounded-full bg-primary text-white transition-colors whitespace-nowrap shrink-0"
+                                        : "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors hover:border-gray-300 dark:hover:border-gray-600 whitespace-nowrap shrink-0"
                                 }
                                 onClick={() => handleTabChange(tab.key as TrendingTab)}
                             >
@@ -182,11 +185,10 @@ export default function TrendingSection({ lang, initialTab, initialData }: Trend
                                     className="opacity-0 animate-fade-in h-full"
                                     style={{ animationDelay: `${index * 100}ms` }}
                                 >
-                                    <ReviewCardHomepage
+                                    <ReviewCardTrending
                                         {...card}
-                                        lang={lang as any}
+                                        lang={lang}
                                         imagePriority={index === 0}
-                                        layout="vertical"
                                     />
                                 </div>
                             ))}

@@ -796,13 +796,12 @@ export default function UserProfileActionsClient({
       >
         {toast ? (
           <div
-            className={`fixed bottom-6 right-6 z-[60] rounded-lg px-4 py-3 text-sm font-semibold shadow-lg ${
-              toast.variant === "success"
+            className={`fixed bottom-6 right-6 z-[60] rounded-lg px-4 py-3 text-sm font-semibold shadow-lg ${toast.variant === "success"
                 ? "bg-emerald-600 text-white"
                 : toast.variant === "error"
                   ? "bg-red-600 text-white"
                   : "bg-slate-900 text-white"
-            }`}
+              }`}
             role="status"
           >
             {toast.message}
@@ -1210,7 +1209,7 @@ export function UserProfileHeaderActions() {
   return (
     <>
       <button
-        className="flex items-center justify-center rounded-lg h-10 px-6 bg-primary hover:bg-primary-dark text-white text-sm font-bold shadow-sm transition-all gap-2 flex-1 md:flex-none"
+        className="flex items-center justify-center rounded-lg h-10 px-6 bg-primary hover:bg-primary-dark text-white text-sm font-bold shadow-sm transition-all gap-2 flex-1 md:flex-none whitespace-nowrap"
         type="button"
         data-profile-follow
         onClick={onFollowClick}
@@ -1225,7 +1224,7 @@ export function UserProfileHeaderActions() {
         <span data-follow-label>{followLabel}</span>
       </button>
       <button
-        className="flex items-center justify-center rounded-lg h-10 px-4 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-main-light dark:text-text-main-dark text-sm font-bold transition-all gap-2 flex-1 md:flex-none disabled:opacity-70 disabled:cursor-not-allowed"
+        className="flex items-center justify-center rounded-lg h-10 px-4 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-main-light dark:text-text-main-dark text-sm font-bold transition-all gap-2 flex-1 md:flex-none disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
         type="button"
         data-profile-message
         onClick={isSelf ? onSignOut : onMessageClick}
@@ -1237,12 +1236,12 @@ export function UserProfileHeaderActions() {
         <span>{isSelf ? (isSigningOut ? "Signing out..." : "Sign out") : "Message"}</span>
       </button>
       <button
-        className="flex items-center justify-center rounded-lg h-10 w-10 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark transition-all"
+        className="flex items-center justify-center rounded-lg h-10 w-10 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark transition-all shrink-0"
         type="button"
         data-profile-more
         onClick={onMoreClick}
       >
-        <span className="material-symbols-outlined text-[20px]">
+        <span className="material-symbols-outlined text-[20px] overflow-hidden">
           more_horiz
         </span>
       </button>

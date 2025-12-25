@@ -582,11 +582,11 @@ export default async function Page(props: PageProps) {
       )}
       <ReviewDetailClient reviewId={review.id} />
 
-      <div className="w-full flex justify-center py-6 px-4 md:px-10 lg:px-20 bg-background-light dark:bg-background-dark">
+      <div className="w-full flex justify-center py-6 px-0 md:px-10 lg:px-20 bg-background-light dark:bg-background-dark">
         <div className="layout-content-container w-full max-w-7xl">
           {/* Breadcrumbs */}
           <nav
-            className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400 mb-6"
+            className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400 mb-6 px-4 md:px-0"
             aria-label="Breadcrumb"
           >
             <Link href={localizePath("/", lang)} className="hover:text-primary transition-colors">
@@ -632,7 +632,7 @@ export default async function Page(props: PageProps) {
             {/* Main Content Area */}
             <main className="flex-1 w-full lg:w-2/3 flex flex-col gap-8">
               {productName ? (
-                <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8 flex flex-col gap-4">
+                <section className="bg-white dark:bg-slate-800 rounded-none md:rounded-xl shadow-sm border-y md:border border-slate-200 dark:border-slate-700 p-6 md:p-8 flex flex-col gap-4">
                   <div className="flex flex-col md:flex-row gap-5 items-start">
                     <img
                       src={productImage}
@@ -722,7 +722,7 @@ export default async function Page(props: PageProps) {
                 </section>
               ) : null}
 
-              <article className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <article className="bg-white dark:bg-slate-800 rounded-none md:rounded-xl shadow-sm border-y md:border border-slate-200 dark:border-slate-700 overflow-hidden">
                 {/* Review Header */}
                 <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-700">
                   <div className="flex flex-col gap-4">

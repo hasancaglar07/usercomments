@@ -92,17 +92,16 @@ export default function Header({ lang, categories }: HeaderProps) {
           </div>
         </div>
         {categories.length > 0 && (
-          <nav className="hidden md:flex items-center gap-1 py-1 overflow-x-auto hide-scrollbar border-t border-gray-100 dark:border-gray-800/50">
+          <nav className="flex items-center gap-2 py-2 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800/50 -mx-4 px-4 md:mx-0 md:px-0 mask-linear-fade">
             {categories.map((category) => (
               <Link
                 key={category.id}
-                className="px-3 py-2 text-[13px] font-semibold text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-primary/5 dark:hover:bg-primary/10 rounded-md transition-all duration-200 whitespace-nowrap active:scale-95"
+                className="flex-shrink-0 px-3 py-1.5 text-[13px] font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-700 whitespace-nowrap active:scale-95 active:bg-gray-100 dark:active:bg-gray-700 transition-all"
                 href={localizePath(`/catalog/reviews/${category.id}`, resolvedLang)}
               >
                 {category.name}
               </Link>
             ))}
-
           </nav>
         )}
       </div>

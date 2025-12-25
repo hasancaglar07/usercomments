@@ -31,7 +31,7 @@ export function ReviewListCatalog({
   buildHref,
 }: ReviewListCatalogProps) {
   return (
-    <div className="lg:col-span-8 space-y-6">
+    <div className="lg:col-span-8 space-y-6 -mx-4 sm:mx-0">
       {cards.map((card, index) => (
         <ReviewCardCatalog key={`catalog-${index}`} {...card} />
       ))}
@@ -57,7 +57,7 @@ export function ReviewListCategory({
 }: ReviewListCategoryProps) {
   const resolvedLang = normalizeLanguage(lang);
   return (
-    <div className="lg:col-span-8 flex flex-col gap-6">
+    <div className="lg:col-span-8 flex flex-col gap-6 -mx-4 sm:mx-0">
       <div className="flex items-center justify-between">
         <h2 className="text-[#0d141b] text-2xl font-bold">
           {t(resolvedLang, "reviewList.category.latestTitle")}
@@ -141,7 +141,7 @@ export function ReviewListProfile({
     "flex items-center justify-center border-b-[3px] border-transparent text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark transition-colors py-4 px-2 whitespace-nowrap";
 
   return (
-    <main className="w-full lg:w-2/3 flex flex-col gap-6 order-1 lg:order-2">
+    <main className="w-full lg:w-2/3 flex flex-col gap-6 order-1 lg:order-2 -mx-4 sm:mx-0">
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm px-4">
         <div className="flex overflow-x-auto no-scrollbar gap-6">
           <Link

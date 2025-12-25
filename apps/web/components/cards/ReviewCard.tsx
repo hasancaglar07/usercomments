@@ -59,8 +59,8 @@ export function ReviewCardHomepage({
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
   const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
 
-  const galleryPhotos = review.photoUrls?.slice(1, 4) || [];
-  const remainingCount = (review.photoUrls?.length || 0) - 4;
+  const galleryPhotos = review.photoUrls?.slice(1, 6) || [];
+  const remainingCount = (review.photoUrls?.length || 0) - 6;
 
   if (layout === "vertical") {
     return (
@@ -111,14 +111,26 @@ export function ReviewCardHomepage({
           {galleryPhotos.length > 0 && (
             <div className="flex gap-2 pt-2 border-t border-gray-50 dark:border-gray-800/50">
               {galleryPhotos.map((photo, index) => (
-                <div key={index} className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800">
+                <div
+                  key={index}
+                  className={`relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 ${index >= 3 ? 'hidden sm:block' : ''}`}
+                >
                   <img
                     src={getOptimizedImageUrl(photo, 100)}
                     alt={`Thumb ${index}`}
                     className="w-full h-full object-cover"
                   />
-                  {index === galleryPhotos.length - 1 && remainingCount > 0 && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-[9px] font-bold">
+
+                  {/* Mobile Overlay (on 3rd item) */}
+                  {index === 2 && (review.photoUrls?.length || 0) > 3 && (
+                    <div className="absolute inset-0 bg-black/50 flex sm:hidden items-center justify-center text-white text-[9px] font-bold transition-colors group-hover/img:bg-black/60">
+                      +{(review.photoUrls?.length || 0) - 3}
+                    </div>
+                  )}
+
+                  {/* Desktop Overlay (on 5th item) */}
+                  {index === 4 && remainingCount > 0 && (
+                    <div className="absolute inset-0 bg-black/50 hidden sm:flex items-center justify-center text-white text-[10px] font-bold transition-colors group-hover/img:bg-black/60">
                       +{remainingCount}
                     </div>
                   )}
@@ -143,7 +155,7 @@ export function ReviewCardHomepage({
   }
 
   return (
-    <article className="group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-gray-100 dark:border-gray-800 overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
+    <article className="group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
       <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
         <Link href={href} className="block h-full w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -173,7 +185,7 @@ export function ReviewCardHomepage({
         </Link>
       </div>
 
-      <div className="flex-1 p-5 sm:p-6 flex flex-col">
+      <div className="flex-1 p-4 sm:p-6 flex flex-col">
         {/* Header: Author & Date */}
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2.5">
@@ -193,7 +205,7 @@ export function ReviewCardHomepage({
         {/* Content: Title & Rating */}
         <div className="mb-3">
           <Link href={href} className="group-hover:text-primary transition-colors">
-            <h3 className="text-xl font-bold text-text-main dark:text-white leading-tight mb-2 line-clamp-2">
+            <h3 className="text-[17px] sm:text-xl font-bold text-text-main dark:text-white leading-tight mb-2 line-clamp-2">
               {review.title}
             </h3>
           </Link>
@@ -208,17 +220,29 @@ export function ReviewCardHomepage({
         {/* Gallery & Footer Split */}
         <div className="mt-auto flex flex-col gap-4">
           {galleryPhotos.length > 0 && (
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2.5">
               {galleryPhotos.map((photo, index) => (
-                <div key={index} className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:ring-2 ring-primary/20 transition-all">
+                <div
+                  key={index}
+                  className={`relative w-full aspect-[4/3] sm:w-24 sm:h-24 sm:aspect-square rounded-lg overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:ring-2 ring-primary/20 transition-all ${index >= 3 ? 'hidden sm:block' : ''}`}
+                >
                   <img
-                    src={getOptimizedImageUrl(photo, 150)}
+                    src={getOptimizedImageUrl(photo, 300)}
                     alt={`Gallery ${index}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
-                  {index === galleryPhotos.length - 1 && remainingCount > 0 && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold backdrop-blur-[1px]">
+
+                  {/* Mobile Overlay (on 3rd item) */}
+                  {index === 2 && (review.photoUrls?.length || 0) > 3 && (
+                    <div className="absolute inset-0 bg-black/50 flex sm:hidden items-center justify-center text-white text-xs font-bold transition-colors backdrop-blur-[1px]">
+                      +{(review.photoUrls?.length || 0) - 3}
+                    </div>
+                  )}
+
+                  {/* Desktop Overlay (on 5th item) */}
+                  {index === 4 && remainingCount > 0 && (
+                    <div className="absolute inset-0 bg-black/50 hidden sm:flex items-center justify-center text-white text-sm font-bold transition-colors backdrop-blur-[1px]">
                       +{remainingCount}
                     </div>
                   )}
@@ -236,6 +260,84 @@ export function ReviewCardHomepage({
               <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
               <span>{commentsLabel}</span>
             </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+// Compact variant for Trending/Hero section - Optimized for Mobile Density
+export function ReviewCardTrending({
+  review,
+  href,
+  authorMeta,
+  postedLabel,
+  ratingStars,
+  ratingValue,
+  imageUrl,
+  imageAlt,
+  avatarUrl,
+  avatarAlt,
+  badge,
+  likesLabel,
+  commentsLabel,
+  lang,
+  imagePriority = false,
+}: ReviewCardHomepageProps) {
+  const authorName = review.author.displayName ?? review.author.username;
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 300);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
+
+  return (
+    <article className="group flex flex-row sm:flex-col bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 hover:-translate-y-0.5 h-full">
+      <div className="w-24 min-h-[6rem] sm:w-full sm:h-48 sm:min-h-0 shrink-0 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
+        <Link href={href} className="block h-full w-full relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt={imageAlt}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            decoding="async"
+            fetchPriority={imagePriority ? "high" : "auto"}
+            loading={imagePriority ? "eager" : "lazy"}
+            src={optimizedImageUrl}
+          />
+        </Link>
+      </div>
+
+      <div className="flex-1 p-2.5 sm:p-4 flex flex-col min-w-0">
+        <div className="flex justify-between items-start mb-1">
+          <div className="flex items-center gap-1.5">
+            <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
+              <img alt={avatarAlt} className="h-full w-full object-cover" src={optimizedAvatarUrl} />
+            </div>
+            <span className="text-[11px] sm:text-sm font-bold text-text-main dark:text-white truncate max-w-[70px] sm:max-w-none">{authorName}</span>
+          </div>
+          <div className="scale-75 origin-right sm:scale-100">
+            <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
+          </div>
+        </div>
+
+        <Link href={href} className="group-hover:text-primary transition-colors mb-1 block">
+          <h3 className="text-[13px] sm:text-lg font-bold text-text-main dark:text-white leading-4 sm:leading-tight line-clamp-2">
+            {review.title}
+          </h3>
+        </Link>
+
+        <p className="text-[11px] sm:text-sm text-text-sub dark:text-gray-400 line-clamp-2 leading-snug mb-1 sm:mb-4 flex-1">
+          {review.excerpt}
+        </p>
+
+        <div className="hidden sm:flex mt-auto items-center gap-3 pt-2 sm:pt-3 border-t border-gray-50 dark:border-gray-800/50">
+          <span className="text-[10px] sm:text-xs text-text-muted truncate">{postedLabel}</span>
+          <div className="flex items-center gap-3 ml-auto text-text-muted">
+            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer">
+              <span className="material-symbols-outlined text-[14px] sm:text-[16px]">thumb_up</span>
+              {likesLabel}
+            </span>
+            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer">
+              <span className="material-symbols-outlined text-[14px] sm:text-[16px]">chat_bubble</span>
+              {commentsLabel}
+            </span>
           </div>
         </div>
       </div>

@@ -388,13 +388,13 @@ export default async function Page(props: UserProfilePageProps) {
       <script type="application/ld+json">
         {JSON.stringify(profileJsonLd)}
       </script>
-      <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 md:px-10 py-8 flex flex-col gap-6">
+      <div className="flex-1 w-full max-w-[1200px] mx-auto px-0 md:px-10 py-8 flex flex-col gap-6">
         {errorMessage ? (
           <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
             {errorMessage}
           </div>
         ) : null}
-        <section className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm">
+        <section className="bg-surface-light dark:bg-surface-dark rounded-none md:rounded-xl border-y md:border border-border-light dark:border-border-dark p-6 shadow-sm">
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left w-full">
               <div className="relative group">
@@ -433,7 +433,7 @@ export default async function Page(props: UserProfilePageProps) {
                 ) : null}
               </div>
             </div>
-            <div className="flex gap-3 w-full md:w-auto justify-center md:justify-end">
+            <div className="flex gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
               <UserProfileHeaderActions />
             </div>
           </div>

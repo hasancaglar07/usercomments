@@ -567,7 +567,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
   }
 
   return (
-    <main className="flex-1 flex justify-center py-8 px-4 sm:px-6">
+    <main className="flex-1 flex justify-center py-8 px-0 sm:px-6">
       <div className="layout-content-container flex flex-col max-w-[960px] w-full flex-1 gap-6">
         <div className="flex flex-wrap justify-between gap-3 px-4">
           <div className="flex min-w-72 flex-col gap-2">
@@ -580,7 +580,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-none md:rounded-xl shadow-sm border-y md:border border-slate-200 dark:border-slate-800 p-6 md:p-8">
           <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
             <input
               type="file"

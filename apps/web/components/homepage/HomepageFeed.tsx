@@ -42,9 +42,10 @@ type PrefetchState = {
 };
 
 const ACTIVE_FILTER_CLASS =
-  "px-3 py-1 text-xs font-medium bg-primary text-white rounded-full";
+  "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold bg-primary text-white rounded-full whitespace-nowrap shrink-0 transition-colors";
 const INACTIVE_FILTER_CLASS =
-  "px-3 py-1 text-xs font-medium bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50";
+  "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50 whitespace-nowrap shrink-0 transition-colors";
+
 const FEED_TABS: FeedTab[] = ["all", "popular", "photos"];
 const LOAD_MORE_SKELETON_COUNT = 3;
 
@@ -607,11 +608,11 @@ export default function HomepageFeed({
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-text-main dark:text-white">
+      <div className="flex items-center gap-2 sm:justify-between sm:gap-x-4 mb-4 sm:mb-6 overflow-hidden">
+        <h2 className="text-sm sm:text-2xl font-bold text-text-main dark:text-white whitespace-nowrap shrink-0">
           {t(lang, "homepage.recentReviews")}
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-1 sm:flex-none gap-1.5 p-1 overflow-x-auto no-scrollbar sm:flex-wrap bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm">
           {tabs.map((item) => {
             const isActive = item.key === tab;
             return (
@@ -681,7 +682,7 @@ export default function HomepageFeed({
           {isLoading ? <HomepageFeedSkeleton count={skeletonCount} /> : null}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 -mx-4 sm:mx-0">
           {visibleCards.map((card, index) => (
             <ReviewCardHomepage
               key={card.review.id || card.review.slug || `homepage-${index}`}

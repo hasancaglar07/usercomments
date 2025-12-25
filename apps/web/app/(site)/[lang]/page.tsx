@@ -41,14 +41,14 @@ const ACTIVE_TRENDING_TAB_CLASS =
 const INACTIVE_TRENDING_TAB_CLASS =
   "px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-all";
 const TRENDING_TABS = [
-  { key: "popular", labelKey: "homepage.trendingTabs.popular" },
   { key: "popular6h", labelKey: "homepage.trendingTabs.popular6h" },
   { key: "popular24h", labelKey: "homepage.trendingTabs.popular24h" },
   { key: "popular1w", labelKey: "homepage.trendingTabs.popular1w" },
+  { key: "popular", labelKey: "homepage.trendingTabs.popular" },
   { key: "latest", labelKey: "homepage.trendingTabs.latest" },
   { key: "rating", labelKey: "homepage.trendingTabs.rating" },
 ] as const;
-const DEFAULT_TRENDING_TAB: TrendingTab = "popular";
+const DEFAULT_TRENDING_TAB: TrendingTab = "popular6h";
 
 type TrendingTab = (typeof TRENDING_TABS)[number]["key"];
 
@@ -263,7 +263,7 @@ export default async function Page(props: HomePageProps) {
       className="bg-surface-light dark:bg-background-dark font-display text-text-main antialiased min-h-screen flex flex-col"
       data-page="homepage"
     >
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-8 sm:py-8">
         {errorMessage ? (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
             {errorMessage}
