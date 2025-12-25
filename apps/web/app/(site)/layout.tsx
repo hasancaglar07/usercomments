@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.png",
   },
+  other: {
+    "google-adsense-account": "ca-pub-8614212887540857",
+  },
 };
 
 export default async function SiteLayout({
