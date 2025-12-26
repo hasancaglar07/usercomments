@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { createReview, presignUpload } from "@/src/lib/api-client";
@@ -9,6 +9,7 @@ import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import { Category, Product } from "@/src/types";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { formatNumber } from "@/src/lib/review-utils";
+import { t } from "@/src/lib/copy";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
@@ -28,17 +29,6 @@ interface AddReviewClientProps {
   categories: Category[];
 }
 
-const reviewSchema = z.object({
-  categoryId: z.string().min(1, "Please select a category."),
-  subCategoryId: z.string().optional(),
-  productName: z.string().trim().optional(),
-  title: z.string().trim().min(5, "Please enter a review title."),
-  body: z.string().trim().min(20, "Please share more details in your review."),
-  rating: z.number().min(1, "Please select a rating.").max(5),
-  pros: z.string().optional(),
-  cons: z.string().optional(),
-});
-
 export default function AddReviewClient({ categories }: AddReviewClientProps) {
   const router = useRouter();
   const params = useParams();
@@ -50,6 +40,23 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
   const reviewFileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSubCategoryIdsRef = useRef<number[] | null>(null);
+  const reviewSchema = useMemo(
+    () =>
+      z.object({
+        categoryId: z.string().min(1, t(lang, "addReview.validation.category")),
+        subCategoryId: z.string().optional(),
+        productName: z.string().trim().optional(),
+        title: z.string().trim().min(5, t(lang, "addReview.validation.title")),
+        body: z.string().trim().min(20, t(lang, "addReview.validation.body")),
+        rating: z
+          .number()
+          .min(1, t(lang, "addReview.validation.rating"))
+          .max(5),
+        pros: z.string().optional(),
+        cons: z.string().optional(),
+      }),
+    [lang]
+  );
 
   // Form State
   const [categoryId, setCategoryId] = useState<string>("");
@@ -252,12 +259,12 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
         setProductSuggestions(result.items);
         setProductSearchStatus("ready");
         if (result.items.length === 0) {
-          setProductSearchMessage("No matching products found.");
+          setProductSearchMessage(t(lang, "addReview.product.noMatches"));
         }
       } catch (error) {
         console.error("Failed to search products:", error);
         setProductSearchStatus("error");
-        setProductSearchMessage("Unable to search products right now.");
+        setProductSearchMessage(t(lang, "addReview.product.searchError"));
       }
     }, 350);
 
@@ -346,7 +353,10 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
 
     const maxBytes = 5 * 1024 * 1024;
     if (photo.file.size > maxBytes) {
-      applyUpdates({ status: "error", error: "File too large (max 5MB)" });
+      applyUpdates({
+        status: "error",
+        error: t(lang, "addReview.photo.error.fileTooLarge"),
+      });
       return;
     }
 
@@ -379,8 +389,8 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
       console.error("Upload error detail:", error);
       const isNetworkError = error instanceof Error && error.message.includes("fetch");
       const errorMessage = isNetworkError
-        ? "Network error (CORS?). Check bucket configuration."
-        : error instanceof Error ? error.message : "Upload failed.";
+        ? t(lang, "addReview.photo.error.network")
+        : t(lang, "addReview.photo.error.uploadFailed");
 
       applyUpdates({ status: "error", error: errorMessage });
     }
@@ -448,7 +458,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
       productPhoto?.status === "uploading";
 
     if (hasUploadingPhotos) {
-      window.alert("Please wait for all photos to finish uploading.");
+      window.alert(t(lang, "addReview.validation.uploads"));
       return;
     }
 
@@ -463,30 +473,33 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
       cons,
     });
     if (!parsed.success) {
-      window.alert(parsed.error.issues[0]?.message ?? "Please check your review details.");
+      window.alert(
+        parsed.error.issues[0]?.message ??
+          t(lang, "addReview.validation.details")
+      );
       return;
     }
     if (!selectedProduct) {
       const nameValue = parsed.data.productName?.trim() ?? "";
       if (!nameValue) {
-        window.alert("Please select a product or create a new one.");
+        window.alert(t(lang, "addReview.validation.productRequired"));
         return;
       }
       if (productSearchStatus === "loading" || productSearchStatus === "idle") {
-        window.alert("Please wait for product search to finish.");
+        window.alert(t(lang, "addReview.validation.productSearchWait"));
         return;
       }
       if (productSuggestions.length > 0) {
-        window.alert("Please select a product from the list.");
+        window.alert(t(lang, "addReview.validation.productSelect"));
         return;
       }
       if (!confirmNewProduct) {
-        window.alert("Please confirm creating the new product.");
+        window.alert(t(lang, "addReview.validation.productConfirm"));
         return;
       }
     }
     if (subcategories.length > 0 && !subCategoryId) {
-      window.alert("Please select a subcategory.");
+      window.alert(t(lang, "addReview.validation.subcategory"));
       return;
     }
 
@@ -510,11 +523,17 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
         .filter(Boolean);
 
       const sections: string[] = [];
+      const prosHeading = t(lang, "addReview.content.prosHeading");
+      const consHeading = t(lang, "addReview.content.consHeading");
       if (prosList.length > 0) {
-        sections.push(["Pros:", ...prosList.map((item) => `- ${item}`)].join("\n"));
+        sections.push(
+          [`${prosHeading}:`, ...prosList.map((item) => `- ${item}`)].join("\n")
+        );
       }
       if (consList.length > 0) {
-        sections.push(["Cons:", ...consList.map((item) => `- ${item}`)].join("\n"));
+        sections.push(
+          [`${consHeading}:`, ...consList.map((item) => `- ${item}`)].join("\n")
+        );
       }
       sections.push(...paragraphs);
 
@@ -549,7 +568,9 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
       router.push(localizePath(`/content/${result.slug}`, lang));
     } catch (error) {
       console.error("Submission error:", error);
-      window.alert(error instanceof Error ? error.message : "Failed to publish review.");
+      window.alert(
+        error instanceof Error ? error.message : t(lang, "addReview.error.publish")
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -560,7 +581,9 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="flex flex-col items-center gap-4">
           <div className="size-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium">Authenticating...</p>
+          <p className="text-slate-500 font-medium">
+            {t(lang, "addReview.authenticating")}
+          </p>
         </div>
       </div>
     );
@@ -572,10 +595,10 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
         <div className="flex flex-wrap justify-between gap-3 px-4">
           <div className="flex min-w-72 flex-col gap-2">
             <h1 className="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-tight">
-              Write a Review
+              {t(lang, "addReview.title")}
             </h1>
             <p className="text-slate-500 dark:text-slate-400 text-base font-normal">
-              Share your experience with the community
+              {t(lang, "addReview.subtitle")}
             </p>
           </div>
         </div>
@@ -601,7 +624,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
                 <label className="text-slate-900 dark:text-white text-base font-semibold">
-                  Category
+                  {t(lang, "addReview.form.categoryLabel")}
                 </label>
                 <div className="relative">
                   <select
@@ -610,7 +633,9 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                     onChange={(e) => setCategoryId(e.target.value)}
                     required
                   >
-                    <option value="">Select a category</option>
+                    <option value="">
+                      {t(lang, "addReview.form.categoryPlaceholder")}
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
@@ -625,7 +650,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
 
               <div className="flex flex-col gap-2">
                 <label className="text-slate-900 dark:text-white text-base font-semibold">
-                  Subcategory
+                  {t(lang, "addReview.form.subcategoryLabel")}
                 </label>
                 <div className="relative">
                   <select
@@ -636,10 +661,10 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                   >
                     <option value="">
                       {loadingSubcategories
-                        ? "Loading..."
+                        ? t(lang, "addReview.form.subcategoryLoading")
                         : subcategories.length > 0
-                          ? "Select a subcategory"
-                          : "No subcategories"}
+                          ? t(lang, "addReview.form.subcategoryPlaceholder")
+                          : t(lang, "addReview.form.subcategoryEmpty")}
                     </option>
                     {subcategories.map((sub) => (
                       <option key={sub.id} value={sub.id}>
@@ -655,11 +680,11 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
 
               <div className="flex flex-col gap-2 md:col-span-2">
                 <label className="text-slate-900 dark:text-white text-base font-semibold">
-                  Product / Service Name
+                  {t(lang, "addReview.form.productLabel")}
                 </label>
                 <input
                   className="w-full h-12 px-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-400"
-                  placeholder="Search for a product or add a new one"
+                  placeholder={t(lang, "addReview.form.productPlaceholder")}
                   value={productName}
                   onChange={(e) => {
                     setProductName(e.target.value);
@@ -681,17 +706,19 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                         {selectedProduct.name}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {formatNumber(selectedProduct.stats?.reviewCount)} reviews · Rating{" "}
-                        {selectedProduct.stats?.ratingAvg?.toFixed(1) ?? "—"}
+                        {t(lang, "addReview.product.meta", {
+                          count: formatNumber(selectedProduct.stats?.reviewCount, lang),
+                          rating: selectedProduct.stats?.ratingAvg?.toFixed(1) ?? "—",
+                        })}
                       </p>
                       {autoMatched ? (
                         <p className="text-[11px] text-emerald-600">
-                          Matched automatically from your title
+                          {t(lang, "addReview.product.autoMatched")}
                         </p>
                       ) : null}
                       {selectedProduct.status === "pending" ? (
                         <p className="text-[11px] text-amber-600">
-                          Pending approval
+                          {t(lang, "addReview.product.pendingApproval")}
                         </p>
                       ) : null}
                     </div>
@@ -700,14 +727,14 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                       onClick={handleProductClear}
                       className="text-xs font-semibold text-slate-500 hover:text-primary"
                     >
-                      Change
+                      {t(lang, "addReview.product.change")}
                     </button>
                   </div>
                 ) : productName.trim() ? (
                   <div className="mt-2 space-y-2">
                     {productSearchStatus === "loading" ? (
                       <p className="text-xs text-slate-500">
-                        Searching products...
+                        {t(lang, "addReview.product.searching")}
                       </p>
                     ) : null}
                     {productSuggestions.length > 0 ? (
@@ -732,13 +759,15 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                                 {product.name}
                               </p>
                               <p className="text-xs text-slate-500 dark:text-slate-400">
-                                {formatNumber(product.stats?.reviewCount)} reviews · Rating{" "}
-                                {product.stats?.ratingAvg?.toFixed(1) ?? "—"}
+                                {t(lang, "addReview.product.meta", {
+                                  count: formatNumber(product.stats?.reviewCount, lang),
+                                  rating: product.stats?.ratingAvg?.toFixed(1) ?? "—",
+                                })}
                               </p>
                             </div>
                             {product.status === "pending" ? (
                               <span className="text-[10px] font-semibold text-amber-600">
-                                Pending
+                                {t(lang, "addReview.product.pending")}
                               </span>
                             ) : null}
                           </button>
@@ -759,13 +788,15 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-slate-900 dark:text-white">
                               {isProductSearchError
-                                ? "Search is unavailable right now."
-                                : `We couldn't find "${trimmedProductName}".`}
+                                ? t(lang, "addReview.product.unavailableTitle")
+                                : t(lang, "addReview.product.notFoundTitle", {
+                                    name: trimmedProductName,
+                                  })}
                             </p>
                             <p className="text-xs text-slate-600 dark:text-slate-300">
                               {isProductSearchError
-                                ? "You can still create this product and send it for admin approval."
-                                : "We can add it and send it to the admin approval queue so others can find it too."}
+                                ? t(lang, "addReview.product.unavailableDescription")
+                                : t(lang, "addReview.product.notFoundDescription")}
                             </p>
                           </div>
                         </div>
@@ -776,7 +807,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                             checked={confirmNewProduct}
                             onChange={(event) => setConfirmNewProduct(event.target.checked)}
                           />
-                          Yes, create this product and send it for approval.
+                          {t(lang, "addReview.product.confirmCreate")}
                         </label>
                         <div className={confirmNewProduct ? "space-y-3" : "space-y-3 opacity-60 pointer-events-none"}>
                           <div
@@ -790,14 +821,14 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                             </div>
                             <div>
                               <p className="text-slate-900 dark:text-white font-bold">
-                                Add a product photo
+                                {t(lang, "addReview.product.photoTitle")}
                               </p>
                               <p className="text-slate-500 text-sm mt-1">
-                                This image will appear on the product page once approved.
+                                {t(lang, "addReview.product.photoDescription")}
                               </p>
                             </div>
                             <p className="text-slate-400 text-xs mt-3">
-                              JPG, PNG, WEBP (Max 5MB per file)
+                              {t(lang, "addReview.product.photoHint")}
                             </p>
                           </div>
 
@@ -811,7 +842,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                                 <img
                                   src={productPhoto.previewUrl}
                                   className="w-full h-full object-cover"
-                                  alt="Upload preview"
+                                  alt={t(lang, "addReview.photo.previewAlt")}
                                 />
 
                                 <div className={`absolute inset-0 flex flex-col items-center justify-center p-2 bg-black/40 transition-opacity ${productPhoto.status === 'uploading' || productPhoto.status === 'error' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -820,7 +851,9 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                                       <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
                                         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${productPhoto.progress}%` }}></div>
                                       </div>
-                                      <span className="text-[10px] text-white font-bold mt-1">Uploading...</span>
+                                      <span className="text-[10px] text-white font-bold mt-1">
+                                        {t(lang, "addReview.photo.uploading")}
+                                      </span>
                                     </div>
                                   )}
 
@@ -833,7 +866,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                                         onClick={(event) => { event.stopPropagation(); uploadProductPhoto(productPhoto); }}
                                         className="mt-2 px-2 py-1 bg-white text-slate-900 rounded text-[10px] font-bold hover:bg-slate-100"
                                       >
-                                        Retry
+                                        {t(lang, "addReview.photo.retry")}
                                       </button>
                                     </div>
                                   )}
@@ -858,7 +891,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                             </div>
                           ) : (
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              Add a clear photo to help the admin verify the product faster.
+                              {t(lang, "addReview.product.photoHelp")}
                             </p>
                           )}
                         </div>
@@ -875,11 +908,11 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <label className="text-slate-900 dark:text-white text-base font-semibold">
-                  Review Title
+                  {t(lang, "addReview.form.titleLabel")}
                 </label>
                 <input
                   className="w-full h-12 px-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-400 font-medium"
-                  placeholder="Summarize your experience in a headline"
+                  placeholder={t(lang, "addReview.form.titlePlaceholder")}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
@@ -888,7 +921,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
 
               <div className="flex flex-col gap-2">
                 <span className="text-slate-900 dark:text-white text-base font-semibold">
-                  Your Rating
+                  {t(lang, "addReview.form.ratingLabel")}
                 </span>
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((val) => (
@@ -918,22 +951,26 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-2">
                 <label className="text-green-600 dark:text-green-400 text-base font-semibold flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px]">add_circle</span> Pros
+                  <span className="material-symbols-outlined text-[20px]">add_circle</span>{" "}
+                  {t(lang, "addReview.form.prosLabel")}
                 </label>
                 <textarea
                   className="w-full min-h-[120px] p-4 rounded-lg bg-green-50/30 dark:bg-green-900/10 border border-green-100 dark:border-green-900/30 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500/30 transition-all resize-none placeholder:text-slate-400"
-                  placeholder="What did you like? (Enter each on a new line)"
+                  placeholder={t(lang, "addReview.form.prosPlaceholder")}
                   value={pros}
                   onChange={(e) => setPros(e.target.value)}
                 ></textarea>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-red-500 dark:text-red-400 text-base font-semibold flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px]">do_not_disturb_on</span> Cons
+                  <span className="material-symbols-outlined text-[20px]">
+                    do_not_disturb_on
+                  </span>{" "}
+                  {t(lang, "addReview.form.consLabel")}
                 </label>
                 <textarea
                   className="w-full min-h-[120px] p-4 rounded-lg bg-red-50/30 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 transition-all resize-none placeholder:text-slate-400"
-                  placeholder="What could be improved? (Enter each on a new line)"
+                  placeholder={t(lang, "addReview.form.consPlaceholder")}
                   value={cons}
                   onChange={(e) => setCons(e.target.value)}
                 ></textarea>
@@ -943,7 +980,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
             {/* Section 4: Your Review Body */}
             <div className="flex flex-col gap-2">
               <label className="text-slate-900 dark:text-white text-base font-semibold">
-                Your Review
+                {t(lang, "addReview.form.bodyLabel")}
               </label>
               <div className="w-full rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden focus-within:ring-2 focus-within:ring-primary/50">
                 <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
@@ -956,7 +993,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                 </div>
                 <textarea
                   className="w-full h-64 p-4 bg-transparent border-none focus:ring-0 text-slate-900 dark:text-white placeholder:text-slate-400 resize-y"
-                  placeholder="Tell us about your experience..."
+                  placeholder={t(lang, "addReview.form.bodyPlaceholder")}
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   required
@@ -966,7 +1003,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
 
             <div className="flex flex-col gap-3">
               <label className="text-slate-900 dark:text-white text-base font-semibold">
-                Review Photos
+                {t(lang, "addReview.form.photosLabel")}
               </label>
 
               <div
@@ -977,10 +1014,16 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                   <span className="material-symbols-outlined text-[32px]">cloud_upload</span>
                 </div>
                 <div>
-                  <p className="text-slate-900 dark:text-white font-bold">Add review photos</p>
-                  <p className="text-slate-500 text-sm mt-1">Drag and drop or click to browse</p>
+                  <p className="text-slate-900 dark:text-white font-bold">
+                    {t(lang, "addReview.form.photosTitle")}
+                  </p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {t(lang, "addReview.form.photosSubtitle")}
+                  </p>
                 </div>
-                <p className="text-slate-400 text-xs mt-4">JPG, PNG, WEBP (Max 5MB per file)</p>
+                <p className="text-slate-400 text-xs mt-4">
+                  {t(lang, "addReview.form.photosHint")}
+                </p>
               </div>
 
               {reviewPhotos.length > 0 && (
@@ -988,7 +1031,11 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                   {reviewPhotos.map((photo) => (
                     <div key={photo.id} className="relative aspect-square rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 overflow-hidden group">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photo.previewUrl} className="w-full h-full object-cover" alt="Upload preview" />
+                      <img
+                        src={photo.previewUrl}
+                        className="w-full h-full object-cover"
+                        alt={t(lang, "addReview.photo.previewAlt")}
+                      />
 
                       <div className={`absolute inset-0 flex flex-col items-center justify-center p-2 bg-black/40 transition-opacity ${photo.status === 'uploading' || photo.status === 'error' ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         {photo.status === 'uploading' && (
@@ -996,7 +1043,9 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                             <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
                               <div className="h-full bg-primary transition-all duration-300" style={{ width: `${photo.progress}%` }}></div>
                             </div>
-                            <span className="text-[10px] text-white font-bold mt-1">Uploading...</span>
+                            <span className="text-[10px] text-white font-bold mt-1">
+                              {t(lang, "addReview.photo.uploading")}
+                            </span>
                           </div>
                         )}
 
@@ -1009,7 +1058,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                               onClick={(e) => { e.stopPropagation(); uploadReviewPhoto(photo); }}
                               className="mt-2 px-2 py-1 bg-white text-slate-900 rounded text-[10px] font-bold hover:bg-slate-100"
                             >
-                              Retry
+                              {t(lang, "addReview.photo.retry")}
                             </button>
                           </div>
                         )}
@@ -1048,7 +1097,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                   onChange={(e) => setRecommends(e.target.checked)}
                 />
                 <span className="text-slate-900 dark:text-white font-medium group-hover:text-primary transition-colors">
-                  I recommend this product
+                  {t(lang, "addReview.recommendLabel")}
                 </span>
               </label>
 
@@ -1057,7 +1106,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                   type="button"
                   className="flex-1 sm:flex-none h-12 px-6 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
-                  Save Draft
+                  {t(lang, "addReview.saveDraft")}
                 </button>
                 <button
                   type="submit"
@@ -1069,7 +1118,9 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
                   }
                   className="flex-1 sm:flex-none h-12 px-10 rounded-lg bg-primary text-white font-bold hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20"
                 >
-                  {isSubmitting ? "Publishing..." : "Publish Review"}
+                  {isSubmitting
+                    ? t(lang, "addReview.publishing")
+                    : t(lang, "addReview.publish")}
                 </button>
               </div>
             </div>
@@ -1077,7 +1128,7 @@ export default function AddReviewClient({ categories }: AddReviewClientProps) {
         </div>
 
         <p className="text-center text-slate-400 dark:text-slate-600 text-[11px] py-4">
-          By publishing, you agree to UserReview&apos;s Terms of Service and Privacy Policy.
+          {t(lang, "addReview.footer.agreement")}
         </p>
       </div>
     </main>

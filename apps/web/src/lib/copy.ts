@@ -298,6 +298,8 @@ export const TRANSLATIONS = {
     "productDetail.meta.notFoundDescription": "The requested product could not be found.",
     "productDetail.meta.descriptionFallback":
       "Browse ratings, photos, and community reviews for this product.",
+    "productDetail.meta.titleTemplate": "{name} Reviews & Ratings",
+    "reviewDetail.meta.titleSuffix": "Review",
     "productDetail.notFound.title": "Product Not Found",
     "productDetail.notFound.description":
       "The product you're looking for doesn't exist or has been removed.",
@@ -365,6 +367,9 @@ export const TRANSLATIONS = {
     "profile.meta.description": "View {name}'s reviews and profile.",
     "profile.error.loadFailed": "Unable to load profile data. Please try again later.",
     "profile.error.apiNotConfigured": "API base URL is not configured.",
+    "reviewDetail.summary": "Editor's Summary",
+    "reviewDetail.faq": "Featured FAQ",
+    "reviewDetail.specs": "Specifications",
     "profile.memberSince": "Member since {date}",
     "profile.memberSince.recent": "Joined recently",
     "profile.badge.expertReviewer": "Expert Reviewer",
@@ -642,6 +647,43 @@ export const TRANSLATIONS = {
     "addReview.publishing": "Publishing...",
     "addReview.footer.agreement":
       "By publishing, you agree to UserReview's Terms of Service and Privacy Policy.",
+    "addReview.error.categories":
+      "Unable to load categories. Please try again later.",
+    "addReview.fallbackCategory.tech": "Technology & Electronics",
+    "addReview.fallbackCategory.beauty": "Beauty & Health",
+    "addReview.fallbackCategory.travel": "Travel & Hotels",
+    "addReview.fallbackCategory.auto": "Auto & Moto",
+    "addReview.fallbackCategory.moviesBooks": "Movies & Books",
+    "about.meta.title": "About Us",
+    "about.meta.description":
+      "Learn more about UserReview and our mission to provide honest user feedback.",
+    "about.hero.title": "About UserReview",
+    "about.hero.subtitle":
+      "We believe in the power of honest experiences. Our mission is to help people make better decisions through real reviews from real users.",
+    "about.section.mission.title": "Our Mission",
+    "about.section.mission.body":
+      "UserReview was founded on a simple idea: that the best way to know if a product is worth your time and money is to hear from someone who has actually used it. In a world of biased advertisements and sponsored content, we provide a space for authentic, unbiased feedback.",
+    "about.card.authentic.title": "Authentic Reviews",
+    "about.card.authentic.body":
+      "We use advanced moderation and verification systems to ensure that the reviews you read are genuine and helpful.",
+    "about.card.community.title": "Built for Community",
+    "about.card.community.body":
+      "Our platform is built by the community, for the community. Every review helps someone else make a smarter choice.",
+    "about.section.offer.title": "What We Offer",
+    "about.section.offer.body":
+      "Whether you're looking for the best skincare product, a reliable tech gadget, or a trusted service, UserReview offers:",
+    "about.section.offer.item1":
+      "Comprehensive reviews across hundreds of categories",
+    "about.section.offer.item2": "Real user photos and detailed pros/cons",
+    "about.section.offer.item3":
+      "Community ratings and helpfulness votes",
+    "about.section.offer.item4":
+      "Expert insights and trending product data",
+    "about.cta.title": "Join Our Community",
+    "about.cta.body":
+      "Ready to share your own experiences? Join thousands of other reviewers and start helping today.",
+    "about.cta.primary": "Write a Review",
+    "about.cta.secondary": "Explore Catalog",
     "contact.meta.title": "Contact",
     "contact.meta.description":
       "Get in touch with our support and administration team.",
@@ -696,10 +738,10 @@ export const TRANSLATIONS = {
     "privacy.sidebar.cta.title": "Have concerns about your data?",
     "privacy.sidebar.cta.button": "Contact DPO",
     "privacy.header.title": "Privacy Policy",
-    "privacy.header.updated": "Last Updated: October 24, 2023",
+    "privacy.header.updated": "Last Updated: December 24, 2024",
     "privacy.header.readTime": "10 min read",
     "privacy.section.intro.body":
-      "Welcome to iRecommend. We value your trust and are committed to protecting your personal information. This Privacy Policy outlines how we collect, use, disclose, and safeguard your data when you visit our website or use our services. By accessing or using iRecommend, you agree to the terms of this Privacy Policy.",
+      "Welcome to UserReview. We value your trust and are committed to protecting your personal information. This Privacy Policy outlines how we collect, use, disclose, and safeguard your data when you visit our website or use our services. By accessing or using UserReview, you agree to the terms of this Privacy Policy.",
     "privacy.section.dataCollection.title": "1. Data Collection",
     "privacy.section.dataCollection.body":
       "We collect information that you provide directly to us, such as when you create an account, write a review, or contact our support team. This may include:",
@@ -748,9 +790,9 @@ export const TRANSLATIONS = {
     "privacy.section.contact.general.body":
       "For questions about this policy or our privacy practices.",
     "privacy.section.contact.mailing.title": "Mailing Address",
-    "privacy.section.contact.mailing.line1": "iRecommend Legal Dept.",
-    "privacy.section.contact.mailing.line2": "123 Innovation Drive, Suite 400",
-    "privacy.section.contact.mailing.line3": "Tech City, TC 94000",
+    "privacy.section.contact.mailing.line1": "UserReview Legal Dept.",
+    "privacy.section.contact.mailing.line2": "Istanbul",
+    "privacy.section.contact.mailing.line3": "Turkey",
     "terms.meta.title": "Terms of Use",
     "terms.meta.description":
       "Review the terms and conditions for using UserReview.",
@@ -769,15 +811,15 @@ export const TRANSLATIONS = {
     "terms.header.title": "Terms of Use",
     "terms.header.status": "Active",
     "terms.header.subtitle":
-      "Please read these terms carefully before using our platform. By accessing or using iRecommend, you agree to be bound by these terms.",
+      "Please read these terms carefully before using our platform. By accessing or using UserReview, you agree to be bound by these terms.",
     "terms.header.updatedLabel": "Last updated:",
-    "terms.header.updatedDate": "October 24, 2023",
+    "terms.header.updatedDate": "December 24, 2024",
     "terms.header.readTime": "Reading time: ~8 min",
     "terms.header.print": "Print Version",
     "terms.searchPlaceholder": "Search within document...",
     "terms.section1.title": "Introduction",
     "terms.section1.body1":
-      "Welcome to iRecommend. These Terms of Use govern your use of our website located at iRecommend.com (the Service) operated by iRecommend Inc. (us, we, or our).",
+      "Welcome to UserReview. These Terms of Use govern your use of our website located at userreview.net (the Service) operated by UserReview (us, we, or our).",
     "terms.section1.body2":
       "By accessing or using the Service, you agree to be bound by these Terms. If you disagree with any part of the terms, then you may not access the Service. This agreement applies to all visitors, users, and others who access the Service.",
     "terms.section2.title": "Accounts",
@@ -801,7 +843,7 @@ export const TRANSLATIONS = {
       "By posting Content to the Service, you grant us the right and license to use, modify, publicly perform, publicly display, reproduce, and distribute such Content on and through the Service. You retain any and all of your rights to any Content you submit, post or display on or through the Service and you are responsible for protecting those rights.",
     "terms.section4.title": "Intellectual Property",
     "terms.section4.body":
-      "The Service and its original content (excluding Content provided by users), features and functionality are and will remain the exclusive property of iRecommend Inc. and its licensors. The Service is protected by copyright, trademark, and other laws of both the United States and foreign countries. Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of iRecommend Inc.",
+      "The Service and its original content (excluding Content provided by users), features and functionality are and will remain the exclusive property of UserReview and its licensors. The Service is protected by copyright, trademark, and other laws of both the United States and foreign countries. Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of UserReview.",
     "terms.section5.title": "Termination",
     "terms.section5.body":
       "We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms. Upon termination, your right to use the Service will immediately cease. If you wish to terminate your account, you may simply discontinue using the Service.",
@@ -822,6 +864,8 @@ export const TRANSLATIONS = {
   tr: {
     "language.label": "Dil",
     "language.name.tr": "Türkçe",
+    "productDetail.meta.titleTemplate": "{name} Yorumları ve İncelemeleri",
+    "reviewDetail.meta.titleSuffix": "İncelemesi",
     "language.name.en": "İngilizce",
     "language.name.es": "İspanyolca",
     "language.name.de": "Almanca",
@@ -1186,6 +1230,9 @@ export const TRANSLATIONS = {
     "profile.meta.description": "{name} kullanıcısının yorumlarını ve profilini görüntüleyin.",
     "profile.error.loadFailed": "Profil verileri yüklenemedi. Lütfen daha sonra tekrar deneyin.",
     "profile.error.apiNotConfigured": "API temel URL'i yapılandırılmadı.",
+    "reviewDetail.summary": "Editör Özeti",
+    "reviewDetail.faq": "Sıkça Sorulan Sorular",
+    "reviewDetail.specs": "Teknik Özellikler",
     "profile.memberSince": "{date} tarihinden beri üye",
     "profile.memberSince.recent": "Yakın zamanda katıldı",
     "profile.badge.expertReviewer": "Uzman Yorumcu",
@@ -1471,6 +1518,41 @@ export const TRANSLATIONS = {
     "addReview.publishing": "Yayınlanıyor...",
     "addReview.footer.agreement":
       "Yayınlayarak UserReview'in Hizmet Şartlarını ve Gizlilik Politikasını kabul etmiş olursun.",
+    "addReview.error.categories":
+      "Kategoriler yüklenemedi. Lütfen daha sonra tekrar deneyin.",
+    "addReview.fallbackCategory.tech": "Teknoloji & Elektronik",
+    "addReview.fallbackCategory.beauty": "Güzellik & Sağlık",
+    "addReview.fallbackCategory.travel": "Seyahat & Oteller",
+    "addReview.fallbackCategory.auto": "Oto & Moto",
+    "addReview.fallbackCategory.moviesBooks": "Filmler & Kitaplar",
+    "about.meta.title": "Hakkımızda",
+    "about.meta.description":
+      "UserReview hakkında ve dürüst kullanıcı geri bildirimleri sunma misyonumuz hakkında daha fazla bilgi edinin.",
+    "about.hero.title": "UserReview Hakkında",
+    "about.hero.subtitle":
+      "Dürüst deneyimlerin gücüne inanıyoruz. Misyonumuz, gerçek kullanıcıların gerçek yorumlarıyla insanların daha iyi kararlar vermesine yardımcı olmak.",
+    "about.section.mission.title": "Misyonumuz",
+    "about.section.mission.body":
+      "UserReview basit bir fikirle kuruldu: Bir ürünün zamanınıza ve paranıza değip değmediğini anlamanın en iyi yolu, onu gerçekten kullanmış birinden duymaktır. Önyargılı reklamların ve sponsorlu içeriklerin dünyasında, özgün ve tarafsız geri bildirim için bir alan sunuyoruz.",
+    "about.card.authentic.title": "Gerçek Yorumlar",
+    "about.card.authentic.body":
+      "Okuduğunuz yorumların gerçek ve faydalı olduğundan emin olmak için gelişmiş moderasyon ve doğrulama sistemleri kullanıyoruz.",
+    "about.card.community.title": "Topluluk İçin",
+    "about.card.community.body":
+      "Platformumuz topluluk tarafından, topluluk için oluşturuldu. Her yorum, bir başkasının daha akıllıca seçim yapmasına yardımcı olur.",
+    "about.section.offer.title": "Neler Sunuyoruz",
+    "about.section.offer.body":
+      "En iyi cilt bakım ürünü, güvenilir bir teknoloji ürünü veya güvenilir bir hizmet arıyorsanız, UserReview şunları sunar:",
+    "about.section.offer.item1": "Yüzlerce kategoride kapsamlı yorumlar",
+    "about.section.offer.item2":
+      "Gerçek kullanıcı fotoğrafları ve detaylı artılar/eksiler",
+    "about.section.offer.item3": "Topluluk puanları ve faydalı oyları",
+    "about.section.offer.item4": "Uzman içgörüleri ve trend ürün verileri",
+    "about.cta.title": "Topluluğumuza Katılın",
+    "about.cta.body":
+      "Kendi deneyimlerinizi paylaşmaya hazır mısınız? Binlerce yorumcuya katılın ve bugün yardımcı olmaya başlayın.",
+    "about.cta.primary": "Yorum Yaz",
+    "about.cta.secondary": "Kataloğu Keşfet",
     "contact.meta.title": "İletişim",
     "contact.meta.description":
       "Destek ve yönetim ekibimizle iletişime geçin.",
@@ -1524,10 +1606,10 @@ export const TRANSLATIONS = {
     "privacy.sidebar.cta.title": "Verilerinizle ilgili endişeniz mi var?",
     "privacy.sidebar.cta.button": "DPO ile iletişime geç",
     "privacy.header.title": "Gizlilik Politikası",
-    "privacy.header.updated": "Son Güncelleme: 24 Ekim 2023",
+    "privacy.header.updated": "Son Güncelleme: 24 Aralık 2024",
     "privacy.header.readTime": "10 dk okuma",
     "privacy.section.intro.body":
-      "iRecommend'e hoş geldiniz. Güveninize değer veriyor ve kişisel bilgilerinizi korumaya kararlıyız. Bu Gizlilik Politikası, web sitemizi ziyaret ettiğinizde veya hizmetlerimizi kullandığınızda verilerinizi nasıl topladığımızı, kullandığımızı, paylaştığımızı ve koruduğumuzu açıklar. iRecommend'e erişerek veya kullanarak bu Gizlilik Politikası'nın şartlarını kabul etmiş olursunuz.",
+      "UserReview'e hoş geldiniz. Güveninize değer veriyor ve kişisel bilgilerinizi korumaya kararlıyız. Bu Gizlilik Politikası, web sitemizi ziyaret ettiğinizde veya hizmetlerimizi kullandığınızda verilerinizi nasıl topladığımızı, kullandığımızı, paylaştığımızı ve koruduğumuzu açıklar. UserReview'e erişerek veya kullanarak bu Gizlilik Politikası'nın şartlarını kabul etmiş olursunuz.",
     "privacy.section.dataCollection.title": "1. Veri Toplama",
     "privacy.section.dataCollection.body":
       "Doğrudan bize sağladığınız bilgileri toplarız; örneğin hesap oluşturduğunuzda, yorum yazdığınızda veya destek ekibimizle iletişime geçtiğinizde. Bu bilgiler şunları içerebilir:",
@@ -1576,9 +1658,9 @@ export const TRANSLATIONS = {
     "privacy.section.contact.general.body":
       "Bu politika veya gizlilik uygulamalarımızla ilgili sorular için.",
     "privacy.section.contact.mailing.title": "Posta Adresi",
-    "privacy.section.contact.mailing.line1": "iRecommend Hukuk Departmanı",
-    "privacy.section.contact.mailing.line2": "123 Innovation Drive, Suite 400",
-    "privacy.section.contact.mailing.line3": "Teknoloji Şehri, TC 94000",
+    "privacy.section.contact.mailing.line1": "UserReview Hukuk Departmanı",
+    "privacy.section.contact.mailing.line2": "İstanbul",
+    "privacy.section.contact.mailing.line3": "Türkiye",
     "terms.meta.title": "Kullanım Şartları",
     "terms.meta.description":
       "UserReview'i kullanma şartlarını ve koşullarını inceleyin.",
@@ -1597,15 +1679,15 @@ export const TRANSLATIONS = {
     "terms.header.title": "Kullanım Şartları",
     "terms.header.status": "Aktif",
     "terms.header.subtitle":
-      "Lütfen platformumuzu kullanmadan önce bu şartları dikkatlice okuyun. iRecommend'e erişerek veya kullanarak bu şartlara bağlı olmayı kabul edersiniz.",
+      "Lütfen platformumuzu kullanmadan önce bu şartları dikkatlice okuyun. UserReview'e erişerek veya kullanarak bu şartlara bağlı olmayı kabul edersiniz.",
     "terms.header.updatedLabel": "Son güncelleme:",
-    "terms.header.updatedDate": "24 Ekim 2023",
+    "terms.header.updatedDate": "24 Aralık 2024",
     "terms.header.readTime": "Okuma süresi: ~8 dk",
     "terms.header.print": "Yazdırma Sürümü",
     "terms.searchPlaceholder": "Belge içinde ara...",
     "terms.section1.title": "Giriş",
     "terms.section1.body1":
-      "iRecommend'e hoş geldiniz. Bu Kullanım Şartları, iRecommend Inc. tarafından işletilen iRecommend.com adresindeki web sitemizi (Hizmet) kullanımınızı düzenler (biz, bize veya bizim).",
+      "UserReview'e hoş geldiniz. Bu Kullanım Şartları, UserReview tarafından işletilen userreview.net adresindeki web sitemizi (Hizmet) kullanımınızı düzenler (biz, bize veya bizim).",
     "terms.section1.body2":
       "Hizmete erişerek veya kullanarak bu Şartlara bağlı olmayı kabul edersiniz. Şartların herhangi bir bölümüne katılmıyorsanız Hizmete erişemezsiniz. Bu sözleşme, Hizmete erişen tüm ziyaretçiler, kullanıcılar ve diğerleri için geçerlidir.",
     "terms.section2.title": "Hesaplar",
@@ -1625,12 +1707,12 @@ export const TRANSLATIONS = {
       "Saldırgan, zararlı veya",
     "terms.section3.note.link": "Topluluk Kurallarımıza",
     "terms.section3.note.bodySuffix":
-      "aykırı olduğunu düşündüğümüz içerikleri kaldırma hakkımız saklıdır.",
+      " aykırı olduğunu düşündüğümüz içerikleri kaldırma hakkımız saklıdır.",
     "terms.section3.body2":
       "Hizmete İçerik göndererek, bu İçeriği Hizmet üzerinde ve üzerinden kullanma, değiştirme, herkese açık şekilde sergileme, çoğaltma ve dağıtma konusunda bize bir hak ve lisans verirsiniz. Hizmete gönderdiğiniz veya yayınladığınız İçerik üzerindeki tüm haklar sizde kalır ve bu hakları korumaktan siz sorumlusunuz.",
     "terms.section4.title": "Fikri Mülkiyet",
     "terms.section4.body":
-      "Hizmet ve kullanıcılar tarafından sağlanan İçerik hariç olmak üzere özgün içerikler, özellikler ve işlevsellik iRecommend Inc. ve lisans verenlerinin münhasır mülkiyetidir. Hizmet, ABD ve diğer ülkelerin telif hakkı, ticari marka ve diğer yasalarıyla korunur. iRecommend Inc.'in ticari markaları ve ticari görünümü, önceden yazılı izin alınmadan herhangi bir ürün veya hizmetle bağlantılı olarak kullanılamaz.",
+      "Hizmet ve kullanıcılar tarafından sağlanan İçerik hariç olmak üzere özgün içerikler, özellikler ve işlevsellik UserReview ve lisans verenlerinin münhasır mülkiyetidir. Hizmet, ABD ve diğer ülkelerin telif hakkı, ticari marka ve diğer yasalarıyla korunur. UserReview'in ticari markaları ve ticari görünümü, önceden yazılı izin alınmadan herhangi bir ürün veya hizmetle bağlantılı olarak kullanılamaz.",
     "terms.section5.title": "Fesih",
     "terms.section5.body":
       "Şartları ihlal etmeniz dahil olmak üzere herhangi bir nedenle, önceden bildirimde bulunmaksızın ve sorumluluk üstlenmeksizin hesabınızı derhal askıya alabilir veya sonlandırabiliriz. Fesih halinde Hizmeti kullanma hakkınız derhal sona erer. Hesabınızı sonlandırmak isterseniz, Hizmeti kullanmayı bırakmanız yeterlidir.",
@@ -2315,6 +2397,43 @@ export const TRANSLATIONS = {
     "addReview.publishing": "Publicando...",
     "addReview.footer.agreement":
       "Al publicar, aceptas los Términos de servicio y la Política de privacidad de UserReview.",
+    "addReview.error.categories":
+      "No se pudieron cargar las categorías. Inténtalo de nuevo más tarde.",
+    "addReview.fallbackCategory.tech": "Tecnología y electrónica",
+    "addReview.fallbackCategory.beauty": "Belleza y salud",
+    "addReview.fallbackCategory.travel": "Viajes y hoteles",
+    "addReview.fallbackCategory.auto": "Auto y moto",
+    "addReview.fallbackCategory.moviesBooks": "Películas y libros",
+    "about.meta.title": "Sobre nosotros",
+    "about.meta.description":
+      "Conoce más sobre UserReview y nuestra misión de ofrecer opiniones honestas de usuarios.",
+    "about.hero.title": "Sobre UserReview",
+    "about.hero.subtitle":
+      "Creemos en el poder de las experiencias honestas. Nuestra misión es ayudar a las personas a tomar mejores decisiones con reseñas reales de usuarios reales.",
+    "about.section.mission.title": "Nuestra misión",
+    "about.section.mission.body":
+      "UserReview se fundó con una idea simple: la mejor forma de saber si un producto vale tu tiempo y dinero es escuchar a quien realmente lo ha usado. En un mundo de publicidad sesgada y contenido patrocinado, ofrecemos un espacio para opiniones auténticas e imparciales.",
+    "about.card.authentic.title": "Reseñas auténticas",
+    "about.card.authentic.body":
+      "Usamos sistemas avanzados de moderación y verificación para garantizar que las reseñas que lees sean genuinas y útiles.",
+    "about.card.community.title": "Hecho para la comunidad",
+    "about.card.community.body":
+      "Nuestra plataforma está construida por la comunidad y para la comunidad. Cada reseña ayuda a alguien a tomar una decisión más inteligente.",
+    "about.section.offer.title": "Lo que ofrecemos",
+    "about.section.offer.body":
+      "Tanto si buscas el mejor producto de cuidado de la piel, un gadget tecnológico fiable o un servicio de confianza, UserReview ofrece:",
+    "about.section.offer.item1": "Reseñas completas en cientos de categorías",
+    "about.section.offer.item2":
+      "Fotos reales de usuarios y pros/contras detallados",
+    "about.section.offer.item3":
+      "Calificaciones de la comunidad y votos de utilidad",
+    "about.section.offer.item4":
+      "Perspectivas de expertos y datos de productos en tendencia",
+    "about.cta.title": "Únete a nuestra comunidad",
+    "about.cta.body":
+      "¿Listo para compartir tus experiencias? Únete a miles de reviewers y empieza a ayudar hoy.",
+    "about.cta.primary": "Escribir una reseña",
+    "about.cta.secondary": "Explorar el catálogo",
     "contact.meta.title": "Contacto",
     "contact.meta.description":
       "Ponte en contacto con nuestro equipo de soporte y administración.",
@@ -2369,10 +2488,10 @@ export const TRANSLATIONS = {
     "privacy.sidebar.cta.title": "¿Te preocupa el uso de tus datos?",
     "privacy.sidebar.cta.button": "Contactar al DPO",
     "privacy.header.title": "Política de privacidad",
-    "privacy.header.updated": "Última actualización: 24 de octubre de 2023",
+    "privacy.header.updated": "Última actualización: 24 de diciembre de 2024",
     "privacy.header.readTime": "10 min de lectura",
     "privacy.section.intro.body":
-      "Bienvenido a iRecommend. Valoramos tu confianza y estamos comprometidos a proteger tu información personal. Esta Política de privacidad describe cómo recopilamos, usamos, divulgamos y protegemos tus datos cuando visitas nuestro sitio web o usas nuestros servicios. Al acceder o usar iRecommend, aceptas los términos de esta Política de privacidad.",
+      "Bienvenido a UserReview. Valoramos tu confianza y estamos comprometidos a proteger tu información personal. Esta Política de privacidad describe cómo recopilamos, usamos, divulgamos y protegemos tus datos cuando visitas nuestro sitio web o usas nuestros servicios. Al acceder o usar UserReview, aceptas los términos de esta Política de privacidad.",
     "privacy.section.dataCollection.title": "1. Recopilación de datos",
     "privacy.section.dataCollection.body":
       "Recopilamos información que nos proporcionas directamente, como cuando creas una cuenta, escribes una reseña o contactas con nuestro equipo de soporte. Esto puede incluir:",
@@ -2421,9 +2540,9 @@ export const TRANSLATIONS = {
     "privacy.section.contact.general.body":
       "Para preguntas sobre esta política o nuestras prácticas de privacidad.",
     "privacy.section.contact.mailing.title": "Dirección postal",
-    "privacy.section.contact.mailing.line1": "Departamento Legal de iRecommend",
-    "privacy.section.contact.mailing.line2": "123 Innovation Drive, Suite 400",
-    "privacy.section.contact.mailing.line3": "Ciudad Tech, TC 94000",
+    "privacy.section.contact.mailing.line1": "Departamento Legal de UserReview",
+    "privacy.section.contact.mailing.line2": "Estambul",
+    "privacy.section.contact.mailing.line3": "Turquía",
     "terms.meta.title": "Términos de uso",
     "terms.meta.description":
       "Revisa los términos y condiciones para usar UserReview.",
@@ -2442,15 +2561,15 @@ export const TRANSLATIONS = {
     "terms.header.title": "Términos de uso",
     "terms.header.status": "Activo",
     "terms.header.subtitle":
-      "Lee estos términos cuidadosamente antes de usar nuestra plataforma. Al acceder o usar iRecommend, aceptas quedar sujeto a estos términos.",
+      "Lee estos términos cuidadosamente antes de usar nuestra plataforma. Al acceder o usar UserReview, aceptas quedar sujeto a estos términos.",
     "terms.header.updatedLabel": "Última actualización:",
-    "terms.header.updatedDate": "24 de octubre de 2023",
+    "terms.header.updatedDate": "24 de diciembre de 2024",
     "terms.header.readTime": "Tiempo de lectura: ~8 min",
     "terms.header.print": "Versión para imprimir",
     "terms.searchPlaceholder": "Buscar dentro del documento...",
     "terms.section1.title": "Introducción",
     "terms.section1.body1":
-      "Bienvenido a iRecommend. Estos Términos de uso regulan tu uso de nuestro sitio web ubicado en iRecommend.com (el Servicio) operado por iRecommend Inc. (nosotros, nos o nuestro).",
+      "Bienvenido a UserReview. Estos Términos de uso regulan tu uso de nuestro sitio web ubicado en userreview.net (el Servicio) operado por UserReview (nosotros, nos o nuestro).",
     "terms.section1.body2":
       "Al acceder o usar el Servicio, aceptas quedar sujeto a estos Términos. Si no estás de acuerdo con alguna parte de los términos, no podrás acceder al Servicio. Este acuerdo aplica a todos los visitantes, usuarios y demás personas que acceden al Servicio.",
     "terms.section2.title": "Cuentas",
@@ -2474,7 +2593,7 @@ export const TRANSLATIONS = {
       "Al publicar Contenido en el Servicio, nos otorgas el derecho y la licencia para usar, modificar, representar públicamente, mostrar públicamente, reproducir y distribuir dicho Contenido en y a través del Servicio. Conservas todos tus derechos sobre cualquier Contenido que envíes, publiques o muestres en o a través del Servicio, y eres responsable de proteger esos derechos.",
     "terms.section4.title": "Propiedad intelectual",
     "terms.section4.body":
-      "El Servicio y su contenido original (excluyendo el Contenido proporcionado por los usuarios), funciones y funcionalidades son y seguirán siendo propiedad exclusiva de iRecommend Inc. y sus licenciantes. El Servicio está protegido por leyes de derechos de autor, marcas registradas y otras leyes de Estados Unidos y de otros países. Nuestras marcas y la imagen comercial no pueden usarse en relación con ningún producto o servicio sin el consentimiento previo por escrito de iRecommend Inc.",
+      "El Servicio y su contenido original (excluyendo el Contenido proporcionado por los usuarios), funciones y funcionalidades son y seguirán siendo propiedad exclusiva de UserReview y sus licenciantes. El Servicio está protegido por leyes de derechos de autor, marcas registradas y otras leyes de Estados Unidos y de otros países. Nuestras marcas y la imagen comercial no pueden usarse en relación con ningún producto o servicio sin el consentimiento previo por escrito de UserReview.",
     "terms.section5.title": "Terminación",
     "terms.section5.body":
       "Podemos terminar o suspender tu cuenta de inmediato, sin previo aviso ni responsabilidad, por cualquier motivo, incluido, entre otros, si incumples los Términos. Tras la terminación, tu derecho a usar el Servicio cesará de inmediato. Si deseas terminar tu cuenta, puedes simplemente dejar de usar el Servicio.",
@@ -3170,6 +3289,41 @@ export const TRANSLATIONS = {
     "addReview.publishing": "Wird veröffentlicht...",
     "addReview.footer.agreement":
       "Mit der Veröffentlichung stimmst du den Nutzungsbedingungen und der Datenschutzerklärung von UserReview zu.",
+    "addReview.error.categories":
+      "Kategorien konnten nicht geladen werden. Bitte später erneut versuchen.",
+    "addReview.fallbackCategory.tech": "Technologie & Elektronik",
+    "addReview.fallbackCategory.beauty": "Schönheit & Gesundheit",
+    "addReview.fallbackCategory.travel": "Reisen & Hotels",
+    "addReview.fallbackCategory.auto": "Auto & Motorrad",
+    "addReview.fallbackCategory.moviesBooks": "Filme & Bücher",
+    "about.meta.title": "Über uns",
+    "about.meta.description":
+      "Erfahre mehr über UserReview und unsere Mission für ehrliches Nutzerfeedback.",
+    "about.hero.title": "Über UserReview",
+    "about.hero.subtitle":
+      "Wir glauben an die Kraft ehrlicher Erfahrungen. Unsere Mission ist es, Menschen mit echten Bewertungen von echten Nutzern zu besseren Entscheidungen zu verhelfen.",
+    "about.section.mission.title": "Unsere Mission",
+    "about.section.mission.body":
+      "UserReview wurde mit einer einfachen Idee gegründet: Der beste Weg zu wissen, ob ein Produkt deine Zeit und dein Geld wert ist, ist von jemandem zu hören, der es wirklich genutzt hat. In einer Welt voller voreingenommener Werbung und gesponserter Inhalte bieten wir Raum für authentisches, unvoreingenommenes Feedback.",
+    "about.card.authentic.title": "Authentische Bewertungen",
+    "about.card.authentic.body":
+      "Wir nutzen fortschrittliche Moderations- und Verifizierungssysteme, damit die Bewertungen, die du liest, echt und hilfreich sind.",
+    "about.card.community.title": "Für die Community gebaut",
+    "about.card.community.body":
+      "Unsere Plattform wird von der Community für die Community gebaut. Jede Bewertung hilft jemandem, eine bessere Entscheidung zu treffen.",
+    "about.section.offer.title": "Was wir bieten",
+    "about.section.offer.body":
+      "Ob du nach dem besten Hautpflegeprodukt, einem zuverlässigen Tech-Gadget oder einem vertrauenswürdigen Service suchst – UserReview bietet:",
+    "about.section.offer.item1": "Umfassende Bewertungen in hunderten Kategorien",
+    "about.section.offer.item2":
+      "Echte Nutzerfotos und detaillierte Vor-/Nachteile",
+    "about.section.offer.item3": "Community-Bewertungen und Hilfreichkeitsvotes",
+    "about.section.offer.item4": "Experteneinblicke und Trend-Produktdaten",
+    "about.cta.title": "Werde Teil unserer Community",
+    "about.cta.body":
+      "Bereit, deine Erfahrungen zu teilen? Schließe dich Tausenden von Reviewern an und hilf noch heute.",
+    "about.cta.primary": "Bewertung schreiben",
+    "about.cta.secondary": "Katalog entdecken",
     "contact.meta.title": "Kontakt",
     "contact.meta.description":
       "Nimm Kontakt mit unserem Support- und Admin-Team auf.",
@@ -3223,10 +3377,10 @@ export const TRANSLATIONS = {
     "privacy.sidebar.cta.title": "Bedenken zu deinen Daten?",
     "privacy.sidebar.cta.button": "Datenschutzbeauftragten kontaktieren",
     "privacy.header.title": "Datenschutzerklärung",
-    "privacy.header.updated": "Zuletzt aktualisiert: 24. Oktober 2023",
+    "privacy.header.updated": "Zuletzt aktualisiert: 24. Dezember 2024",
     "privacy.header.readTime": "10 Min. Lesezeit",
     "privacy.section.intro.body":
-      "Willkommen bei iRecommend. Wir schätzen dein Vertrauen und verpflichten uns, deine persönlichen Informationen zu schützen. Diese Datenschutzerklärung erläutert, wie wir deine Daten erfassen, verwenden, offenlegen und schützen, wenn du unsere Website besuchst oder unsere Dienste nutzt. Durch den Zugriff auf oder die Nutzung von iRecommend stimmst du den Bedingungen dieser Datenschutzerklärung zu.",
+      "Willkommen bei UserReview. Wir schätzen dein Vertrauen und verpflichten uns, deine persönlichen Informationen zu schützen. Diese Datenschutzerklärung erläutert, wie wir deine Daten erfassen, verwenden, offenlegen und schützen, wenn du unsere Website besuchst oder unsere Dienste nutzt. Durch den Zugriff auf oder die Nutzung von UserReview stimmst du den Bedingungen dieser Datenschutzerklärung zu.",
     "privacy.section.dataCollection.title": "1. Datenerhebung",
     "privacy.section.dataCollection.body":
       "Wir erheben Informationen, die du uns direkt zur Verfügung stellst, z. B. wenn du ein Konto erstellst, eine Bewertung schreibst oder unser Support-Team kontaktierst. Dazu können gehören:",
@@ -3275,9 +3429,9 @@ export const TRANSLATIONS = {
     "privacy.section.contact.general.body":
       "Für Fragen zu dieser Richtlinie oder unseren Datenschutzpraktiken.",
     "privacy.section.contact.mailing.title": "Postanschrift",
-    "privacy.section.contact.mailing.line1": "iRecommend Rechtsabteilung",
-    "privacy.section.contact.mailing.line2": "123 Innovation Drive, Suite 400",
-    "privacy.section.contact.mailing.line3": "Tech City, TC 94000",
+    "privacy.section.contact.mailing.line1": "UserReview Rechtsabteilung",
+    "privacy.section.contact.mailing.line2": "Istanbul",
+    "privacy.section.contact.mailing.line3": "Türkei",
     "terms.meta.title": "Nutzungsbedingungen",
     "terms.meta.description": "Lies die Nutzungsbedingungen für UserReview.",
     "terms.breadcrumb.aria": "Navigationspfad",
@@ -3295,15 +3449,15 @@ export const TRANSLATIONS = {
     "terms.header.title": "Nutzungsbedingungen",
     "terms.header.status": "Aktiv",
     "terms.header.subtitle":
-      "Bitte lies diese Bedingungen sorgfältig, bevor du unsere Plattform nutzt. Durch den Zugriff auf oder die Nutzung von iRecommend stimmst du diesen Bedingungen zu.",
+      "Bitte lies diese Bedingungen sorgfältig, bevor du unsere Plattform nutzt. Durch den Zugriff auf oder die Nutzung von UserReview stimmst du diesen Bedingungen zu.",
     "terms.header.updatedLabel": "Zuletzt aktualisiert:",
-    "terms.header.updatedDate": "24. Oktober 2023",
+    "terms.header.updatedDate": "24. Dezember 2024",
     "terms.header.readTime": "Lesezeit: ~8 Min",
     "terms.header.print": "Druckversion",
     "terms.searchPlaceholder": "Im Dokument suchen...",
     "terms.section1.title": "Einleitung",
     "terms.section1.body1":
-      "Willkommen bei iRecommend. Diese Nutzungsbedingungen regeln deine Nutzung unserer Website unter iRecommend.com (der Service), betrieben von iRecommend Inc. (wir, uns oder unser).",
+      "Willkommen bei UserReview. Diese Nutzungsbedingungen regeln deine Nutzung unserer Website unter userreview.net (der Service), betrieben von UserReview (wir, uns oder unser).",
     "terms.section1.body2":
       "Durch den Zugriff auf oder die Nutzung des Service erklärst du dich mit diesen Bedingungen einverstanden. Wenn du mit einem Teil der Bedingungen nicht einverstanden bist, darfst du den Service nicht nutzen. Diese Vereinbarung gilt für alle Besucher, Nutzer und sonstigen Personen, die auf den Service zugreifen.",
     "terms.section2.title": "Konten",
@@ -3322,12 +3476,12 @@ export const TRANSLATIONS = {
     "terms.section3.note.bodyPrefix":
       "Wir behalten uns das Recht vor, Inhalte zu entfernen, die wir als beleidigend, schädlich oder als Verstoß gegen unsere",
     "terms.section3.note.link": "Community-Richtlinien",
-    "terms.section3.note.bodySuffix": "einstufen.",
+    "terms.section3.note.bodySuffix": " einstufen.",
     "terms.section3.body2":
       "Durch das Veröffentlichen von Inhalten im Service räumst du uns das Recht und die Lizenz ein, diese Inhalte im Service zu nutzen, zu ändern, öffentlich aufzuführen, öffentlich darzustellen, zu reproduzieren und zu verbreiten. Du behältst alle Rechte an den Inhalten, die du einreichst, veröffentlichst oder darstellst, und bist für den Schutz dieser Rechte verantwortlich.",
     "terms.section4.title": "Geistiges Eigentum",
     "terms.section4.body":
-      "Der Service und seine ursprünglichen Inhalte (ausgenommen von Nutzern bereitgestellte Inhalte), Funktionen und Funktionalitäten sind und bleiben das ausschließliche Eigentum von iRecommend Inc. und seinen Lizenzgebern. Der Service ist durch Urheberrechte, Markenrechte und andere Gesetze der USA und anderer Länder geschützt. Unsere Marken und unser Erscheinungsbild dürfen ohne vorherige schriftliche Zustimmung von iRecommend Inc. nicht in Verbindung mit Produkten oder Dienstleistungen verwendet werden.",
+      "Der Service und seine ursprünglichen Inhalte (ausgenommen von Nutzern bereitgestellte Inhalte), Funktionen und Funktionalitäten sind und bleiben das ausschließliche Eigentum von UserReview und seinen Lizenzgebern. Der Service ist durch Urheberrechte, Markenrechte und andere Gesetze der USA und anderer Länder geschützt. Unsere Marken und unser Erscheinungsbild dürfen ohne vorherige schriftliche Zustimmung von UserReview nicht in Verbindung mit Produkten oder Dienstleistungen verwendet werden.",
     "terms.section5.title": "Beendigung",
     "terms.section5.body":
       "Wir können dein Konto jederzeit und ohne vorherige Benachrichtigung oder Haftung aus beliebigem Grund kündigen oder sperren, insbesondere bei Verstößen gegen diese Bedingungen. Nach der Beendigung erlischt dein Recht zur Nutzung des Service sofort. Wenn du dein Konto beenden möchtest, kannst du die Nutzung des Service einfach einstellen.",
@@ -3997,6 +4151,41 @@ export const TRANSLATIONS = {
     "addReview.publishing": "جارٍ النشر...",
     "addReview.footer.agreement":
       "بنشر المراجعة، فإنك توافق على شروط الخدمة وسياسة الخصوصية الخاصة بـ UserReview.",
+    "addReview.error.categories":
+      "تعذر تحميل الفئات. يرجى المحاولة مرة أخرى لاحقاً.",
+    "addReview.fallbackCategory.tech": "التقنية والإلكترونيات",
+    "addReview.fallbackCategory.beauty": "الجمال والصحة",
+    "addReview.fallbackCategory.travel": "السفر والفنادق",
+    "addReview.fallbackCategory.auto": "السيارات والدراجات النارية",
+    "addReview.fallbackCategory.moviesBooks": "الأفلام والكتب",
+    "about.meta.title": "من نحن",
+    "about.meta.description":
+      "تعرّف أكثر على UserReview ورسالتنا في تقديم آراء مستخدمين صادقة.",
+    "about.hero.title": "حول UserReview",
+    "about.hero.subtitle":
+      "نؤمن بقوة التجارب الصادقة. رسالتنا هي مساعدة الناس على اتخاذ قرارات أفضل من خلال مراجعات حقيقية من مستخدمين حقيقيين.",
+    "about.section.mission.title": "رسالتنا",
+    "about.section.mission.body":
+      "تأسست UserReview على فكرة بسيطة: أفضل طريقة لمعرفة ما إذا كان المنتج يستحق وقتك ومالك هي الاستماع لمن استخدمه فعلاً. في عالم الإعلانات المنحازة والمحتوى المدعوم، نوفر مساحة لتغذية راجعة أصيلة ومحايدة.",
+    "about.card.authentic.title": "مراجعات موثوقة",
+    "about.card.authentic.body":
+      "نستخدم أنظمة متقدمة للمراجعة والتحقق لضمان أن تكون المراجعات التي تقرؤها حقيقية ومفيدة.",
+    "about.card.community.title": "مبني للمجتمع",
+    "about.card.community.body":
+      "منصتنا مبنية من المجتمع ولأجل المجتمع. كل مراجعة تساعد شخصاً آخر على اتخاذ قرار أذكى.",
+    "about.section.offer.title": "ما الذي نقدمه",
+    "about.section.offer.body":
+      "سواء كنت تبحث عن أفضل منتج للعناية بالبشرة أو جهاز تقني موثوق أو خدمة جديرة بالثقة، يوفر UserReview:",
+    "about.section.offer.item1": "مراجعات شاملة عبر مئات الفئات",
+    "about.section.offer.item2":
+      "صور حقيقية من المستخدمين وإيجابيات/سلبيات مفصلة",
+    "about.section.offer.item3": "تقييمات المجتمع وأصوات الفائدة",
+    "about.section.offer.item4": "رؤى خبراء وبيانات المنتجات الرائجة",
+    "about.cta.title": "انضم إلى مجتمعنا",
+    "about.cta.body":
+      "هل أنت مستعد لمشاركة تجاربك؟ انضم إلى آلاف المراجعين وابدأ بالمساعدة اليوم.",
+    "about.cta.primary": "اكتب مراجعة",
+    "about.cta.secondary": "استكشف الكتالوج",
     "contact.meta.title": "اتصل بنا",
     "contact.meta.description": "تواصل مع فريق الدعم والإدارة لدينا.",
     "contact.breadcrumb.home": "الرئيسية",
@@ -4049,10 +4238,10 @@ export const TRANSLATIONS = {
     "privacy.sidebar.cta.title": "هل لديك مخاوف بشأن بياناتك؟",
     "privacy.sidebar.cta.button": "تواصل مع مسؤول حماية البيانات",
     "privacy.header.title": "سياسة الخصوصية",
-    "privacy.header.updated": "آخر تحديث: 24 أكتوبر 2023",
+    "privacy.header.updated": "آخر تحديث: 24 ديسمبر 2024",
     "privacy.header.readTime": "مدة القراءة: 10 دقائق",
     "privacy.section.intro.body":
-      "مرحباً بك في iRecommend. نقدّر ثقتك ونلتزم بحماية معلوماتك الشخصية. توضّح سياسة الخصوصية هذه كيفية جمع بياناتك واستخدامها والإفصاح عنها وحمايتها عند زيارة موقعنا أو استخدام خدماتنا. باستخدام iRecommend أو الوصول إليه، فإنك توافق على شروط هذه السياسة.",
+      "مرحباً بك في UserReview. نقدّر ثقتك ونلتزم بحماية معلوماتك الشخصية. توضّح سياسة الخصوصية هذه كيفية جمع بياناتك واستخدامها والإفصاح عنها وحمايتها عند زيارة موقعنا أو استخدام خدماتنا. باستخدام UserReview أو الوصول إليه، فإنك توافق على شروط هذه السياسة.",
     "privacy.section.dataCollection.title": "1. جمع البيانات",
     "privacy.section.dataCollection.body":
       "نجمع المعلومات التي تقدمها لنا مباشرة، مثل عندما تنشئ حساباً أو تكتب مراجعة أو تتواصل مع فريق الدعم. قد يشمل ذلك:",
@@ -4102,9 +4291,9 @@ export const TRANSLATIONS = {
       "للاستفسار عن هذه السياسة أو ممارسات الخصوصية لدينا.",
     "privacy.section.contact.mailing.title": "العنوان البريدي",
     "privacy.section.contact.mailing.line1":
-      "قسم الشؤون القانونية في iRecommend",
-    "privacy.section.contact.mailing.line2": "123 Innovation Drive, Suite 400",
-    "privacy.section.contact.mailing.line3": "Tech City, TC 94000",
+      "قسم الشؤون القانونية في UserReview",
+    "privacy.section.contact.mailing.line2": "إسطنبول",
+    "privacy.section.contact.mailing.line3": "تركيا",
     "terms.meta.title": "شروط الاستخدام",
     "terms.meta.description": "راجع الشروط والأحكام لاستخدام UserReview.",
     "terms.breadcrumb.aria": "مسار التنقل",
@@ -4122,15 +4311,15 @@ export const TRANSLATIONS = {
     "terms.header.title": "شروط الاستخدام",
     "terms.header.status": "سارية",
     "terms.header.subtitle":
-      "يرجى قراءة هذه الشروط بعناية قبل استخدام منصتنا. بدخولك أو استخدامك لـ iRecommend فإنك توافق على الالتزام بهذه الشروط.",
+      "يرجى قراءة هذه الشروط بعناية قبل استخدام منصتنا. بدخولك أو استخدامك لـ UserReview فإنك توافق على الالتزام بهذه الشروط.",
     "terms.header.updatedLabel": "آخر تحديث:",
-    "terms.header.updatedDate": "24 أكتوبر 2023",
+    "terms.header.updatedDate": "24 ديسمبر 2024",
     "terms.header.readTime": "مدة القراءة: ~8 دقائق",
     "terms.header.print": "نسخة للطباعة",
     "terms.searchPlaceholder": "ابحث داخل المستند...",
     "terms.section1.title": "المقدمة",
     "terms.section1.body1":
-      "مرحباً بك في iRecommend. تنظم شروط الاستخدام هذه استخدامك لموقعنا الإلكتروني على iRecommend.com (الخدمة) الذي تديره iRecommend Inc. (نحن أو لنا).",
+      "مرحباً بك في UserReview. تنظم شروط الاستخدام هذه استخدامك لموقعنا الإلكتروني على userreview.net (الخدمة) الذي تديره UserReview (نحن أو لنا).",
     "terms.section1.body2":
       "بدخولك أو استخدامك للخدمة، فإنك توافق على الالتزام بهذه الشروط. إذا كنت لا توافق على أي جزء منها، فلا يجوز لك الوصول إلى الخدمة. يسري هذا الاتفاق على جميع الزوار والمستخدمين وغيرهم ممن يصلون إلى الخدمة.",
     "terms.section2.title": "الحسابات",
@@ -4154,7 +4343,7 @@ export const TRANSLATIONS = {
       "بنشر المحتوى في الخدمة، تمنحنا الحق والترخيص لاستخدامه وتعديله وعرضه علناً وأدائه علناً وإعادة إنتاجه وتوزيعه عبر الخدمة ومن خلالها. تحتفظ بجميع حقوقك في أي محتوى ترسله أو تنشره أو تعرضه عبر الخدمة، وأنت مسؤول عن حماية تلك الحقوق.",
     "terms.section4.title": "الملكية الفكرية",
     "terms.section4.body":
-      "تظل الخدمة ومحتواها الأصلي (باستثناء المحتوى الذي يقدمه المستخدمون) وميزاتها ووظائفها ملكاً حصرياً لـ iRecommend Inc. والمرخصين لها. الخدمة محمية بقوانين حقوق النشر والعلامات التجارية وغيرها من القوانين في الولايات المتحدة والدول الأخرى. لا يجوز استخدام علاماتنا التجارية ومظهرنا التجاري دون موافقة خطية مسبقة من iRecommend Inc.",
+      "تظل الخدمة ومحتواها الأصلي (باستثناء المحتوى الذي يقدمه المستخدمون) وميزاتها ووظائفها ملكاً حصرياً لـ UserReview والمرخصين لها. الخدمة محمية بقوانين حقوق النشر والعلامات التجارية وغيرها من القوانين في الولايات المتحدة والدول الأخرى. لا يجوز استخدام علاماتنا التجارية ومظهرنا التجاري دون موافقة خطية مسبقة من UserReview.",
     "terms.section5.title": "إنهاء الخدمة",
     "terms.section5.body":
       "قد نقوم بإنهاء أو تعليق حسابك فوراً دون إشعار مسبق أو مسؤولية لأي سبب كان، بما في ذلك على سبيل المثال لا الحصر إذا خالفت هذه الشروط. عند الإنهاء، ينتهي حقك في استخدام الخدمة فوراً. إذا كنت ترغب في إنهاء حسابك، يمكنك ببساطة التوقف عن استخدام الخدمة.",

@@ -64,4 +64,24 @@ def parse_json_strict(raw: str) -> Optional[dict]:
     except (ValueError, SyntaxError):
         pass
 
+    # 5. Fallback for single-key JSON with unescaped quotes or newlines (common in LLM output)
+    # Example: {"translated_text": "<div class="foo">...</div>"}
+    # We capture the key and the content, then manually escape quotes and newlines.
+    match = re.match(r'^\s*\{\s*"([^"]+)"\s*:\s*"(.*)"\s*\}\s*$', cleaned, re.DOTALL)
+    if match:
+        key = match.group(1)
+        content = match.group(2)
+        
+        # Fix 1: Escape unescaped double quotes to \"
+        # We match any " that is preceded by \ (negative lookbehind)
+        content_fixed = re.sub(r'(?<!\\)"', r'\\"', content)
+        
+        # Fix 2: Escape literal control characters which are invalid in JSON strings
+        content_fixed = content_fixed.replace('\n', '\\n').replace('\r', '').replace('\t', '\\t')
+
+        try:
+             return json.loads(f'{{"{key}": "{content_fixed}"}}')
+        except json.JSONDecodeError:
+             pass
+
     return None

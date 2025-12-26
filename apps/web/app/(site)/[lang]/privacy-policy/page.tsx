@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { buildMetadata } from "@/src/lib/seo";
+import { t } from "@/src/lib/copy";
 
 export const revalidate = 86400;
 
@@ -9,9 +10,33 @@ type PrivacyPolicyPageProps = {
     params: Promise<{ lang: string }>;
 };
 
+function splitLabel(value: string) {
+    const [label, ...rest] = value.split(":");
+    return { label: label.trim(), body: rest.join(":").trim() };
+}
+
 export default async function Page(props: PrivacyPolicyPageProps) {
     const params = await props.params;
     const lang = normalizeLanguage(params.lang);
+    const personalItem = splitLabel(
+        t(lang, "privacy.section.dataCollection.item.personal")
+    );
+    const contentItem = splitLabel(
+        t(lang, "privacy.section.dataCollection.item.content")
+    );
+    const communicationsItem = splitLabel(
+        t(lang, "privacy.section.dataCollection.item.communications")
+    );
+    const rightsAccessItem = splitLabel(
+        t(lang, "privacy.section.rights.item.access")
+    );
+    const rightsRectificationItem = splitLabel(
+        t(lang, "privacy.section.rights.item.rectification")
+    );
+    const rightsErasureItem = splitLabel(
+        t(lang, "privacy.section.rights.item.erasure")
+    );
+    const cookiesNote = splitLabel(t(lang, "privacy.section.cookies.note"));
     return (
         <div
             className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased overflow-x-hidden"
@@ -21,14 +46,17 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                 {/* Main Layout */}
                 <main className="flex-grow w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {/* Breadcrumbs */}
-                    <nav aria-label="Breadcrumb" className="flex mb-8 text-sm">
+                    <nav
+                        aria-label={t(lang, "privacy.breadcrumb.aria")}
+                        className="flex mb-8 text-sm"
+                    >
                         <ol className="inline-flex items-center space-x-2">
                             <li className="inline-flex items-center">
                                 <Link
                                     className="text-slate-500 hover:text-primary dark:text-slate-400"
                                     href={localizePath("/", lang)}
                                 >
-                                    Home
+                                    {t(lang, "privacy.breadcrumb.home")}
                                 </Link>
                             </li>
                             <li className="text-slate-400">/</li>
@@ -37,13 +65,13 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                     className="text-slate-500 hover:text-primary dark:text-slate-400"
                                     href={localizePath("/terms-of-use", lang)}
                                 >
-                                    Legal
+                                    {t(lang, "privacy.breadcrumb.legal")}
                                 </Link>
                             </li>
                             <li className="text-slate-400">/</li>
                             <li className="inline-flex items-center">
                                 <span className="text-slate-900 font-medium dark:text-slate-100">
-                                    Privacy Policy
+                                    {t(lang, "privacy.breadcrumb.current")}
                                 </span>
                             </li>
                         </ol>
@@ -55,50 +83,50 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                             <div className="sticky top-24 lg:max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar">
                                 <div className="bg-white dark:bg-[#1a2632] rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5">
                                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-2">
-                                        On this page
+                                        {t(lang, "privacy.sidebar.title")}
                                     </h3>
                                     <nav className="flex flex-col space-y-1">
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-primary bg-primary/10 rounded-md"
                                             href="#introduction"
                                         >
-                                            Introduction
+                                            {t(lang, "privacy.sidebar.introduction")}
                                         </Link>
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-slate-600 hover:text-primary hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
                                             href="#data-collection"
                                         >
-                                            Data Collection
+                                            {t(lang, "privacy.sidebar.dataCollection")}
                                         </Link>
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-slate-600 hover:text-primary hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
                                             href="#cookies"
                                         >
-                                            Cookies &amp; Tracking
+                                            {t(lang, "privacy.sidebar.cookies")}
                                         </Link>
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-slate-600 hover:text-primary hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
                                             href="#data-usage"
                                         >
-                                            How We Use Data
+                                            {t(lang, "privacy.sidebar.dataUsage")}
                                         </Link>
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-slate-600 hover:text-primary hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
                                             href="#third-party"
                                         >
-                                            Third-Party Sharing
+                                            {t(lang, "privacy.sidebar.thirdParty")}
                                         </Link>
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-slate-600 hover:text-primary hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
                                             href="#user-rights"
                                         >
-                                            Your Rights
+                                            {t(lang, "privacy.sidebar.rights")}
                                         </Link>
                                         <Link
                                             className="block px-2 py-1.5 text-sm font-medium text-slate-600 hover:text-primary hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 rounded-md transition-colors"
                                             href="#contact"
                                         >
-                                            Contact Us
+                                            {t(lang, "privacy.sidebar.contact")}
                                         </Link>
                                     </nav>
                                 </div>
@@ -108,13 +136,13 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                         shield_person
                                     </span>
                                     <p className="text-sm font-medium mb-3 opacity-90">
-                                        Have concerns about your data?
+                                        {t(lang, "privacy.sidebar.cta.title")}
                                     </p>
                                     <Link
                                         className="inline-block w-full text-center py-2 px-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg text-sm font-bold transition-colors"
                                         href={localizePath("/contact", lang)}
                                     >
-                                        Contact DPO
+                                        {t(lang, "privacy.sidebar.cta.button")}
                                     </Link>
                                 </div>
                             </div>
@@ -126,21 +154,21 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                 {/* Page Header */}
                                 <div className="border-b border-slate-100 dark:border-slate-700 pb-8 mb-10">
                                     <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
-                                        Privacy Policy
+                                        {t(lang, "privacy.header.title")}
                                     </h1>
                                     <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
                                         <span className="flex items-center gap-1.5">
                                             <span className="material-symbols-outlined text-[18px]">
                                                 calendar_today
                                             </span>
-                                            Last Updated: December 24, 2024
+                                            {t(lang, "privacy.header.updated")}
                                         </span>
                                         <span className="hidden sm:inline text-slate-300">|</span>
                                         <span className="flex items-center gap-1.5">
                                             <span className="material-symbols-outlined text-[18px]">
                                                 schedule
                                             </span>
-                                            10 min read
+                                            {t(lang, "privacy.header.readTime")}
                                         </span>
                                     </div>
                                 </div>
@@ -149,7 +177,7 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                 <div className="prose prose-slate dark:prose-invert max-w-none space-y-12">
                                     <section className="scroll-mt-28" id="introduction">
                                         <p className="text-lg leading-8 text-slate-600 dark:text-slate-300">
-                                            Welcome to UserReview. We value your trust and are committed to protecting your personal information. This Privacy Policy outlines how we collect, use, disclose, and safeguard your data when you visit our website or use our services. By accessing or using UserReview, you agree to the terms of this Privacy Policy.
+                                            {t(lang, "privacy.section.intro.body")}
                                         </p>
                                     </section>
 
@@ -158,20 +186,20 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
                                                 <span className="material-symbols-outlined">dataset</span>
                                             </span>
-                                            1. Data Collection
+                                            {t(lang, "privacy.section.dataCollection.title")}
                                         </h2>
                                         <p className="text-slate-600 dark:text-slate-300 mb-4">
-                                            We collect information that you provide directly to us, such as when you create an account, write a review, or contact our support team. This may include:
+                                            {t(lang, "privacy.section.dataCollection.body")}
                                         </p>
                                         <ul className="list-disc pl-5 space-y-2 text-slate-600 dark:text-slate-300 marker:text-primary">
                                             <li>
-                                                <strong>Personal Identification:</strong> Name, email address, and profile picture.
+                                                <strong>{personalItem.label}:</strong> {personalItem.body}
                                             </li>
                                             <li>
-                                                <strong>Content:</strong> Reviews, ratings, photos, and comments you post.
+                                                <strong>{contentItem.label}:</strong> {contentItem.body}
                                             </li>
                                             <li>
-                                                <strong>Communications:</strong> Records of your correspondence with us.
+                                                <strong>{communicationsItem.label}:</strong> {communicationsItem.body}
                                             </li>
                                         </ul>
                                     </section>
@@ -181,14 +209,14 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
                                                 <span className="material-symbols-outlined">cookie</span>
                                             </span>
-                                            2. Cookies &amp; Tracking Technologies
+                                            {t(lang, "privacy.section.cookies.title")}
                                         </h2>
                                         <p className="text-slate-600 dark:text-slate-300 mb-4">
-                                            We use cookies and similar tracking technologies to track the activity on our Service and hold certain information. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our Service.
+                                            {t(lang, "privacy.section.cookies.body")}
                                         </p>
                                         <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-primary p-4 rounded-r-lg my-6">
                                             <p className="text-sm text-blue-800 dark:text-blue-200">
-                                                <strong>Note:</strong> We use both session cookies (which expire once you close your web browser) and persistent cookies (which stay on your device for a set period of time or until you delete them).
+                                                <strong>{cookiesNote.label}:</strong> {cookiesNote.body}
                                             </p>
                                         </div>
                                     </section>
@@ -198,27 +226,43 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
                                                 <span className="material-symbols-outlined">analytics</span>
                                             </span>
-                                            3. How We Use Your Data
+                                            {t(lang, "privacy.section.dataUsage.title")}
                                         </h2>
                                         <p className="text-slate-600 dark:text-slate-300 mb-4">
-                                            The information we collect is used to provide, maintain, and improve our services. Specifically, we use your data to:
+                                            {t(lang, "privacy.section.dataUsage.body")}
                                         </p>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
                                             <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Service Delivery</h4>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">To create and manage your account and publish your reviews.</p>
+                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                                                    {t(lang, "privacy.section.dataUsage.card.service.title")}
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    {t(lang, "privacy.section.dataUsage.card.service.body")}
+                                                </p>
                                             </div>
                                             <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Personalization</h4>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">To recommend products and services based on your interests.</p>
+                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                                                    {t(lang, "privacy.section.dataUsage.card.personalization.title")}
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    {t(lang, "privacy.section.dataUsage.card.personalization.body")}
+                                                </p>
                                             </div>
                                             <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Communication</h4>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">To send you updates, security alerts, and administrative messages.</p>
+                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                                                    {t(lang, "privacy.section.dataUsage.card.communication.title")}
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    {t(lang, "privacy.section.dataUsage.card.communication.body")}
+                                                </p>
                                             </div>
                                             <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">Security</h4>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">To monitor and prevent unauthorized access or fraudulent activity.</p>
+                                                <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                                                    {t(lang, "privacy.section.dataUsage.card.security.title")}
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    {t(lang, "privacy.section.dataUsage.card.security.body")}
+                                                </p>
                                             </div>
                                         </div>
                                     </section>
@@ -228,10 +272,10 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
                                                 <span className="material-symbols-outlined">share</span>
                                             </span>
-                                            4. Third-Party Sharing
+                                            {t(lang, "privacy.section.thirdParty.title")}
                                         </h2>
                                         <p className="text-slate-600 dark:text-slate-300">
-                                            We do not sell your personal data. However, we may share information with third-party vendors, service providers, contractors, or agents who perform services for us or on our behalf and require access to such information to do that work.
+                                            {t(lang, "privacy.section.thirdParty.body")}
                                         </p>
                                     </section>
 
@@ -240,33 +284,39 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             <span className="flex items-center justify-center size-8 rounded-lg bg-primary/10 text-primary">
                                                 <span className="material-symbols-outlined">gavel</span>
                                             </span>
-                                            5. Your Rights
+                                            {t(lang, "privacy.section.rights.title")}
                                         </h2>
                                         <p className="text-slate-600 dark:text-slate-300 mb-4">
-                                            Depending on your location, you may have specific rights regarding your personal data:
+                                            {t(lang, "privacy.section.rights.body")}
                                         </p>
                                         <ul className="list-disc pl-5 space-y-2 text-slate-600 dark:text-slate-300 marker:text-primary mb-6">
                                             <li>
-                                                <strong>Right to Access:</strong> You can request copies of your personal data.
+                                                <strong>{rightsAccessItem.label}:</strong> {rightsAccessItem.body}
                                             </li>
                                             <li>
-                                                <strong>Right to Rectification:</strong> You can request that we correct any information you believe is inaccurate.
+                                                <strong>{rightsRectificationItem.label}:</strong> {rightsRectificationItem.body}
                                             </li>
                                             <li>
-                                                <strong>Right to Erasure:</strong> You can request that we erase your personal data, under certain conditions.
+                                                <strong>{rightsErasureItem.label}:</strong> {rightsErasureItem.body}
                                             </li>
                                         </ul>
                                         <p className="text-slate-600 dark:text-slate-300">
-                                            To exercise these rights, please contact us at our provided support channels.
+                                            {t(lang, "privacy.section.rights.footer")}
                                         </p>
                                     </section>
 
                                     <section className="scroll-mt-28 border-t border-slate-100 dark:border-slate-700 pt-8" id="contact">
-                                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">Contact Us</h2>
+                                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
+                                            {t(lang, "privacy.section.contact.title")}
+                                        </h2>
                                         <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-6 md:p-8 flex flex-col md:flex-row gap-8 items-start">
                                             <div className="flex-1">
-                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">General Inquiries</h4>
-                                                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">For questions about this policy or our privacy practices.</p>
+                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                                                    {t(lang, "privacy.section.contact.general.title")}
+                                                </h4>
+                                                <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
+                                                    {t(lang, "privacy.section.contact.general.body")}
+                                                </p>
                                                 <a
                                                     className="inline-flex items-center gap-2 text-primary hover:text-blue-600 font-semibold transition-colors"
                                                     href="mailto:support@userreview.net"
@@ -277,10 +327,13 @@ export default async function Page(props: PrivacyPolicyPageProps) {
                                             </div>
                                             <div className="hidden md:block w-px h-24 bg-slate-200 dark:bg-slate-700"></div>
                                             <div className="flex-1">
-                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Mailing Address</h4>
+                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                                                    {t(lang, "privacy.section.contact.mailing.title")}
+                                                </h4>
                                                 <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-                                                    UserReview Legal Dept.<br />
-                                                    Istanbul, Turkey
+                                                    {t(lang, "privacy.section.contact.mailing.line1")}<br />
+                                                    {t(lang, "privacy.section.contact.mailing.line2")}<br />
+                                                    {t(lang, "privacy.section.contact.mailing.line3")}
                                                 </p>
                                             </div>
                                         </div>
@@ -301,8 +354,8 @@ export async function generateMetadata(
     const params = await props.params;
     const lang = normalizeLanguage(params.lang);
     return buildMetadata({
-        title: "Privacy Policy",
-        description: "Learn how we collect, use, and protect your information.",
+        title: t(lang, "privacy.meta.title"),
+        description: t(lang, "privacy.meta.description"),
         path: "/privacy-policy",
         lang,
         type: "website",

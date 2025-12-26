@@ -4,6 +4,7 @@ import { getCategories } from "@/src/lib/api";
 import { allowMockFallback } from "@/src/lib/runtime";
 import type { Category } from "@/src/types";
 import { normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type AddReviewPageProps = {
   params: Promise<{ lang: string }>;
@@ -29,7 +30,7 @@ export default async function Page(props: AddReviewPageProps) {
       categories = allCategories.filter((category) => category.parentId == null);
     } catch {
       if (!allowMockFallback) {
-        errorMessage = "Unable to load categories. Please try again later.";
+        errorMessage = t(lang, "addReview.error.categories");
       }
     }
   }
@@ -37,11 +38,11 @@ export default async function Page(props: AddReviewPageProps) {
   // Fallback for mock data if configured and API fails
   if (categories.length === 0 && allowMockFallback) {
     categories = [
-      { id: 1, name: "Technology & Electronics" },
-      { id: 2, name: "Beauty & Health" },
-      { id: 3, name: "Travel & Hotels" },
-      { id: 4, name: "Auto & Moto" },
-      { id: 5, name: "Movies & Books" },
+      { id: 1, name: t(lang, "addReview.fallbackCategory.tech") },
+      { id: 2, name: t(lang, "addReview.fallbackCategory.beauty") },
+      { id: 3, name: t(lang, "addReview.fallbackCategory.travel") },
+      { id: 4, name: t(lang, "addReview.fallbackCategory.auto") },
+      { id: 5, name: t(lang, "addReview.fallbackCategory.moviesBooks") },
     ];
   }
 

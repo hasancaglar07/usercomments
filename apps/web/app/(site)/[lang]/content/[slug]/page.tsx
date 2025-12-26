@@ -84,7 +84,11 @@ export async function generateMetadata(
     review.translationLang && review.translationLang !== lang
       ? review.translationLang
       : lang;
-  const title = review.metaTitle ?? review.title;
+  const suffix = t(lang, "reviewDetail.meta.titleSuffix");
+  let title = review.metaTitle ?? review.title;
+  if (!review.metaTitle && !title.toLowerCase().endsWith(suffix.toLowerCase())) {
+    title = `${title} ${suffix}`;
+  }
   const description =
     review.metaDescription ??
     review.excerpt ??
@@ -97,6 +101,7 @@ export async function generateMetadata(
     lang: resolvedLang as SupportedLanguage,
     type: "article",
     image: review.photoUrls?.[0],
+    keywords: [review.title, "Review", "UserReview"],
     languagePaths,
   });
 }
@@ -475,6 +480,15 @@ export default async function Page(props: PageProps) {
       name: productName,
       image: productImage ? [toAbsoluteUrl(productImage)] : undefined,
       url: productUrl,
+      aggregateRating:
+        productRatingAvg > 0
+          ? {
+            "@type": "AggregateRating",
+            ratingValue: productRatingAvg.toFixed(1),
+            ratingCount: productRatingCount || 1, // Fallback to 1 if count is missing but avg exists
+            reviewCount: productReviewCount || 1,
+          }
+          : undefined,
     },
     reviewRating:
       ratingAvg > 0
@@ -851,6 +865,56 @@ export default async function Page(props: PageProps) {
                 {/* Main Content Body */}
                 <div className="flex flex-col-reverse lg:flex-row gap-8">
                   <div className="flex-1 p-6 md:p-8 prose dark:prose-invert prose-slate max-w-none">
+                    {/* Summary Section */}
+                    {review.summary && (
+                      <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+                          {t(lang, "reviewDetail.summary")}
+                        </h2>
+                        <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                          {review.summary}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* FAQ Section */}
+                    {review.faq && review.faq.length > 0 && (
+                      <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+                          {t(lang, "reviewDetail.faq")}
+                        </h2>
+                        <div className="space-y-4">
+                          {review.faq.map((item, idx) => (
+                            <div key={idx}>
+                              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
+                                {item.question}
+                              </h3>
+                              <p className="text-slate-600 dark:text-slate-300">
+                                {item.answer}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Specifications Section */}
+                    {review.specs && Object.keys(review.specs).length > 0 && (
+                      <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+                          {t(lang, "reviewDetail.specs")}
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                          {Object.entries(review.specs).map(([key, value], idx) => (
+                            <div key={idx} className="flex justify-between border-b border-slate-100 dark:border-slate-800 py-2">
+                              <span className="font-medium text-slate-700 dark:text-slate-300">{key}</span>
+                              <span className="text-slate-600 dark:text-slate-400">{String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {extracted.blocks.length > 0 ? (
                       extracted.blocks.map((block, index) => {
                         if (block.type === "h2") {

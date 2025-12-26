@@ -33,6 +33,7 @@ type MetadataOptions = {
   type?: "website" | "article";
   image?: string;
   languagePaths?: Partial<Record<SupportedLanguage, string>>;
+  keywords?: string[];
   robots?: Metadata["robots"];
 };
 
@@ -84,13 +85,32 @@ export function buildMetadata(options: MetadataOptions): Metadata {
   const alternateLocales = SUPPORTED_LANGUAGES.filter(
     (lang) => lang !== options.lang
   ).map(getLocale);
+
+  // SEO Logic: Smartly append branding and suffix based on length limits.
+  // Google typically truncates around 60 characters.
+  const MAX_TITLE_LENGTH = 60;
   const titleSuffix = t(options.lang, "seo.titleSuffix");
-  const title = `${options.title} | ${DEFAULT_SITE_NAME} | ${titleSuffix}`;
+  let title = options.title;
+
+  // 1. Always append Site Name if missing (Branding is priority)
+  if (!title.includes(DEFAULT_SITE_NAME)) {
+    title = `${title} | ${DEFAULT_SITE_NAME}`;
+  }
+
+  // 2. Append suffix ONLY if it fits within the limit
+  // We use a slightly higher buffer for the suffix check as exact cutoff varies
+  const separator = " | ";
+  const totalLengthWithSuffix = title.length + separator.length + titleSuffix.length;
+
+  if (totalLengthWithSuffix <= MAX_TITLE_LENGTH + 5) {
+    title = `${title}${separator}${titleSuffix}`;
+  }
 
   return {
     metadataBase,
     title,
     description,
+    keywords: options.keywords,
     alternates: {
       canonical: url,
       languages: alternates?.languages,

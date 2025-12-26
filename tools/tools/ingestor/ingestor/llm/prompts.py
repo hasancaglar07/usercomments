@@ -108,7 +108,8 @@ def build_translation_prompt(
         "}\n\n"
         
         "Technical Rules:\n"
-        "- Keep brand names and model numbers exactly as in source.\n"
+        "- Brand names/models: If in English/Latin, keep as-is. If in Russian, TRANSLITERATE or TRANSLATE to Latin.\n"
+        "- NO CYRILLIC in output.\n"
         "- Output ONLY raw JSON. No markdown code blocks.\n"
         "- Escape all double quotes within strings.\n"
         "- Ensure strictly valid JSON syntax."
@@ -166,8 +167,9 @@ def build_pivot_translation_prompt(lang: str, en_data: dict) -> str:
         "}\n\n"
         
         "Technical Rules:\n"
-        "- Keep brand names exactly as in source.\n"
-        "- Output ONLY raw JSON. No markdown.\n"
+        "- Brand names/models: If in English/Latin, keep as-is. If in Russian, TRANSLITERATE or TRANSLATE to Latin.\n"
+        "- NO CYRILLIC in output.\n"
+        "- Output ONLY raw JSON. No markdown code blocks.\n"
         "- Ensure valid JSON syntax."
     )
 
@@ -192,8 +194,8 @@ def build_category_translation_prompt(lang: str, category_name_ru: str) -> str:
         "  \"slug\": \"...\"\n"
         "}\n\n"
         "Rules:\n"
-        "- Natural translation.\n"
-        "- slug must be lowercase, hyphenated, latin only, max 50 chars.\n"
+        "- Natural translation. NO RUSSIAN/CYRILLIC characters.\n"
+        "- slug must be lowercase, hyphenated, LATIN characters only, max 50 chars.\n"
         "- Output only the JSON object."
     )
 
@@ -224,11 +226,13 @@ def build_product_translation_prompt(
         "  \"slug\": \"...\"\n"
         "}\n\n"
         "Rules:\n"
-        "- Natural translation.\n"
-        "- Keep brand/product names as-is.\n"
+        "- Natural translation. ABSOLUTELY NO CYRILLIC/RUSSIAN CHARACTERS in 'name' or 'slug'.\n"
+        "- IF a Brand Name is in Russian, TRANSLITERATE it to Latin (e.g. 'Макфа' -> 'Makfa') or Translate it.\n"
+        "- Translate descriptive words (e.g. 'Консервы' -> 'Canned Goods').\n"
+        "- Example: 'Консервы овощные Bonduelle' -> 'Bonduelle Canned Vegetables'.\n"
         "- Description should be short and neutral; do not invent specs.\n"
         "- meta_description should be about 150-160 characters.\n"
-        "- slug must be lowercase, hyphenated, latin only, max 80 chars.\n"
+        "- slug must be lowercase, hyphenated, LATIN characters only, max 80 chars.\n"
         "- Output only the JSON object."
     )
 def build_extraction_prompt(text: str) -> str:
@@ -292,6 +296,7 @@ def build_chunked_translation_prompt(lang: str, chunk: str, chunk_num: int, tota
         "Technical rules:\n"
         "- Output ONLY the JSON object, no markdown.\n"
         "- Ensure valid JSON syntax.\n"
+        "- ESCAPE ALL DOUBLE QUOTES inside the HTML (e.g., class=\"classname\", href=\"url\").\n"
         "- The content must be complete - do not truncate."
     )
 

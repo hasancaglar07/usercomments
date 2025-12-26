@@ -170,7 +170,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const shouldIndex = reviewCount > 0;
 
   return buildMetadata({
-    title: product.name,
+    title: t(lang, "productDetail.meta.titleTemplate", { name: product.name }),
     description:
       product.description ??
       t(lang, "productDetail.meta.descriptionFallback"),
@@ -178,6 +178,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     lang: resolvedLang as SupportedLanguage,
     type: "website",
     image: product.images?.[0]?.url,
+    keywords: [product.name, "Reviews", "Ratings", "UserReview"],
     languagePaths,
     robots: shouldIndex
       ? undefined
@@ -430,8 +431,17 @@ export default async function Page(props: PageProps) {
   };
 
   // NEW: Aggregate Pros/Cons from the first page of reviews to simulating "Top Pros/Cons"
-  const aggregatedPros = Array.from(new Set(reviewsResult.items.flatMap(r => r.pros || []))).slice(0, 4);
-  const aggregatedCons = Array.from(new Set(reviewsResult.items.flatMap(r => r.cons || []))).slice(0, 4);
+  // NEW: Aggregate Pros/Cons from the first page of reviews to simulating "Top Pros/Cons"
+  const hasCyrillic = (text: string) => /[\u0400-\u04FF]/.test(text);
+  const shouldFilterCyrillic = (lang as string) !== "ru";
+
+  const aggregatedPros = Array.from(new Set(reviewsResult.items.flatMap(r => r.pros || [])))
+    .filter(text => !shouldFilterCyrillic || !hasCyrillic(text))
+    .slice(0, 4);
+
+  const aggregatedCons = Array.from(new Set(reviewsResult.items.flatMap(r => r.cons || [])))
+    .filter(text => !shouldFilterCyrillic || !hasCyrillic(text))
+    .slice(0, 4);
 
   // NEW: Generate Synthetic FAQs for SEO and User Experience
   const faqItems = [

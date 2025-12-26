@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { buildMetadata } from "@/src/lib/seo";
+import { t } from "@/src/lib/copy";
 
 export const revalidate = 86400;
 
@@ -12,6 +13,10 @@ type ContactPageProps = {
 export default async function Page(props: ContactPageProps) {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
+  const charCountLabel = t(lang, "contact.form.charCount", {
+    current: 0,
+    max: 2000,
+  });
   return (
     <div
       className="bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark font-display min-h-screen flex flex-col overflow-x-hidden"
@@ -27,24 +32,23 @@ export default async function Page(props: ContactPageProps) {
                   className="text-text-secondary-light dark:text-text-secondary-dark text-sm font-medium leading-normal hover:text-primary dark:hover:text-primary transition-colors"
                   href={localizePath("/", lang)}
                 >
-                  Home
+                  {t(lang, "contact.breadcrumb.home")}
                 </Link>
                 <span className="text-text-secondary-light dark:text-text-secondary-dark text-sm font-medium leading-normal">
                   /
                 </span>
                 <span className="text-text-main-light dark:text-text-main-dark text-sm font-medium leading-normal">
-                  Contact Us
+                  {t(lang, "contact.breadcrumb.current")}
                 </span>
               </div>
 
               {/* Page Heading */}
               <div className="flex flex-col gap-2 px-4 mb-8">
                 <h1 className="text-text-main-light dark:text-text-main-dark tracking-tight text-[32px] md:text-[40px] font-bold leading-tight">
-                  Contact Support &amp; Administration
+                  {t(lang, "contact.heading.title")}
                 </h1>
                 <p className="text-text-secondary-light dark:text-text-secondary-dark text-lg font-normal leading-normal max-w-2xl">
-                  Have a question, suggestion, or found a bug? Fill out the form
-                  below and our team will get back to you as soon as possible.
+                  {t(lang, "contact.heading.subtitle")}
                 </p>
               </div>
 
@@ -55,22 +59,22 @@ export default async function Page(props: ContactPageProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <label className="flex flex-col flex-1 gap-2">
                         <p className="text-text-main-light dark:text-text-main-dark text-sm font-semibold leading-normal">
-                          Your Name
+                          {t(lang, "contact.form.nameLabel")}
                         </p>
                         <input
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary/20 focus:border-primary border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark px-4 text-base font-normal leading-normal transition-all"
-                          placeholder="Enter your full name"
+                          placeholder={t(lang, "contact.form.namePlaceholder")}
                           required
                           type="text"
                         />
                       </label>
                       <label className="flex flex-col flex-1 gap-2">
                         <p className="text-text-main-light dark:text-text-main-dark text-sm font-semibold leading-normal">
-                          Email Address
+                          {t(lang, "contact.form.emailLabel")}
                         </p>
                         <input
                           className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary/20 focus:border-primary border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark px-4 text-base font-normal leading-normal transition-all"
-                          placeholder="Enter your email"
+                          placeholder={t(lang, "contact.form.emailPlaceholder")}
                           required
                           type="email"
                         />
@@ -78,17 +82,25 @@ export default async function Page(props: ContactPageProps) {
                     </div>
                     <label className="flex flex-col flex-1 gap-2">
                       <p className="text-text-main-light dark:text-text-main-dark text-sm font-semibold leading-normal">
-                        Subject
+                        {t(lang, "contact.form.subjectLabel")}
                       </p>
                       <div className="relative">
                         <select className="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary/20 focus:border-primary border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark h-12 px-4 pr-10 text-base font-normal leading-normal appearance-none transition-all">
                           <option disabled selected value="">
-                            Select a topic
+                            {t(lang, "contact.form.subjectPlaceholder")}
                           </option>
-                          <option value="support">Technical Support</option>
-                          <option value="report">Report a Review</option>
-                          <option value="business">Business Partnership</option>
-                          <option value="other">Other Inquiry</option>
+                          <option value="support">
+                            {t(lang, "contact.form.subject.support")}
+                          </option>
+                          <option value="report">
+                            {t(lang, "contact.form.subject.report")}
+                          </option>
+                          <option value="business">
+                            {t(lang, "contact.form.subject.business")}
+                          </option>
+                          <option value="other">
+                            {t(lang, "contact.form.subject.other")}
+                          </option>
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-text-secondary-light dark:text-text-secondary-dark">
                           <span className="material-symbols-outlined text-[20px]">
@@ -99,14 +111,14 @@ export default async function Page(props: ContactPageProps) {
                     </label>
                     <label className="flex flex-col flex-1 gap-2">
                       <p className="text-text-main-light dark:text-text-main-dark text-sm font-semibold leading-normal">
-                        Message
+                        {t(lang, "contact.form.messageLabel")}
                       </p>
                       <textarea
                         className="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-text-main-light dark:text-text-main-dark focus:ring-2 focus:ring-primary/20 focus:border-primary border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark min-h-[160px] placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark p-4 text-base font-normal leading-normal transition-all"
-                        placeholder="Describe your issue or inquiry in detail..."
+                        placeholder={t(lang, "contact.form.messagePlaceholder")}
                       ></textarea>
                       <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark text-right">
-                        0 / 2000 characters
+                        {charCountLabel}
                       </p>
                     </label>
                     <div className="flex items-center gap-3">
@@ -118,11 +130,11 @@ export default async function Page(props: ContactPageProps) {
                           attach_file
                         </span>
                         <span className="text-sm font-medium text-text-main-light dark:text-text-main-dark">
-                          Attach Screenshot
+                          {t(lang, "contact.form.attach")}
                         </span>
                       </button>
                       <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
-                        Optional. Max 5MB (JPG, PNG)
+                        {t(lang, "contact.form.attachHint")}
                       </span>
                     </div>
                     <div className="pt-2">
@@ -130,7 +142,7 @@ export default async function Page(props: ContactPageProps) {
                         className="flex w-full md:w-auto min-w-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary hover:bg-primary-hover transition-all shadow-md hover:shadow-lg text-white text-base font-bold leading-normal tracking-[0.015em]"
                         type="submit"
                       >
-                        Send Message
+                        {t(lang, "contact.form.submit")}
                       </button>
                     </div>
                   </form>
@@ -141,7 +153,7 @@ export default async function Page(props: ContactPageProps) {
                   {/* Quick Links Card */}
                   <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 shadow-sm">
                     <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark mb-4">
-                      Other Ways to Connect
+                      {t(lang, "contact.sidebar.title")}
                     </h3>
                     <div className="flex flex-col gap-4">
                       <div className="flex items-start gap-3 group">
@@ -152,7 +164,7 @@ export default async function Page(props: ContactPageProps) {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-                            General Support
+                            {t(lang, "contact.sidebar.support")}
                           </span>
                           <a
                             className="text-base font-semibold text-text-main-light dark:text-text-main-dark hover:text-primary transition-colors"
@@ -170,7 +182,7 @@ export default async function Page(props: ContactPageProps) {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-                            Business Inquiries
+                            {t(lang, "contact.sidebar.business")}
                           </span>
                           <a
                             className="text-base font-semibold text-text-main-light dark:text-text-main-dark hover:text-primary transition-colors"
@@ -188,7 +200,7 @@ export default async function Page(props: ContactPageProps) {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-                            Moderation Team
+                            {t(lang, "contact.sidebar.moderation")}
                           </span>
                           <a
                             className="text-base font-semibold text-text-main-light dark:text-text-main-dark hover:text-primary transition-colors"
@@ -204,18 +216,16 @@ export default async function Page(props: ContactPageProps) {
                   {/* FAQ Teaser Card */}
                   <div className="bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/10 dark:border-primary/20 p-6">
                     <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark mb-3">
-                      Before you ask...
+                      {t(lang, "contact.faq.title")}
                     </h3>
                     <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark mb-4 leading-relaxed">
-                      Many common questions about account verification, review
-                      moderation, and earnings withdrawals are answered in our
-                      Help Center.
+                      {t(lang, "contact.faq.body")}
                     </p>
                     <Link
                       className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:text-primary-hover transition-colors"
                       href={localizePath("/contact", lang)}
                     >
-                      Read FAQ
+                      {t(lang, "contact.faq.link")}
                       <span className="material-symbols-outlined text-[16px]">
                         arrow_forward
                       </span>
@@ -226,7 +236,7 @@ export default async function Page(props: ContactPageProps) {
                   <div className="relative w-full h-48 rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-800">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      alt="Abstract blue map of the world showing connectivity"
+                      alt={t(lang, "contact.map.alt")}
                       className="w-full h-full object-cover opacity-80 hover:scale-105 transition-transform duration-700"
                       src="/stitch_assets/images/img-028.png"
                     />
@@ -235,7 +245,7 @@ export default async function Page(props: ContactPageProps) {
                         <span className="material-symbols-outlined text-[16px]">
                           public
                         </span>
-                        Fully Remote Team
+                        {t(lang, "contact.map.caption")}
                       </p>
                     </div>
                   </div>
@@ -255,8 +265,8 @@ export async function generateMetadata(
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
   return buildMetadata({
-    title: "Contact",
-    description: "Get in touch with our support and administration team.",
+    title: t(lang, "contact.meta.title"),
+    description: t(lang, "contact.meta.description"),
     path: "/contact",
     lang,
     type: "website",
