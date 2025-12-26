@@ -74,19 +74,43 @@ class ProfilePool:
             profiles = self.supabase.select("profiles", columns="user_id, username, bio")
         
         # Normalize to the bot's expected internal format (id, display_name)
+        # Assign virtual specialities
+        topic_pool = ["tech", "beauty", "home", "auto", "fashion", "food", "general"]
         for p in profiles:
             p["id"] = p.get("user_id")
             p["display_name"] = p.get("bio") or p.get("username")
+            # Deterministic hash for consistent persona
+            topic_idx = hash(p["id"]) % len(topic_pool)
+            p["speciality"] = topic_pool[topic_idx]
             
         self.profiles = profiles
         self.logger.info("Profile pool size: %s", len(self.profiles))
 
-    def pick(self) -> str:
+    def pick(self, category_name: str = None) -> str:
         if not self.profiles:
             raise RuntimeError("Profile pool is empty")
+        
         candidates = [p for p in self.profiles if p["id"] not in self.recent]
         if not candidates:
             candidates = self.profiles
+            
+        # Persona matching
+        if category_name:
+            cat_lower = category_name.lower()
+            target_topic = "general"
+            if any(x in cat_lower for x in ["tech", "phone", "laptop", "usb", "screen", "game"]):
+                target_topic = "tech"
+            elif any(x in cat_lower for x in ["beauty", "skin", "hair", "face", "makeup"]):
+                target_topic = "beauty"
+            elif any(x in cat_lower for x in ["home", "kitchen", "decor", "garden"]):
+                target_topic = "home"
+            elif any(x in cat_lower for x in ["auto", "car", "drive", "tire"]):
+                target_topic = "auto"
+                
+            filtered = [p for p in candidates if p.get("speciality") == target_topic]
+            if filtered:
+                candidates = filtered
+
         choice = random.choice(candidates)
         self.recent.append(choice["id"])
         return choice["id"]

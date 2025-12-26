@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 export default function Page() {
   const params = useParams();
@@ -16,13 +17,13 @@ export default function Page() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      window.alert("Please enter your email.");
+      window.alert(t(lang, "auth.forgot.alert.missingEmail"));
       return;
     }
     setIsLoading(true);
     // Logic for forgot password would go here
     setTimeout(() => {
-      window.alert("Check your email for reset instructions.");
+      window.alert(t(lang, "auth.forgot.alert.sent"));
       setIsLoading(false);
     }, 1000);
   };
@@ -45,11 +46,10 @@ export default function Page() {
                   </span>
                 </div>
                 <h1 className="text-slate-900 dark:text-white tracking-tight text-2xl sm:text-[32px] font-bold leading-tight">
-                  Forgot your password?
+                  {t(lang, "auth.forgot.title")}
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-normal leading-relaxed">
-                  Enter the email address associated with your account and we&apos;ll
-                  send you a link to reset your password.
+                  {t(lang, "auth.forgot.subtitle")}
                 </p>
               </div>
             </div>
@@ -61,14 +61,14 @@ export default function Page() {
                   className="text-slate-900 dark:text-white text-sm font-bold leading-normal"
                   htmlFor="email"
                 >
-                  Email Address
+                  {t(lang, "auth.forgot.emailLabel")}
                 </label>
                 <div className="relative">
                   <input
                     className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 pl-11 text-base text-slate-900 dark:text-white placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                     id="email"
                     name="email"
-                    placeholder="user@example.com"
+                    placeholder={t(lang, "auth.forgot.emailPlaceholder")}
                     required
                     type="email"
                     value={email}
@@ -86,7 +86,9 @@ export default function Page() {
                 type="submit"
                 disabled={isLoading}
               >
-                {isLoading ? "Sending..." : "Send Reset Link"}
+                {isLoading
+                  ? t(lang, "auth.forgot.submitting")
+                  : t(lang, "auth.forgot.submit")}
               </button>
               {/* Meta / Helper Links */}
               <div className="flex flex-col items-center gap-4 mt-2">
@@ -97,15 +99,15 @@ export default function Page() {
                   <span className="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform">
                     arrow_back
                   </span>
-                  Back to Log In
+                  {t(lang, "auth.forgot.back")}
                 </Link>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Don&apos;t have an account?{" "}
+                  {t(lang, "auth.forgot.noAccount")}{" "}
                   <Link
                     className="text-primary font-bold hover:underline"
                     href={localizePath("/user/register", lang)}
                   >
-                    Sign up
+                    {t(lang, "auth.forgot.signUp")}
                   </Link>
                 </p>
               </div>

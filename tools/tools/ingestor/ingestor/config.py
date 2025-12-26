@@ -71,7 +71,7 @@ class Config:
             value = raw.strip()
             return value if value else None
 
-        langs_raw = os.getenv("LANGS", "en,es,de,tr,ar")
+        langs_raw = os.getenv("LANGS", "en,tr,de,es")
         langs = [lang.strip().lower() for lang in langs_raw.split(",") if lang.strip()]
         if "en" not in langs:
             langs.insert(0, "en")

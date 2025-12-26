@@ -1,6 +1,6 @@
 # I18N + SEO Smoke Checklist
 
-- `/catalog` redirects to `/en/catalog` and preserves query params.
+- `/catalog` redirects to `/<detected-lang>/catalog` (Accept-Language/geo) and preserves query params.
 - `/en/catalog` renders and metadata includes canonical + hreflang alternates.
 - `/ar/content/<slug>` sets `lang="ar"` and `dir="rtl"` with correct canonical URL.
 - `/sitemap.xml` returns an index with 5 language sitemaps.

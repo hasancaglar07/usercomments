@@ -32,7 +32,13 @@ import {
 } from "@/data/mock/reviews";
 import { profileUser } from "@/data/mock/users";
 import { allowMockFallback } from "@/src/lib/runtime";
-import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
+import {
+  getLocale,
+  localizePath,
+  normalizeLanguage,
+  type SupportedLanguage,
+} from "@/src/lib/i18n";
 
 export const revalidate = 120;
 
@@ -44,18 +50,16 @@ export async function generateMetadata(
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
   const username = params.username;
-  let title = `${username} Profile`;
-  let description = `View ${username}'s reviews and profile.`;
+  let title = t(lang, "profile.meta.title", { name: username });
+  let description = t(lang, "profile.meta.description", { name: username });
   let shouldIndex = true;
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
       const profile = await getUserProfile(username);
       const displayName = profile.displayName ?? profile.username;
-      title = `${displayName} Profile`;
-      if (profile.bio) {
-        description = profile.bio;
-      }
+      title = t(lang, "profile.meta.title", { name: displayName });
+      description = profile.bio || t(lang, "profile.meta.description", { name: displayName });
       const reviewCount = profile.stats?.reviewCount ?? 0;
       const hasBio = Boolean(profile.bio && profile.bio.trim().length > 0);
       shouldIndex = reviewCount > 0 || hasBio;
@@ -123,21 +127,27 @@ type ProfileBadge = {
   className: string;
 };
 
-function formatMemberSince(value?: string): string {
+function formatMemberSince(
+  value: string | undefined,
+  lang: SupportedLanguage
+): string | null {
   if (!value) {
-    return "recently";
+    return null;
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "recently";
+    return null;
   }
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(getLocale(lang), {
     month: "long",
     year: "numeric",
   }).format(date);
 }
 
-function buildProfileBadges(stats?: UserProfile["stats"]): ProfileBadge[] {
+function buildProfileBadges(
+  stats: UserProfile["stats"] | undefined,
+  lang: SupportedLanguage
+): ProfileBadge[] {
   if (!stats) {
     return [];
   }
@@ -150,28 +160,28 @@ function buildProfileBadges(stats?: UserProfile["stats"]): ProfileBadge[] {
 
   if (karma >= 1000) {
     badges.push({
-      label: "Expert Reviewer",
+      label: t(lang, "profile.badge.expertReviewer"),
       className:
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20",
     });
   }
   if (reviewCount >= 50) {
     badges.push({
-      label: "Top 5% Reviewer",
+      label: t(lang, "profile.badge.topReviewer"),
       className:
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20",
     });
   }
   if (totalViews >= 10000) {
     badges.push({
-      label: "Trend Setter",
+      label: t(lang, "profile.badge.trendSetter"),
       className:
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20",
     });
   }
   if (totalComments >= 100) {
     badges.push({
-      label: "Community Builder",
+      label: t(lang, "profile.badge.communityBuilder"),
       className:
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20",
     });
@@ -179,7 +189,7 @@ function buildProfileBadges(stats?: UserProfile["stats"]): ProfileBadge[] {
 
   if (badges.length === 0) {
     badges.push({
-      label: "New Reviewer",
+      label: t(lang, "profile.badge.newReviewer"),
       className:
         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary border border-secondary/20",
     });
@@ -191,22 +201,25 @@ function buildProfileBadges(stats?: UserProfile["stats"]): ProfileBadge[] {
 function buildProfileCards(
   reviews: Review[],
   categories: Category[],
-  lang: string
+  lang: SupportedLanguage
 ): ReviewCardProfileData[] {
   return reviews.map((review, index) => ({
     review,
     href: localizePath(`/content/${review.slug}`, lang),
-    dateLabel: formatRelativeTime(review.createdAt),
+    dateLabel: formatRelativeTime(review.createdAt, lang),
     ratingStars: buildRatingStars(review.ratingAvg),
     imageUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_REVIEW_IMAGES, index),
     imageAlt: review.title,
-    tagLabel: getCategoryLabel(categories, review.categoryId) ?? "General",
-    likesLabel: formatCompactNumber(review.votesUp ?? 0),
-    commentsLabel: formatCompactNumber(review.commentCount ?? 0),
+    tagLabel: getCategoryLabel(categories, review.categoryId) ?? t(lang, "common.general"),
+    likesLabel: formatCompactNumber(review.votesUp ?? 0, lang),
+    commentsLabel: formatCompactNumber(review.commentCount ?? 0, lang),
   }));
 }
 
-function buildPopularReviews(reviews: Review[]): ProfilePopularReview[] {
+function buildPopularReviews(
+  reviews: Review[],
+  lang: SupportedLanguage
+): ProfilePopularReview[] {
   const sorted = [...reviews].sort((a, b) => {
     const left = a.votesUp ?? 0;
     const right = b.votesUp ?? 0;
@@ -218,7 +231,9 @@ function buildPopularReviews(reviews: Review[]): ProfilePopularReview[] {
     thumbnailUrl: review.photoUrls?.[0] ?? pickFrom(FALLBACK_THUMBNAILS, index),
     thumbnailAlt: review.title,
     ratingLabel: (review.ratingAvg ?? 0).toFixed(1),
-    viewsLabel: `${formatCompactNumber(review.views ?? 0)} views`,
+    viewsLabel: t(lang, "reviewDetail.viewsLabel", {
+      count: formatCompactNumber(review.views ?? 0, lang),
+    }),
   }));
 }
 
@@ -303,7 +318,7 @@ export default async function Page(props: UserProfilePageProps) {
       reviewCards = buildProfileCards(userReviews.items, categories, lang);
       reviewPagination = userReviews.pageInfo;
       reviewCount = reviewPagination.totalItems ?? userReviews.items.length;
-      popularReviews = buildPopularReviews(userReviews.items);
+      popularReviews = buildPopularReviews(userReviews.items, lang);
 
       if (commentResult) {
         commentCards = buildProfileCards(commentResult.items, categories, lang);
@@ -312,11 +327,11 @@ export default async function Page(props: UserProfilePageProps) {
     } catch (error) {
       console.error("Failed to load profile API data", error);
       if (!allowMockFallback) {
-        errorMessage = "Unable to load profile data. Please try again later.";
+        errorMessage = t(lang, "profile.error.loadFailed");
       }
     }
   } else if (!allowMockFallback) {
-    errorMessage = "API base URL is not configured.";
+    errorMessage = t(lang, "profile.error.apiNotConfigured");
   }
 
   if (activeTab === "reviews") {
@@ -344,11 +359,23 @@ export default async function Page(props: UserProfilePageProps) {
     200
   );
   reviewCount = profile.stats?.reviewCount ?? reviewCount;
-  const memberSince = formatMemberSince(profile.createdAt);
-  const badges = buildProfileBadges(profile.stats);
-  const reviewCountLabel = formatCompactNumber(profile.stats?.reviewCount ?? 0);
-  const totalViewsLabel = formatCompactNumber(profile.stats?.totalViews ?? 0);
-  const reputationLabel = formatCompactNumber(profile.stats?.reputation ?? 0);
+  const memberSince = formatMemberSince(profile.createdAt, lang);
+  const memberSinceLabel = memberSince
+    ? t(lang, "profile.memberSince", { date: memberSince })
+    : t(lang, "profile.memberSince.recent");
+  const badges = buildProfileBadges(profile.stats, lang);
+  const reviewCountLabel = formatCompactNumber(
+    profile.stats?.reviewCount ?? 0,
+    lang
+  );
+  const totalViewsLabel = formatCompactNumber(
+    profile.stats?.totalViews ?? 0,
+    lang
+  );
+  const reputationLabel = formatCompactNumber(
+    profile.stats?.reputation ?? 0,
+    lang
+  );
   const baseParams = new URLSearchParams();
   if (pageSize !== DEFAULT_PAGE_SIZE) {
     baseParams.set("pageSize", String(pageSize));
@@ -400,7 +427,7 @@ export default async function Page(props: UserProfilePageProps) {
               <div className="relative group">
                 <div
                   className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-28 h-28 ring-4 ring-background-light dark:ring-background-dark"
-                  data-alt="Large user profile avatar"
+                  data-alt={t(lang, "profile.avatarAlt")}
                   style={{
                     backgroundImage: `url(${profileAvatarUrl})`,
                   }}
@@ -414,13 +441,13 @@ export default async function Page(props: UserProfilePageProps) {
                   </h1>
                   <span
                     className="material-symbols-outlined text-primary text-[20px]"
-                    title="Verified User"
+                    title={t(lang, "profile.verifiedUser")}
                   >
                     verified
                   </span>
                 </div>
                 <p className="text-text-sub-light dark:text-text-sub-dark text-sm">
-                  Member since {memberSince}
+                  {memberSinceLabel}
                 </p>
                 {badges.length > 0 ? (
                   <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
@@ -443,7 +470,7 @@ export default async function Page(props: UserProfilePageProps) {
                 {reviewCountLabel}
               </p>
               <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
-                Reviews
+                {t(lang, "profile.stats.reviews")}
               </p>
             </div>
             <div className="flex flex-col items-center justify-center border-l border-r border-border-light dark:border-border-dark">
@@ -451,7 +478,7 @@ export default async function Page(props: UserProfilePageProps) {
                 {totalViewsLabel}
               </p>
               <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
-                Total Views
+                {t(lang, "profile.stats.totalViews")}
               </p>
             </div>
             <div className="flex flex-col items-center justify-center">
@@ -459,7 +486,7 @@ export default async function Page(props: UserProfilePageProps) {
                 {reputationLabel}
               </p>
               <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
-                Reputation
+                {t(lang, "profile.stats.reputation")}
               </p>
             </div>
           </div>

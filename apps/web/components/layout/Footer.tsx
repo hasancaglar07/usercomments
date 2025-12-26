@@ -112,12 +112,12 @@ export default function Footer({ lang }: FooterProps) {
               {/* Added Mock 'Careers' and 'Press' links pointing to About for professional look */}
               <li>
                 <Link href={aboutHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
-                  Careers
+                  {t(resolvedLang, "footer.careers")}
                 </Link>
               </li>
               <li>
                 <Link href={aboutHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
-                  Press & Media
+                  {t(resolvedLang, "footer.press")}
                 </Link>
               </li>
               <li>
@@ -131,7 +131,7 @@ export default function Footer({ lang }: FooterProps) {
           {/* Support Column */}
           <div className="lg:col-span-2">
             <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-6">
-              Support
+              {t(resolvedLang, "footer.support")}
             </h3>
             <ul className="space-y-4">
               <li>
@@ -141,7 +141,7 @@ export default function Footer({ lang }: FooterProps) {
               </li>
               <li>
                 <Link href={privacyHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
-                  Safety Center
+                  {t(resolvedLang, "footer.safetyCenter")}
                 </Link>
               </li>
               <li>
@@ -192,7 +192,9 @@ export default function Footer({ lang }: FooterProps) {
             <span>© {new Date().getFullYear()} UserReview. {t(resolvedLang, "footer.rights")}</span>
             <span className="hidden md:inline text-gray-300">•</span>
             <span className="flex items-center gap-1">
-              Made with <span className="text-red-500 text-lg">♥</span> for the community
+              {t(resolvedLang, "footer.madeWithPrefix")}
+              <span className="text-red-500 text-lg">♥</span>
+              {t(resolvedLang, "footer.madeWithSuffix")}
             </span>
           </div>
 

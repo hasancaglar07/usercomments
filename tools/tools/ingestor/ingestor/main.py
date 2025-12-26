@@ -43,6 +43,7 @@ from .utils.hashing import sha1_bytes, sha1_text
 from .utils.slugify import slugify
 from .utils.text_clean import clean_html, normalize_whitespace
 from .utils.timing import sleep_jitter
+from .utils.linker import inject_internal_links
 
 
 async def _fetch_html_async(http: HttpClient, url: str, logger: logging.Logger) -> str:
@@ -335,6 +336,7 @@ async def _process_review_item_async(
     config: Config,
     logger: logging.Logger,
     dry_run: bool,
+    product_map: Dict[str, str],
     semaphore: asyncio.Semaphore,
 ) -> bool:
     async with semaphore:
@@ -477,7 +479,7 @@ async def _process_review_item_async(
                 return False
 
             try:
-                author_id = profile_pool.pick()
+                author_id = profile_pool.pick(category_name=detail.category_name)
             except Exception as exc:
                 logger.error("Profile pool unavailable, continuing without author: %s", exc)
                 author_id = None
@@ -590,6 +592,13 @@ async def _process_review_item_async(
                 # Inject Pros/Cons in a format the frontend parser understands
                 # It expects a section starting with "Pros:" or "Cons:" followed by lines starting with Dash/Bullet
                 # and sections separated by double newlines.
+                # Assembly Order: Review Body -> Summary -> Pros/Cons -> FAQ -> Specs
+                
+                # 1. Summary
+                if data.get("summary"):
+                    rich_content += f'<div class="editor-summary-card"><h3>Editor\'s Summary</h3><p>{data["summary"]}</p></div>'
+
+                # 2. Pros/Cons
                 pros_cons_text = ""
                 if data.get("pros"):
                     pros_list = "\n".join([f"- {p}" for p in data["pros"]])
@@ -600,19 +609,22 @@ async def _process_review_item_async(
                     pros_cons_text += f"<p>Cons:<br>{cons_list}</p>"
                 
                 if pros_cons_text:
-                    rich_content = f'<div class="pros-cons-block">{pros_cons_text}</div>' + rich_content
+                    rich_content += f'<div class="pros-cons-block">{pros_cons_text}</div>'
 
-                if data.get("summary"):
-                    rich_content = f'<div class="editor-summary-card"><h3>Editor\'s Summary</h3><p>{data["summary"]}</p></div>' + rich_content
-                
+                # 3. FAQ
                 if data.get("faq"):
                     faq_items = "".join([f'<li><strong>{f["question"]}</strong><p>{f["answer"]}</p></li>' for f in data["faq"]])
                     rich_content += f'<div class="faq-card"><h3>Featured FAQ</h3><ul>{faq_items}</ul></div>'
+
+                # 4. Specs
+                if data.get("specs"):
+                    rows = "".join([f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>" for k, v in data["specs"].items()])
+                    rich_content += f'<div class="specs-card"><h3>Specifications</h3><table class="specs-table"><tbody>{rows}</tbody></table></div>'
                 
                 translation_payloads.append({
                     "lang": lang,
                     "title": data["title"],
-                    "content_html": clean_html(rich_content),
+                    "content_html": clean_html(inject_internal_links(rich_content, product_map)),
                     "meta_title": data["meta_title"],
                     "meta_description": data["meta_description"],
                     "slug": base_slug,
@@ -721,6 +733,21 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
             category_name_map[norm_name] = cat_id
     
     logger.info("Loaded categories: %d URL, %d Name, %d Hierarchy Links", len(category_map), len(category_name_map), len(parent_map))
+
+    # Load products for internal linking
+    try:
+        product_rows = await asyncio.to_thread(
+            supabase.select, 
+            "products", 
+            "name, slug", 
+            order=("created_at", "desc"), 
+            limit=2000
+        )
+        product_map = {row["name"]: row["slug"] for row in product_rows if row.get("name") and row.get("slug")}
+        logger.info("Loaded %d products for internal linking", len(product_map))
+    except Exception as e:
+        logger.warning("Failed to load products for internal linking: %s", e)
+        product_map = {}
 
     new_sources = await asyncio.to_thread(
         fetch_new_sources,
@@ -846,7 +873,7 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         
         try:
             result = await _process_review_item_async(
-                item, http, supabase, groq, uploader, profile_pool, category_map, category_name_map, parent_map, ai_match_cache, config, logger, dry_run, semaphore
+                item, http, supabase, groq, uploader, profile_pool, category_map, category_name_map, parent_map, ai_match_cache, config, logger, dry_run, product_map, semaphore
             )
             if result:
                 successful += 1

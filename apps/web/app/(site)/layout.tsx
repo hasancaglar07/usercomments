@@ -1,5 +1,6 @@
 import "../../styles/globals.css";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Script from "next/script";
 import { Inter } from "next/font/google"; // Import Font
 import Header from "../../components/layout/Header";
@@ -9,8 +10,6 @@ import { isRtlLanguage, localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { getCategories } from "@/src/lib/api";
 import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
-
-export const runtime = "edge";
 
 // Initialize Font
 const inter = Inter({ subsets: ["latin"], display: "swap" });
@@ -36,7 +35,9 @@ export default async function SiteLayout({
   params: Promise<{ lang?: string }>;
 }>) {
   const resolvedParams = await params;
-  const lang = normalizeLanguage(resolvedParams?.lang);
+  const requestHeaders = headers();
+  const headerLang = requestHeaders.get("x-lang");
+  const lang = normalizeLanguage(resolvedParams?.lang ?? headerLang);
   const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
   let categories: Category[] = [];
 

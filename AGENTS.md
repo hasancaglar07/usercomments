@@ -144,7 +144,7 @@ If no new rule is detected → do not update the file.
 \- Replace DOM manipulation (`document.querySelector`, `addEventListener`) with React state or refs to keep components declarative
 \- UI copy must be localized per language (English for `en`, high-quality translations for all other supported languages) so non-English pages are fully translated
 \- Use `'use client'` only when interactivity is required to avoid unnecessary client components
-\- Default language is `en`, and missing translations must redirect to `/en` for SEO consistency
+\- Localization: Default language should follow user browser/region detection (do not force `/en` in navigation); only missing translations redirect to `/en` for SEO consistency
 \- i18n SEO: each locale must serve locale-specific content and sitemaps so search engines index the correct language
 
 \### Critical (NEVER violate)

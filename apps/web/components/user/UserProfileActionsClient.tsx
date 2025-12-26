@@ -32,6 +32,7 @@ import {
 } from "@/src/lib/auth";
 import { FALLBACK_PROFILE_IMAGES } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { t } from "@/src/lib/copy";
 
 type UserProfileActionsClientProps = {
   username: string;
@@ -84,44 +85,6 @@ export function useUserProfileActions() {
   return context;
 }
 
-const reportSchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .min(3, "Report reason is too short.")
-    .max(200, "Report reason is too long."),
-  details: z
-    .string()
-    .trim()
-    .max(1000, "Details are too long.")
-    .optional()
-    .or(z.literal("")),
-});
-
-const messageSchema = z.object({
-  subject: z
-    .string()
-    .trim()
-    .min(3, "Subject is too short.")
-    .max(120, "Subject is too long."),
-  body: z
-    .string()
-    .trim()
-    .min(10, "Message is too short.")
-    .max(1000, "Message is too long."),
-});
-
-const profileSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username is too short.")
-    .max(24, "Username is too long.")
-    .regex(/^[a-z0-9_-]+$/i, "Use only letters, numbers, - or _."),
-  bio: z.string().trim().max(280, "Bio is too long.").optional(),
-  profilePicUrl: z.string().url().optional().nullable(),
-});
-
 const SUPPORT_EMAIL = "support@irecommend.clone";
 
 export default function UserProfileActionsClient({
@@ -165,26 +128,83 @@ export default function UserProfileActionsClient({
   const [isFollowing, setIsFollowing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
+  const reportSchema = useMemo(
+    () =>
+      z.object({
+        reason: z
+          .string()
+          .trim()
+          .min(3, t(lang, "profileActions.validation.reportReasonShort"))
+          .max(200, t(lang, "profileActions.validation.reportReasonLong")),
+        details: z
+          .string()
+          .trim()
+          .max(1000, t(lang, "profileActions.validation.reportDetailsLong"))
+          .optional()
+          .or(z.literal("")),
+      }),
+    [lang]
+  );
+
+  const messageSchema = useMemo(
+    () =>
+      z.object({
+        subject: z
+          .string()
+          .trim()
+          .min(3, t(lang, "profileActions.validation.messageSubjectShort"))
+          .max(120, t(lang, "profileActions.validation.messageSubjectLong")),
+        body: z
+          .string()
+          .trim()
+          .min(10, t(lang, "profileActions.validation.messageBodyShort"))
+          .max(1000, t(lang, "profileActions.validation.messageBodyLong")),
+      }),
+    [lang]
+  );
+
+  const profileSchema = useMemo(
+    () =>
+      z.object({
+        username: z
+          .string()
+          .trim()
+          .min(3, t(lang, "profileActions.validation.usernameShort"))
+          .max(24, t(lang, "profileActions.validation.usernameLong"))
+          .regex(
+            /^[a-z0-9_-]+$/i,
+            t(lang, "profileActions.validation.usernameInvalid")
+          ),
+        bio: z
+          .string()
+          .trim()
+          .max(280, t(lang, "profileActions.validation.bioLong"))
+          .optional(),
+        profilePicUrl: z.string().url().optional().nullable(),
+      }),
+    [lang]
+  );
+
   const achievements = useMemo(
     () => [
       {
-        title: "Gold Reviewer",
-        description: "250+ reviews completed.",
+        title: t(lang, "sidebar.achievementGoldReviewer"),
+        description: t(lang, "profileActions.achievements.goldDescription"),
       },
       {
-        title: "Consistent Writer",
-        description: "Shared new content every week.",
+        title: t(lang, "sidebar.achievementConsistentWriter"),
+        description: t(lang, "profileActions.achievements.consistentDescription"),
       },
       {
-        title: "Helpful Hero",
-        description: "Earned 100+ helpful votes.",
+        title: t(lang, "sidebar.achievementHelpfulHero"),
+        description: t(lang, "profileActions.achievements.helpfulDescription"),
       },
       {
-        title: "+5 more",
-        description: "Show more achievement badges.",
+        title: t(lang, "profileActions.achievements.moreTitle"),
+        description: t(lang, "profileActions.achievements.moreDescription"),
       },
     ],
-    []
+    [lang]
   );
 
   const showToast = useCallback(
@@ -235,7 +255,7 @@ export default function UserProfileActionsClient({
       if (typeof navigator !== "undefined" && "share" in navigator) {
         try {
           await navigator.share({ title, url });
-          showToast("Shared successfully.", "success");
+          showToast(t(lang, "profileActions.toast.shared"), "success");
           return;
         } catch (error) {
           if (
@@ -252,16 +272,16 @@ export default function UserProfileActionsClient({
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(url);
-          showToast("Link copied.", "success");
+          showToast(t(lang, "profileActions.toast.linkCopied"), "success");
           return;
         } catch (error) {
           console.error("Failed to copy link", error);
         }
       }
 
-      showToast("Link could not be copied.", "error");
+      showToast(t(lang, "profileActions.toast.linkCopyFailed"), "error");
     },
-    [showToast]
+    [lang, showToast]
   );
 
   const loadProfileForm = useCallback(async () => {
@@ -277,11 +297,11 @@ export default function UserProfileActionsClient({
       });
     } catch (error) {
       console.error("Failed to load profile details", error);
-      setEditError("Profile details could not be loaded.");
+      setEditError(t(lang, "profileActions.toast.profileLoadFailed"));
     } finally {
       setEditLoading(false);
     }
-  }, [username]);
+  }, [lang, username]);
 
   const openEditModal = useCallback(async () => {
     const allowed = await requireAuth();
@@ -320,7 +340,7 @@ export default function UserProfileActionsClient({
       return;
     }
     if (!file.type.startsWith("image/")) {
-      setEditError("Please upload an image file.");
+      setEditError(t(lang, "profileActions.toast.imageInvalid"));
       return;
     }
 
@@ -347,10 +367,10 @@ export default function UserProfileActionsClient({
         ...current,
         profilePicUrl: presign.publicUrl,
       }));
-      showToast("Profile photo uploaded.", "success");
+      showToast(t(lang, "profileActions.toast.photoUploaded"), "success");
     } catch (error) {
       console.error("Failed to upload avatar", error);
-      setEditError("Photo could not be uploaded.");
+      setEditError(t(lang, "profileActions.toast.photoUploadFailed"));
     } finally {
       setEditUploading(false);
       if (event.target) {
@@ -429,13 +449,18 @@ export default function UserProfileActionsClient({
       // ignore storage errors
     }
     setIsFollowing(nextState);
-    showToast(nextState ? "Followed." : "Unfollowed.", "success");
-  }, [isFollowing, isSelf, openEditModal, requireAuth, showToast, username]);
+    showToast(
+      nextState
+        ? t(lang, "profileActions.toast.followed")
+        : t(lang, "profileActions.toast.unfollowed"),
+      "success"
+    );
+  }, [isFollowing, isSelf, lang, openEditModal, requireAuth, showToast, username]);
 
   const handleMessageClick = useCallback(async () => {
     if (isSelf) {
       showToast(
-        "This is your profile. Use Edit Profile to make changes.",
+        t(lang, "profileActions.toast.selfProfileInfo"),
         "info"
       );
       return;
@@ -446,16 +471,21 @@ export default function UserProfileActionsClient({
     }
     setMessageError(null);
     setMessageForm({
-      subject: `Message for ${displayName}`,
+      subject: t(lang, "profileActions.message.subjectPlaceholder", {
+        name: displayName,
+      }),
       body: "",
     });
     setMessageOpen(true);
-  }, [displayName, isSelf, requireAuth, showToast]);
+  }, [displayName, isSelf, lang, requireAuth, showToast]);
 
   const handleProfileShare = useCallback(async () => {
     const url = buildProfileUrl();
-    await shareLink(url, `${displayName} profile`);
-  }, [buildProfileUrl, displayName, shareLink]);
+    await shareLink(
+      url,
+      t(lang, "profileActions.share.profileTitle", { name: displayName })
+    );
+  }, [buildProfileUrl, displayName, lang, shareLink]);
 
   const handleReviewShare = useCallback(
     async (reviewSlug: string, reviewTitle: string) => {
@@ -491,17 +521,13 @@ export default function UserProfileActionsClient({
       }
       try {
         await voteReview(reviewId, "up");
-        showToast("Vote recorded.", "success");
+        showToast(t(lang, "profileActions.toast.voteRecorded"), "success");
         router.refresh();
       } catch (error) {
-        const message =
-          error && typeof error === "object" && "message" in error
-            ? String(error.message)
-            : "Vote could not be recorded.";
-        showToast(message, "error");
+        showToast(t(lang, "profileActions.toast.voteFailed"), "error");
       }
     },
-    [requireAuth, router, showToast]
+    [lang, requireAuth, router, showToast]
   );
 
   const handleSignOut = useCallback(async () => {
@@ -514,15 +540,15 @@ export default function UserProfileActionsClient({
       setIsSelf(false);
       setIsFollowing(false);
       setSelfProfile(null);
-      showToast("Signed out.", "success");
+      showToast(t(lang, "profileActions.toast.signedOut"), "success");
       router.refresh();
     } catch (error) {
       console.error("Failed to sign out", error);
-      showToast("Sign out failed. Please try again.", "error");
+      showToast(t(lang, "profileActions.toast.signOutFailed"), "error");
     } finally {
       setSigningOut(false);
     }
-  }, [router, showToast, signingOut]);
+  }, [lang, router, showToast, signingOut]);
 
   const handleReviewReport = useCallback((target: ReportTarget) => {
     setReportError(null);
@@ -626,25 +652,36 @@ export default function UserProfileActionsClient({
     setMessageError(null);
     const parsed = messageSchema.safeParse(messageForm);
     if (!parsed.success) {
-      setMessageError(parsed.error.issues[0]?.message ?? "Message is invalid.");
+      setMessageError(
+        parsed.error.issues[0]?.message ??
+          t(lang, "profileActions.validation.messageInvalid")
+      );
       return;
     }
     setMessageSubmitting(true);
     try {
       const profileUrl = buildProfileUrl();
-      const subject = `${parsed.data.subject} (to ${displayName})`;
-      const body = `Recipient: ${displayName} (@${username})\n\n${parsed.data.body}\n\nProfile: ${profileUrl}`;
+      const subject = t(lang, "profileActions.message.subjectTemplate", {
+        subject: parsed.data.subject,
+        name: displayName,
+      });
+      const body = t(lang, "profileActions.message.bodyTemplate", {
+        name: displayName,
+        username,
+        body: parsed.data.body,
+        profileUrl,
+      });
       if (typeof window !== "undefined") {
         const mailto = new URL(`mailto:${SUPPORT_EMAIL}`);
         mailto.searchParams.set("subject", subject);
         mailto.searchParams.set("body", body);
         window.location.href = mailto.toString();
       }
-      showToast("Your email client was opened.", "success");
+      showToast(t(lang, "profileActions.toast.mailOpened"), "success");
       setMessageOpen(false);
     } catch (error) {
       console.error("Failed to open mail client", error);
-      setMessageError("Message could not be sent.");
+      setMessageError(t(lang, "profileActions.toast.messageSendFailed"));
     } finally {
       setMessageSubmitting(false);
     }
@@ -658,7 +695,10 @@ export default function UserProfileActionsClient({
     setReportError(null);
     const parsed = reportSchema.safeParse(reportForm);
     if (!parsed.success) {
-      setReportError(parsed.error.issues[0]?.message ?? "Report is invalid.");
+      setReportError(
+        parsed.error.issues[0]?.message ??
+          t(lang, "profileActions.validation.reportInvalid")
+      );
       return;
     }
     const allowed = await requireAuth();
@@ -672,15 +712,11 @@ export default function UserProfileActionsClient({
         details: parsed.data.details?.trim() || undefined,
       };
       await reportReview(reportTarget.reviewId, payload);
-      showToast("Report submitted.", "success");
+      showToast(t(lang, "profileActions.toast.reportSubmitted"), "success");
       setReportTarget(null);
     } catch (error) {
       console.error("Failed to report review", error);
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String(error.message)
-          : "Report could not be submitted.";
-      setReportError(message);
+      setReportError(t(lang, "profileActions.toast.reportFailed"));
     } finally {
       setReportSubmitting(false);
     }
@@ -700,7 +736,10 @@ export default function UserProfileActionsClient({
     });
 
     if (!parsed.success) {
-      setEditError(parsed.error.issues[0]?.message ?? "Profile data is invalid.");
+      setEditError(
+        parsed.error.issues[0]?.message ??
+          t(lang, "profileActions.validation.profileInvalid")
+      );
       return;
     }
 
@@ -712,7 +751,7 @@ export default function UserProfileActionsClient({
         profilePicUrl: parsed.data.profilePicUrl ?? null,
       });
       setSelfProfile(updated);
-      showToast("Profile updated.", "success");
+      showToast(t(lang, "profileActions.toast.profileUpdated"), "success");
       closeEditModal();
       if (
         updated.username &&
@@ -726,21 +765,17 @@ export default function UserProfileActionsClient({
       }
     } catch (error) {
       console.error("Failed to update profile", error);
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? String(error.message)
-          : "Profile could not be updated.";
-      setEditError(message);
+      setEditError(t(lang, "profileActions.toast.profileUpdateFailed"));
     } finally {
       setEditSaving(false);
     }
   };
 
   const followLabel = isSelf
-    ? "Edit Profile"
+    ? t(lang, "profileActions.follow.editProfile")
     : isFollowing
-      ? "Following"
-      : "Follow";
+      ? t(lang, "profileActions.follow.following")
+      : t(lang, "profileActions.follow.follow");
   const followIcon = isSelf
     ? "edit"
     : isFollowing
@@ -820,7 +855,7 @@ export default function UserProfileActionsClient({
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                  Send message
+                  {t(lang, "profileActions.message.title")}
                 </h3>
                 <button
                   className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
@@ -835,7 +870,7 @@ export default function UserProfileActionsClient({
               <form className="flex flex-col gap-4" onSubmit={handleMessageSubmit}>
                 <label className="flex flex-col gap-2 text-sm">
                   <span className="text-text-sub-light dark:text-text-sub-dark">
-                    Subject
+                    {t(lang, "profileActions.message.subjectLabel")}
                   </span>
                   <input
                     className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -846,12 +881,14 @@ export default function UserProfileActionsClient({
                         subject: event.target.value,
                       }))
                     }
-                    placeholder={`Message for ${displayName}`}
+                    placeholder={t(lang, "profileActions.message.subjectPlaceholder", {
+                      name: displayName,
+                    })}
                   />
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                   <span className="text-text-sub-light dark:text-text-sub-dark">
-                    Message
+                    {t(lang, "profileActions.message.bodyLabel")}
                   </span>
                   <textarea
                     className="w-full min-h-[140px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -862,7 +899,7 @@ export default function UserProfileActionsClient({
                         body: event.target.value,
                       }))
                     }
-                    placeholder="Write your message..."
+                    placeholder={t(lang, "profileActions.message.bodyPlaceholder")}
                   />
                 </label>
                 {messageError ? (
@@ -876,18 +913,20 @@ export default function UserProfileActionsClient({
                     type="button"
                     onClick={() => setMessageOpen(false)}
                   >
-                    Cancel
+                    {t(lang, "common.cancel")}
                   </button>
                   <button
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
                     type="submit"
                     disabled={messageSubmitting}
                   >
-                    {messageSubmitting ? "Sending..." : "Send"}
+                    {messageSubmitting
+                      ? t(lang, "profileActions.message.sending")
+                      : t(lang, "profileActions.message.send")}
                   </button>
                 </div>
                 <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
-                  This will open your email client to send the message.
+                  {t(lang, "profileActions.message.helper")}
                 </p>
               </form>
             </div>
@@ -907,10 +946,10 @@ export default function UserProfileActionsClient({
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                    Edit profile
+                    {t(lang, "profileActions.edit.title")}
                   </h3>
                   <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
-                    Update your public profile details.
+                    {t(lang, "profileActions.edit.subtitle")}
                   </p>
                 </div>
                 <button
@@ -926,7 +965,7 @@ export default function UserProfileActionsClient({
 
               {editLoading ? (
                 <div className="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark p-4 text-sm text-text-sub-light dark:text-text-sub-dark">
-                  Loading profile details...
+                  {t(lang, "profileActions.edit.loading")}
                 </div>
               ) : (
                 <form className="flex flex-col gap-4" onSubmit={handleEditSubmit}>
@@ -942,7 +981,9 @@ export default function UserProfileActionsClient({
                         onClick={handleAvatarClick}
                         disabled={editUploading}
                       >
-                        {editUploading ? "Uploading..." : "Upload photo"}
+                        {editUploading
+                          ? t(lang, "profileActions.edit.uploading")
+                          : t(lang, "profileActions.edit.uploadPhoto")}
                       </button>
                       <button
                         className="text-xs font-semibold text-text-sub-light dark:text-text-sub-dark hover:text-primary"
@@ -954,7 +995,7 @@ export default function UserProfileActionsClient({
                           }))
                         }
                       >
-                        Remove photo
+                        {t(lang, "profileActions.edit.removePhoto")}
                       </button>
                       <input
                         ref={fileInputRef}
@@ -968,7 +1009,7 @@ export default function UserProfileActionsClient({
 
                   <label className="flex flex-col gap-2 text-sm">
                     <span className="text-text-sub-light dark:text-text-sub-dark">
-                      Username
+                      {t(lang, "profileActions.edit.usernameLabel")}
                     </span>
                     <input
                       className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -979,13 +1020,13 @@ export default function UserProfileActionsClient({
                           username: event.target.value,
                         }))
                       }
-                      placeholder="your-username"
+                      placeholder={t(lang, "profileActions.edit.usernamePlaceholder")}
                     />
                   </label>
 
                   <label className="flex flex-col gap-2 text-sm">
                     <span className="text-text-sub-light dark:text-text-sub-dark">
-                      Bio
+                      {t(lang, "profileActions.edit.bioLabel")}
                     </span>
                     <textarea
                       className="w-full min-h-[120px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -996,7 +1037,7 @@ export default function UserProfileActionsClient({
                           bio: event.target.value,
                         }))
                       }
-                      placeholder="Tell people about yourself..."
+                      placeholder={t(lang, "profileActions.edit.bioPlaceholder")}
                     />
                     <div className="text-xs text-text-sub-light dark:text-text-sub-dark text-right">
                       {editForm.bio.length}/280
@@ -1005,7 +1046,7 @@ export default function UserProfileActionsClient({
 
                   <label className="flex flex-col gap-2 text-sm">
                     <span className="text-text-sub-light dark:text-text-sub-dark">
-                      Profile image URL
+                      {t(lang, "profileActions.edit.photoUrlLabel")}
                     </span>
                     <input
                       className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -1016,7 +1057,7 @@ export default function UserProfileActionsClient({
                           profilePicUrl: event.target.value,
                         }))
                       }
-                      placeholder="https://"
+                      placeholder={t(lang, "profileActions.edit.photoUrlPlaceholder")}
                     />
                   </label>
 
@@ -1031,7 +1072,7 @@ export default function UserProfileActionsClient({
                       className="text-xs font-semibold text-primary hover:underline"
                       href={localizePath("/user/settings", lang)}
                     >
-                      Open full settings
+                      {t(lang, "profileActions.edit.openSettings")}
                     </Link>
                     <div className="flex items-center gap-3">
                       <button
@@ -1039,14 +1080,16 @@ export default function UserProfileActionsClient({
                         type="button"
                         onClick={closeEditModal}
                       >
-                        Cancel
+                        {t(lang, "common.cancel")}
                       </button>
                       <button
                         className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
                         type="submit"
                         disabled={editSaving}
                       >
-                        {editSaving ? "Saving..." : "Save changes"}
+                        {editSaving
+                          ? t(lang, "profileActions.edit.saving")
+                          : t(lang, "common.saveChanges")}
                       </button>
                     </div>
                   </div>
@@ -1069,7 +1112,7 @@ export default function UserProfileActionsClient({
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                    Report review
+                    {t(lang, "profileActions.report.title")}
                   </h3>
                   <p className="text-xs text-text-sub-light dark:text-text-sub-dark mt-1">
                     {reportTarget.reviewTitle}
@@ -1088,7 +1131,7 @@ export default function UserProfileActionsClient({
               <form className="flex flex-col gap-4" onSubmit={handleReportSubmit}>
                 <label className="flex flex-col gap-2 text-sm">
                   <span className="text-text-sub-light dark:text-text-sub-dark">
-                    Reason
+                    {t(lang, "profileActions.report.reasonLabel")}
                   </span>
                   <input
                     className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -1099,12 +1142,12 @@ export default function UserProfileActionsClient({
                         reason: event.target.value,
                       }))
                     }
-                    placeholder="Why are you reporting this review?"
+                    placeholder={t(lang, "profileActions.report.reasonPlaceholder")}
                   />
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                   <span className="text-text-sub-light dark:text-text-sub-dark">
-                    Details (optional)
+                    {t(lang, "profileActions.report.detailsLabel")}
                   </span>
                   <textarea
                     className="w-full min-h-[120px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
@@ -1115,7 +1158,7 @@ export default function UserProfileActionsClient({
                         details: event.target.value,
                       }))
                     }
-                    placeholder="Share any additional details..."
+                    placeholder={t(lang, "profileActions.report.detailsPlaceholder")}
                   />
                 </label>
                 {reportError ? (
@@ -1129,14 +1172,16 @@ export default function UserProfileActionsClient({
                     type="button"
                     onClick={() => setReportTarget(null)}
                   >
-                    Cancel
+                    {t(lang, "common.cancel")}
                   </button>
                   <button
                     className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
                     type="submit"
                     disabled={reportSubmitting}
                   >
-                    {reportSubmitting ? "Sending..." : "Submit report"}
+                    {reportSubmitting
+                      ? t(lang, "profileActions.report.sending")
+                      : t(lang, "profileActions.report.submit")}
                   </button>
                 </div>
               </form>
@@ -1156,7 +1201,7 @@ export default function UserProfileActionsClient({
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                  Achievements
+                  {t(lang, "profileActions.achievements.title")}
                 </h3>
                 <button
                   className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
@@ -1205,6 +1250,10 @@ export function UserProfileHeaderActions() {
     onMoreClick,
     onSignOut,
   } = useUserProfileActions();
+  const params = useParams();
+  const lang = normalizeLanguage(
+    typeof params?.lang === "string" ? params.lang : undefined
+  );
 
   return (
     <>
@@ -1233,7 +1282,13 @@ export function UserProfileHeaderActions() {
         <span className="material-symbols-outlined text-[18px]">
           {isSelf ? "logout" : "mail"}
         </span>
-        <span>{isSelf ? (isSigningOut ? "Signing out..." : "Sign out") : "Message"}</span>
+        <span>
+          {isSelf
+            ? isSigningOut
+              ? t(lang, "profileActions.header.signingOut")
+              : t(lang, "profileActions.header.signOut")
+            : t(lang, "profileActions.header.message")}
+        </span>
       </button>
       <button
         className="flex items-center justify-center rounded-lg h-10 w-10 border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-background-dark text-text-sub-light dark:text-text-sub-dark transition-all shrink-0"

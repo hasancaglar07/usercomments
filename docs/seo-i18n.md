@@ -2,7 +2,7 @@
 
 ## Routing
 - Public pages are served under `/{lang}/...` where `lang` is one of `en`, `tr`, `es`, `de`, `ar`.
-- Default language is `en`. Missing or unknown prefixes redirect to `/en` while preserving path and query.
+- Default language is detected from browser/region (Accept-Language + geo). Missing or unknown prefixes redirect to the detected language (fallback: `/en`) while preserving path and query.
 - Arabic (`ar`) renders with `dir="rtl"` and `lang="ar"`.
 - Russian (`ru`) content is not exposed publicly.
 

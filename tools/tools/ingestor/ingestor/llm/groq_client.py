@@ -9,7 +9,7 @@ class GroqClient:
         self.model = model
         self.logger = logger
 
-    def chat(self, messages: List[Dict[str, str]], temperature: float = 0.2, max_tokens: int = 2048) -> str:
+    def chat(self, messages: List[Dict[str, str]], temperature: float = 0.2, max_tokens: int = 8192) -> str:
         import time
         max_attempts = 5
         for attempt in range(max_attempts):

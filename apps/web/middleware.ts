@@ -4,10 +4,64 @@ import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
   localizePath,
+  type SupportedLanguage,
 } from "@/src/lib/i18n";
 
 const PUBLIC_FILE = /\.(.*)$/;
 const GLOBAL_PATHS = new Set(["/robots.txt", "/sitemap.xml"]);
+
+const COUNTRY_LANGUAGE_MAP: Record<string, SupportedLanguage> = {
+  TR: "tr",
+  CY: "tr",
+  DE: "de",
+  AT: "de",
+  CH: "de",
+  LI: "de",
+  LU: "de",
+  ES: "es",
+  MX: "es",
+  AR: "es",
+  CL: "es",
+  CO: "es",
+  PE: "es",
+  VE: "es",
+  EC: "es",
+  GT: "es",
+  CU: "es",
+  BO: "es",
+  DO: "es",
+  HN: "es",
+  PY: "es",
+  SV: "es",
+  NI: "es",
+  CR: "es",
+  PA: "es",
+  UY: "es",
+  PR: "es",
+  GQ: "es",
+  AE: "ar",
+  SA: "ar",
+  EG: "ar",
+  MA: "ar",
+  DZ: "ar",
+  TN: "ar",
+  LY: "ar",
+  JO: "ar",
+  LB: "ar",
+  SY: "ar",
+  IQ: "ar",
+  KW: "ar",
+  BH: "ar",
+  QA: "ar",
+  OM: "ar",
+  YE: "ar",
+  PS: "ar",
+  SD: "ar",
+  SO: "ar",
+  MR: "ar",
+  DJ: "ar",
+  KM: "ar",
+};
 
 function isPublicAsset(pathname: string): boolean {
   return (
@@ -60,6 +114,75 @@ function isProtectedPath(pathname: string): boolean {
   return false;
 }
 
+function parseAcceptLanguage(value: string | null): SupportedLanguage | null {
+  if (!value) {
+    return null;
+  }
+
+  const entries = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  let bestLang: SupportedLanguage | null = null;
+  let bestQuality = -1;
+
+  for (const entry of entries) {
+    const [range, ...params] = entry.split(";");
+    const primary = range.toLowerCase().split("-")[0];
+
+    if (!isSupportedLanguage(primary)) {
+      continue;
+    }
+
+    let quality = 1;
+    for (const param of params) {
+      const trimmed = param.trim();
+      if (trimmed.startsWith("q=")) {
+        const parsed = Number.parseFloat(trimmed.slice(2));
+        if (!Number.isNaN(parsed)) {
+          quality = parsed;
+        }
+        break;
+      }
+    }
+
+    if (quality > bestQuality) {
+      bestLang = primary;
+      bestQuality = quality;
+    }
+  }
+
+  return bestLang;
+}
+
+function getCountryFromRequest(request: NextRequest): string | null {
+  return (
+    request.geo?.country ??
+    request.headers.get("cf-ipcountry") ??
+    request.headers.get("x-vercel-ip-country") ??
+    null
+  );
+}
+
+function resolvePreferredLanguage(request: NextRequest): SupportedLanguage {
+  const acceptLanguage = request.headers.get("accept-language");
+  const headerLang = parseAcceptLanguage(acceptLanguage);
+  if (headerLang) {
+    return headerLang;
+  }
+
+  const country = getCountryFromRequest(request);
+  if (country) {
+    const mapped = COUNTRY_LANGUAGE_MAP[country.toUpperCase()];
+    if (mapped) {
+      return mapped;
+    }
+  }
+
+  return DEFAULT_LANGUAGE;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
@@ -73,10 +196,11 @@ export function middleware(request: NextRequest) {
 
   if (!isLang) {
     const cleanedPath = stripUnknownLangPrefix(pathname);
+    const preferredLang = resolvePreferredLanguage(request);
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = localizePath(
       cleanedPath === "" ? "/" : cleanedPath,
-      DEFAULT_LANGUAGE
+      preferredLang
     );
     return NextResponse.redirect(redirectUrl);
   }

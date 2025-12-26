@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { z } from "zod";
 import { signInWithPassword } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { getSupabaseClient } from "@/src/lib/supabase";
+import { t } from "@/src/lib/copy";
 
 type OAuthProvider = "google" | "facebook" | "apple";
 
@@ -23,10 +24,19 @@ export default function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const loginSchema = z.object({
-        email: z.string().trim().email("Please enter a valid email address."),
-        password: z.string().min(6, "Password must be at least 6 characters."),
-    });
+    const loginSchema = useMemo(
+        () =>
+            z.object({
+                email: z
+                    .string()
+                    .trim()
+                    .email(t(lang, "auth.login.validation.email")),
+                password: z
+                    .string()
+                    .min(6, t(lang, "auth.login.validation.password")),
+            }),
+        [lang]
+    );
 
     const getRedirectUrl = useCallback(() => {
         const next = searchParams?.get("next");
@@ -49,11 +59,8 @@ export default function LoginForm() {
             if (error) {
                 throw error;
             }
-        } catch (err) {
-            const message = err && typeof err === "object" && "message" in err
-                ? String(err.message)
-                : `Failed to login with ${provider}.`;
-            setError(message);
+        } catch {
+            setError(t(lang, "auth.login.error.failed"));
             setOauthLoading(null);
         }
     };
@@ -63,7 +70,7 @@ export default function LoginForm() {
         setError(null);
         const parsed = loginSchema.safeParse({ email, password });
         if (!parsed.success) {
-            setError(parsed.error.issues[0]?.message ?? "Please enter your email and password.");
+            setError(parsed.error.issues[0]?.message ?? t(lang, "auth.login.validation.missing"));
             return;
         }
 
@@ -81,12 +88,8 @@ export default function LoginForm() {
             router.push(
                 next && next.startsWith("/") ? next : localizePath("/", lang)
             );
-        } catch (err) {
-            const message =
-                err && typeof err === "object" && "message" in err
-                    ? String(err.message)
-                    : "Login failed.";
-            setError(message);
+        } catch {
+            setError(t(lang, "auth.login.error.failed"));
         } finally {
             setIsLoading(false);
         }
@@ -99,10 +102,10 @@ export default function LoginForm() {
             {/* Header - Clean & Minimal */}
             <div className="text-center mb-10">
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    Welcome back
+                    {t(lang, "auth.login.title")}
                 </h1>
                 <p className="mt-3 text-slate-500 dark:text-slate-400">
-                    Enter your credentials to access your account
+                    {t(lang, "auth.login.subtitle")}
                 </p>
             </div>
 
@@ -134,7 +137,7 @@ export default function LoginForm() {
                             </svg>
                         )}
                         <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            Continue with Google
+                            {t(lang, "auth.login.social.google")}
                         </span>
                     </button>
 
@@ -151,7 +154,9 @@ export default function LoginForm() {
                                     <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036c-2.148 0-2.797 1.603-2.797 2.898v1.074h5.441l-.693 3.667h-4.748v7.98c-1.332.175-2.686.175-4.017 0Z" />
                                 </svg>
                             )}
-                            <span className="text-sm font-semibold text-white">Facebook</span>
+                            <span className="text-sm font-semibold text-white">
+                                {t(lang, "auth.login.social.facebook")}
+                            </span>
                         </button>
 
                         <button
@@ -166,7 +171,9 @@ export default function LoginForm() {
                                     <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.128 3.675-.552 9.093 1.541 12.096 1.037 1.486 2.231 3.13 3.78 3.07 1.541-.06 2.12-.99 3.945-.99 1.832 0 2.373.99 3.974.96 1.64-.03 2.668-1.554 3.711-3.044 1.137-1.636 1.606-3.237 1.632-3.32-.03-.027-3.161-1.217-3.195-4.816-.037-3.012 2.457-4.464 2.572-4.545-1.41-2.071-3.606-2.296-4.379-2.327-1.928-.093-3.528 1.04-4.66 1.04v-.098ZM14.976 2.9c.844-1.011 1.4-2.42 1.246-3.804-1.214.053-2.697.809-3.568 1.835-.78.913-1.464 2.385-1.275 3.784 1.353.106 2.735-.782 3.597-1.815Z" />
                                 </svg>
                             )}
-                            <span className="text-sm font-semibold text-white">Apple</span>
+                            <span className="text-sm font-semibold text-white">
+                                {t(lang, "auth.login.social.apple")}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -178,7 +185,7 @@ export default function LoginForm() {
                     </div>
                     <div className="relative flex justify-center">
                         <span className="px-4 bg-white dark:bg-slate-800/50 text-xs font-medium text-slate-400 uppercase tracking-widest">
-                            or continue with email
+                            {t(lang, "auth.login.separator")}
                         </span>
                     </div>
                 </div>
@@ -187,11 +194,11 @@ export default function LoginForm() {
                 <form className="space-y-5" onSubmit={handleSubmit}>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                            Email address
+                            {t(lang, "auth.login.emailLabel")}
                         </label>
                         <input
                             className="w-full h-[52px] px-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                            placeholder="name@company.com"
+                            placeholder={t(lang, "auth.login.emailPlaceholder")}
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -203,13 +210,13 @@ export default function LoginForm() {
                     <div>
                         <div className="flex justify-between items-center mb-2">
                             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                Password
+                                {t(lang, "auth.login.passwordLabel")}
                             </label>
                             <Link
                                 className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                                 href={localizePath("/forgot-password", lang)}
                             >
-                                Forgot?
+                                {t(lang, "auth.login.forgot")}
                             </Link>
                         </div>
                         <div className="relative">
@@ -251,7 +258,7 @@ export default function LoginForm() {
                             </div>
                         </div>
                         <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                            Remember me for 30 days
+                            {t(lang, "auth.login.rememberDuration")}
                         </span>
                     </label>
 
@@ -264,10 +271,10 @@ export default function LoginForm() {
                         {isLoading ? (
                             <>
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                <span>Signing in...</span>
+                                <span>{t(lang, "auth.login.submitting")}</span>
                             </>
                         ) : (
-                            <span>Sign in</span>
+                            <span>{t(lang, "auth.login.submit")}</span>
                         )}
                     </button>
                 </form>
@@ -275,12 +282,12 @@ export default function LoginForm() {
 
             {/* Footer */}
             <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                Don&apos;t have an account?{" "}
+                {t(lang, "auth.login.noAccount")}{" "}
                 <Link
                     className="font-semibold text-primary hover:text-primary/80 transition-colors"
                     href={localizePath("/user/register", lang)}
                 >
-                    Sign up for free
+                    {t(lang, "auth.login.signUp")}
                 </Link>
             </p>
         </div>

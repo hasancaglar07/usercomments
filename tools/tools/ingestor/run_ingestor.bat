@@ -24,7 +24,7 @@ set DRYRUN=0
 
 :: Force settings to ensure natural behavior
 set MAX_NEW_REVIEWS_PER_LOOP=1
-set DAILY_REVIEW_LIMIT=140
+set DAILY_REVIEW_LIMIT=1000
 set LOOP_MIN_SECONDS=480
 set LOOP_MAX_SECONDS=900
 

@@ -31,7 +31,7 @@ Create `apps/web/.env.local` with:
 ## Internationalization (i18n)
 
 - All public routes are language-prefixed under `/{lang}/...` (App Router: `app/(site)/[lang]`).
-- Default language is `en`. Missing or unknown prefixes redirect to `/en`.
+- Default language is detected from browser/region (Accept-Language + geo). Missing or unknown prefixes redirect to the detected language (fallback: `/en`).
 - Arabic uses RTL layout (`dir="rtl"`).
 - Review slugs are language-specific (`review_translations.slug`). `/[lang]/content/[slug]` resolves by `lang` and redirects to `/en/...` when a translation is missing.
 - Category routes use IDs (`/catalog/reviews/[id]`) while names come from `category_translations`.
