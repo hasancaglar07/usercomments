@@ -4,10 +4,16 @@ import { localizePath, type SupportedLanguage } from "@/src/lib/i18n";
 export const SITEMAP_PAGE_SIZE = 50000;
 export const SITEMAP_CACHE_SECONDS = 1800;
 
+type SitemapImage = {
+  loc: string;
+  title?: string;
+  caption?: string;
+};
+
 type SitemapEntry = {
   loc: string;
   lastmod?: string;
-  images?: string[];
+  images?: (string | SitemapImage)[];
 };
 
 function escapeXml(value: string): string {
@@ -26,10 +32,20 @@ export function buildUrlset(entries: SitemapEntry[]): string {
       const lastmod = entry.lastmod ? `<lastmod>${entry.lastmod}</lastmod>` : "";
       const images = entry.images?.length
         ? entry.images
-          .map(
-            (image) =>
-              `<image:image><image:loc>${escapeXml(image)}</image:loc></image:image>`
-          )
+          .map((image) => {
+            if (typeof image === "string") {
+              return `<image:image><image:loc>${escapeXml(image)}</image:loc></image:image>`;
+            }
+            // Structured image
+            let imgXml = `<image:loc>${escapeXml(image.loc)}</image:loc>`;
+            if (image.title) {
+              imgXml += `<image:title>${escapeXml(image.title)}</image:title>`;
+            }
+            if (image.caption) {
+              imgXml += `<image:caption>${escapeXml(image.caption)}</image:caption>`;
+            }
+            return `<image:image>${imgXml}</image:image>`;
+          })
           .join("")
         : "";
       return `<url><loc>${escapeXml(entry.loc)}</loc>${lastmod}${images}</url>`;

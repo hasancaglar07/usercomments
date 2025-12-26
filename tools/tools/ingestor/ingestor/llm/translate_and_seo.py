@@ -12,6 +12,8 @@ from .prompts import (
     build_repair_prompt,
     build_translation_prompt,
     build_category_translation_prompt,
+    build_vision_prompt,
+    build_sentiment_enrichment_prompt,
     build_product_translation_prompt,
     build_pivot_translation_prompt,
 )
@@ -156,12 +158,60 @@ async def translate_review(
         # Combine translated chunks
         combined_content = "".join(translated_chunks)
         
+        # SUPER INTELLIGENCE: Sentiment Analysis
+        sentiment_data = {}
+        try:
+            sentiment_prompt = build_sentiment_enrichment_prompt(lang, title, combined_content)
+            sentiment_data = await _translate_with_retry(sentiment_prompt, f"{lang}_sentiment") or {}
+        except Exception as e:
+            logger.warning("Sentiment analysis failed for %s: %s", lang, e)
+
         # Now generate metadata, FAQs, pros/cons separately
         metadata_prompt = build_metadata_prompt(lang, title, combined_content[:2000], category, pros, cons)
         metadata = await _translate_with_retry(metadata_prompt, f"{lang}_metadata")
         
         if metadata:
             metadata["content_html"] = combined_content
+            
+            # Enrich specs with gathered sentiment aspects
+            if sentiment_data and sentiment_data.get("aspects"):
+                if "specs" not in metadata:
+                    metadata["specs"] = {}
+                # Format aspects as "Aspect: 9/10"
+                for k, v in sentiment_data["aspects"].items():
+                     metadata["specs"][k] = f"{v}/10"
+                
+                # Add overall sentiment if not present
+                if sentiment_data.get("key_emotion"):
+                    metadata["specs"]["Verdict"] = sentiment_data["key_emotion"]
+            
+            # SUPER INTELLIGENCE: Inject Alt Tags into HTML images
+            alt_tags = metadata.get("image_alt_tags", [])
+            if alt_tags and combined_content:
+                try:
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(combined_content, "lxml")
+                    images = soup.find_all("img")
+                    for idx, img in enumerate(images):
+                        if idx < len(alt_tags):
+                            img["alt"] = alt_tags[idx]
+                        else:
+                            # Cycle through tags or use generic
+                            img["alt"] = f"{title} - {alt_tags[idx % len(alt_tags)]}"
+                    
+                    # Log the injection
+                    # logger.info("Injected %d SEO alt tags into content images", len(images))
+                    
+                    # Update content_html with injected alt tags
+                    metadata["content_html"] = str(soup)
+                    # Use semantic cleaning if needed, but str(soup) usually is fine for body
+                    # Strip <html><body> wrappers if any
+                    if soup.body:
+                        metadata["content_html"] = soup.body.decode_contents()
+                        
+                except Exception as e:
+                    logger.warning("Failed to inject alt tags into HTML: %s", e)
+
             return metadata
         else:
             # Return minimal structure with translated content

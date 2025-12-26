@@ -345,6 +345,7 @@ def build_metadata_prompt(lang: str, title: str, content_preview: str, category:
         "  \"cons\": [\"Honest disadvantage 1\", \"Honest disadvantage 2\", ...at least 5],\n"
         "  \"faq\": [{\"question\": \"Real question people ask\", \"answer\": \"Helpful answer\"}, ...4-6 items],\n"
         "  \"specs\": {},\n"
+        "  \"image_alt_tags\": [\"Detailed alt text 1\", \"Detailed alt text 2\", \"Detailed alt text 3\"],\n"
         "  \"meta_title\": \"SEO-optimized title (max 60 chars)\",\n"
         "  \"meta_description\": \"Compelling description (max 160 chars)\",\n"
         "  \"og_title\": \"Social share title\",\n"
@@ -357,3 +358,42 @@ def build_metadata_prompt(lang: str, title: str, content_preview: str, category:
         "- Ensure valid JSON syntax."
     )
 
+
+def build_vision_prompt(lang: str) -> str:
+    """Build prompt for analyzing an image to generate alt text."""
+    style_info = LANGUAGE_STYLES.get(lang, LANGUAGE_STYLES["en"])
+    return (
+        f"You are a native {style_info['name']} SEO expert analyzing product images.\n"
+        "Describe what is in this image accurately but naturally.\n\n"
+        "Rules:\n"
+        "1. Create a detailed Alt Text (max 120 chars) for SEO.\n"
+        "2. Focus on visible product details, context, and usage.\n"
+        "3. Do not say 'Image of' or 'Picture of'.\n"
+        "4. Be specific (e.g., 'iPhone 13 Pro in Sierra Blue on wooden table').\n\n"
+        "Output JSON schema:\n"
+        "{\n"
+        "  \"alt_text\": \"...\"\n"
+        "}"
+    )
+
+def build_sentiment_enrichment_prompt(lang: str, title: str, content: str) -> str:
+    """Build prompt for extracting deep sentiment and aspect ratings."""
+    style_info = LANGUAGE_STYLES.get(lang, LANGUAGE_STYLES["en"])
+    return (
+        f"You are an expert product analyst. Analyze this {style_info['name']} review for deep sentiment.\n\n"
+        f"Product: {title}\n"
+        f"Review Content: {content[:4000]}...\n\n"
+        "Task: Extract detailed aspect ratings (1-10) and sentiment based on the text.\n\n"
+        "Output JSON schema:\n"
+        "{\n"
+        "  \"aspects\": {\n"
+        "    \"Quality\": 8,\n"
+        "    \"Value\": 9,\n"
+        "    \"Performance\": 7,\n"
+        "    \"Design\": 10,\n"
+        "    \"Shipment\": 6\n"
+        "  },\n"
+        "  \"overall_sentiment\": \"Positive/Neutral/Negative\",\n"
+        "  \"key_emotion\": \"Delighted / Frustrated / Satisfied\"\n"
+        "}\n"
+    )

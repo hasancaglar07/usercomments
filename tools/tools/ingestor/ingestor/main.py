@@ -203,7 +203,12 @@ async def _ensure_category_ids_async(
                  sub_id = ai_match_cache[norm]
                  if sub_id: logger.info("Subcategory matched by AI CACHE: '%s' -> ID %s", detail.subcategory_name, sub_id)
             elif config.groq_api_key:
-                 sub_id = await match_category_ai(groq, detail.subcategory_name, category_name_map, logger)
+                 # Contextual Matching: "Electronics > Accessories"
+                 query_name = detail.subcategory_name
+                 if detail.category_name:
+                     query_name = f"{detail.category_name} > {detail.subcategory_name}"
+                     
+                 sub_id = await match_category_ai(groq, query_name, category_name_map, logger)
                  ai_match_cache[norm] = sub_id
 
         if sub_id:
@@ -452,9 +457,23 @@ async def _process_review_item_async(
             if not detail.product_image_url:
                 logger.warning("No product image for %s; continuing without product image", source_url)
             
+            # QUALITY GATE
+            # 1. Length Check
+            content_len = len(detail.content_html or "")
+            if content_len < 500:
+                logger.warning("Quality Gate Failed: Content too short (%d chars). Skipping %s", content_len, source_url)
+                return False
+
+            # 2. Image Check
+            if not detail.image_urls and not detail.product_image_url:
+                 # Try fallback from config if needed, but if strictly no images found:
+                 if not config.fallback_review_image_url:
+                     logger.warning("Quality Gate Failed: No images found. Skipping %s", source_url)
+                     return False
+            
             logger.info(
-                "Quality check: %d chars, %d review images, product image %s",
-                len(detail.content_html or ""),
+                "Quality check PASSED: %d chars, %d review images, product image %s",
+                content_len,
                 len(detail.image_urls),
                 "ok" if detail.product_image_url else "missing",
             )
@@ -665,7 +684,7 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         logger=logger,
         dry_run=dry_run,
     )
-    groq = GroqClient(api_key=config.groq_api_key, model=config.groq_model, logger=logger)
+    groq = GroqClient(api_key=config.groq_api_key, model=config.groq_model, logger=logger, vision_model=config.groq_vision_model)
     
     uploader = None
     if not dry_run:
@@ -787,8 +806,21 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
                 # Limit already applied by slicing targets
                 
                 cat_links = set()
-                for page_url in build_page_urls(c_url, config.category_pages_to_scan):
+                
+                # Hybrid Discovery:
+                # 1. Scan standard pages (Relevance/Popular)
+                page_urls_popular = build_page_urls(c_url, config.category_pages_to_scan, sort_new=False)
+                # 2. Scan fresh pages (Newest)
+                page_urls_fresh = build_page_urls(c_url, 1, sort_new=True) # Scan 1st page of 'new' only
+                
+                # Combine unique URLs
+                page_urls = list(dict.fromkeys(page_urls_popular + page_urls_fresh))
+                
+                for p_idx, page_url in enumerate(page_urls):
                     try:
+                        logger.info("Scanning category %d/%d: %s (Page %d/%d) %s", 
+                                    idx + 1, len(targets), c_url, p_idx + 1, len(page_urls), 
+                                    "[Fresh]" if "new=1" in page_url else "[Popular]")
                         p_html = http.get(page_url).text
                         found_links = discover_review_links(p_html, config.source_base_url, logger)
                         for link in found_links:

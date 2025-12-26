@@ -4,10 +4,34 @@ from groq import Groq
 
 
 class GroqClient:
-    def __init__(self, api_key: str, model: str, logger: logging.Logger) -> None:
+    def __init__(self, api_key: str, model: str, logger: logging.Logger, vision_model: str = "llama-3.2-11b-vision-preview") -> None:
         self.client = Groq(api_key=api_key)
         self.model = model
+        self.vision_model = vision_model
         self.logger = logger
+    
+    def analyze_image(self, image_url: str, prompt: str) -> str:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                ]
+            }
+        ]
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.vision_model,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=1024,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            self.logger.warning(f"Groq Vision failed: {e}")
+            return ""
 
     def chat(self, messages: List[Dict[str, str]], temperature: float = 0.2, max_tokens: int = 8192) -> str:
         import time

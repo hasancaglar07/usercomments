@@ -13,14 +13,9 @@ def _normalize_url(base_url: str, href: str) -> str:
     return parsed._replace(fragment="").geturl()
 
 
-def _page_url(base_url: str, page: int) -> str:
-    # Ensure we sort by 'new' or equivalent if possible. 
-    # For irecommend, usually appending `?new=1` works for reviews list, 
-    # but for category pages, the default is often "relevant". 
-    # Let's try to append `?new=1` if it's not present.
-    
-    # Check if sorting param exists
-    if "new=1" not in base_url and "sort=" not in base_url:
+def _page_url(base_url: str, page: int, sort_new: bool = False) -> str:
+    # If sort_new is requested, append ?new=1
+    if sort_new and "new=1" not in base_url and "sort=" not in base_url:
         joiner = "&" if "?" in base_url else "?"
         base_url = f"{base_url}{joiner}new=1"
 
@@ -48,5 +43,5 @@ def discover_review_links(html: str, base_url: str, logger: logging.Logger) -> L
     return sorted(links)
 
 
-def build_page_urls(category_url: str, pages_to_scan: int) -> List[str]:
-    return [_page_url(category_url, page) for page in range(1, pages_to_scan + 1)]
+def build_page_urls(category_url: str, pages_to_scan: int, sort_new: bool = False) -> List[str]:
+    return [_page_url(category_url, page, sort_new) for page in range(1, pages_to_scan + 1)]

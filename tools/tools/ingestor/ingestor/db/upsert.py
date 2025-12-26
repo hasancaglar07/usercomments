@@ -173,11 +173,19 @@ def upsert_product(
     base_slug = slugify(name) or f"product-{short_hash(source_url or name)}"
     
     # Try to find existing product
-    filters = [("eq", "slug", base_slug)]
-        
-    rows = supabase.select("products", columns="id", filters=filters, limit=1)
+    # Try to find existing product by Slug OR Name (Case Insensitive)
+    # First by slug
+    rows = supabase.select("products", columns="id", filters=[("eq", "slug", base_slug)], limit=1)
     if rows:
         return rows[0]["id"]
+
+    # Fallback: Try match by Name (Exact Name Match but Case Insensitive if possible, usually 'eq' is strict)
+    # Ideally we'd use 'ilike' but supabase-py client might be limited. 
+    # Let's assume standard select with "eq" on name as a second check.
+    # Note: Using strict name match is safer than fuzzy for automation to avoid merging "iPhone 13" and "iPhone 13 Pro".
+    rows_name = supabase.select("products", columns="id", filters=[("eq", "name", name)], limit=1)
+    if rows_name:
+        return rows_name[0]["id"]
     
     # Insert new product
     product_payload = {

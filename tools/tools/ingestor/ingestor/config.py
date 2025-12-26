@@ -20,6 +20,7 @@ class Config:
     image_webp_quality: int
     groq_api_key: str
     groq_model: str
+    groq_vision_model: str
     supabase_url: str
     supabase_service_role_key: str
     r2_endpoint: str
@@ -93,6 +94,7 @@ class Config:
             image_webp_quality=env_int("IMAGE_WEBP_QUALITY", 82),
             groq_api_key=os.getenv("GROQ_API_KEY", ""),
             groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            groq_vision_model=os.getenv("GROQ_VISION_MODEL", "llama-3.2-11b-vision-preview"),
             supabase_url=os.getenv("SUPABASE_URL", ""),
             supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
             r2_endpoint=os.getenv("R2_ENDPOINT", ""),
