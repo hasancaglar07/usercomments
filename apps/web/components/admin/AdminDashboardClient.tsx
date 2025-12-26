@@ -124,10 +124,10 @@ const userUpdateSchema = z
       .trim()
       .min(3)
       .max(24)
-      .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _." )
+      .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _.")
       .optional(),
     bio: z.string().trim().max(280).nullable().optional(),
-    profilePicUrl: z.string().url().nullable().optional(),
+    profilePicUrl: z.string().nullable().optional(),
   })
   .refine(
     (value) =>
@@ -2542,14 +2542,14 @@ export default function AdminDashboardClient() {
         current.map((item) =>
           item.id === report.id
             ? {
-                ...item,
-                target: item.target?.review
-                  ? {
-                      ...item.target,
-                      review: { ...item.target.review, status },
-                    }
-                  : item.target,
-              }
+              ...item,
+              target: item.target?.review
+                ? {
+                  ...item.target,
+                  review: { ...item.target.review, status },
+                }
+                : item.target,
+            }
             : item
         )
       );
@@ -2582,14 +2582,14 @@ export default function AdminDashboardClient() {
         current.map((item) =>
           item.id === report.id
             ? {
-                ...item,
-                target: item.target?.comment
-                  ? {
-                      ...item.target,
-                      comment: { ...item.target.comment, status },
-                    }
-                  : item.target,
-              }
+              ...item,
+              target: item.target?.comment
+                ? {
+                  ...item.target,
+                  comment: { ...item.target.comment, status },
+                }
+                : item.target,
+            }
             : item
         )
       );
@@ -2610,14 +2610,14 @@ export default function AdminDashboardClient() {
         current.map((item) =>
           item.target?.user?.userId === userId
             ? {
-                ...item,
-                target: item.target?.user
-                  ? {
-                      ...item.target,
-                      user: { ...item.target.user, role },
-                    }
-                  : item.target,
-              }
+              ...item,
+              target: item.target?.user
+                ? {
+                  ...item.target,
+                  user: { ...item.target.user, role },
+                }
+                : item.target,
+            }
             : item
         )
       );
@@ -2672,10 +2672,7 @@ export default function AdminDashboardClient() {
   };
 
   const handleUserAvatarSelect = (iconName: string) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const url = origin
-      ? new URL(`/profile_icon/${iconName}`, origin).toString()
-      : `/profile_icon/${iconName}`;
+    const url = `/profile_icon/${iconName}`;
     setUserEdit((current) =>
       current ? { ...current, profilePicUrl: url } : current
     );
@@ -2896,35 +2893,35 @@ export default function AdminDashboardClient() {
                     {globalResults.reviews.items
                       .slice(0, GLOBAL_PREVIEW_LIMIT)
                       .map((review) => (
-                      <div
-                        key={`global-review-${review.id}`}
-                        className="flex items-start justify-between gap-3"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {review.title}
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            @{review.author.username} · {review.slug}
-                          </p>
+                        <div
+                          key={`global-review-${review.id}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                              {review.title}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              @{review.author.username} · {review.slug}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                              onClick={() => openReviewInAdmin(review.id)}
+                            >
+                              Admin
+                            </button>
+                            <Link
+                              href={localizePath(`/content/${review.slug}`, lang)}
+                              className="text-[11px] font-semibold text-primary hover:underline"
+                            >
+                              Live
+                            </Link>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                            onClick={() => openReviewInAdmin(review.id)}
-                          >
-                            Admin
-                          </button>
-                          <Link
-                            href={localizePath(`/content/${review.slug}`, lang)}
-                            className="text-[11px] font-semibold text-primary hover:underline"
-                          >
-                            Live
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                     {globalReviewCount === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         No review matches.
@@ -2959,36 +2956,36 @@ export default function AdminDashboardClient() {
                     {globalResults.products.items
                       .slice(0, GLOBAL_PREVIEW_LIMIT)
                       .map((product) => (
-                      <div
-                        key={`global-product-${product.id}`}
-                        className="flex items-start justify-between gap-3"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {product.name}
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {product.brand?.name ? `${product.brand.name} · ` : ""}
-                            {product.slug}
-                          </p>
+                        <div
+                          key={`global-product-${product.id}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                              {product.name}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {product.brand?.name ? `${product.brand.name} · ` : ""}
+                              {product.slug}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                              onClick={() => openProductInAdmin(product.id)}
+                            >
+                              Admin
+                            </button>
+                            <Link
+                              href={localizePath(`/products/${product.slug}`, lang)}
+                              className="text-[11px] font-semibold text-primary hover:underline"
+                            >
+                              Live
+                            </Link>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                            onClick={() => openProductInAdmin(product.id)}
-                          >
-                            Admin
-                          </button>
-                          <Link
-                            href={localizePath(`/products/${product.slug}`, lang)}
-                            className="text-[11px] font-semibold text-primary hover:underline"
-                          >
-                            Live
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                     {globalProductCount === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         No product matches.
@@ -3023,44 +3020,44 @@ export default function AdminDashboardClient() {
                     {globalResults.comments.items
                       .slice(0, GLOBAL_PREVIEW_LIMIT)
                       .map((comment) => {
-                      const preview =
-                        comment.text.length > 90
-                          ? `${comment.text.slice(0, 90)}...`
-                          : comment.text;
-                      return (
-                        <div
-                          key={`global-comment-${comment.id}`}
-                          className="flex items-start justify-between gap-3"
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm text-slate-700 dark:text-slate-200">
-                              {preview}
-                            </p>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                              @{comment.author.username}
-                              {comment.review?.title ? ` · ${comment.review.title}` : ""}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                              onClick={() => openCommentInAdmin(comment.id)}
-                            >
-                              Admin
-                            </button>
-                            {comment.review?.slug ? (
-                              <Link
-                                href={localizePath(`/content/${comment.review.slug}`, lang)}
-                                className="text-[11px] font-semibold text-primary hover:underline"
+                        const preview =
+                          comment.text.length > 90
+                            ? `${comment.text.slice(0, 90)}...`
+                            : comment.text;
+                        return (
+                          <div
+                            key={`global-comment-${comment.id}`}
+                            className="flex items-start justify-between gap-3"
+                          >
+                            <div className="flex-1">
+                              <p className="text-sm text-slate-700 dark:text-slate-200">
+                                {preview}
+                              </p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                @{comment.author.username}
+                                {comment.review?.title ? ` · ${comment.review.title}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                                onClick={() => openCommentInAdmin(comment.id)}
                               >
-                                Live
-                              </Link>
-                            ) : null}
+                                Admin
+                              </button>
+                              {comment.review?.slug ? (
+                                <Link
+                                  href={localizePath(`/content/${comment.review.slug}`, lang)}
+                                  className="text-[11px] font-semibold text-primary hover:underline"
+                                >
+                                  Live
+                                </Link>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                     {globalCommentCount === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         No comment matches.
@@ -3095,35 +3092,35 @@ export default function AdminDashboardClient() {
                     {globalResults.users.items
                       .slice(0, GLOBAL_PREVIEW_LIMIT)
                       .map((user) => (
-                      <div
-                        key={`global-user-${user.userId}`}
-                        className="flex items-start justify-between gap-3"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            @{user.username}
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {user.role}
-                          </p>
+                        <div
+                          key={`global-user-${user.userId}`}
+                          className="flex items-start justify-between gap-3"
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                              @{user.username}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {user.role}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                              onClick={() => openUserInAdmin(user.userId)}
+                            >
+                              Admin
+                            </button>
+                            <Link
+                              href={localizePath(`/users/${user.username}`, lang)}
+                              className="text-[11px] font-semibold text-primary hover:underline"
+                            >
+                              Live
+                            </Link>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                            onClick={() => openUserInAdmin(user.userId)}
-                          >
-                            Admin
-                          </button>
-                          <Link
-                            href={localizePath(`/users/${user.username}`, lang)}
-                            className="text-[11px] font-semibold text-primary hover:underline"
-                          >
-                            Live
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                     {globalUserCount === 0 ? (
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         No user matches.
@@ -3166,11 +3163,10 @@ export default function AdminDashboardClient() {
                     key={tab.key}
                     type="button"
                     onClick={() => setActiveTab(tab.key)}
-                    className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                      activeTab === tab.key
-                        ? "bg-primary text-white"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
+                    className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${activeTab === tab.key
+                      ? "bg-primary text-white"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      }`}
                   >
                     <span>{tab.label}</span>
                     <span className={`text-xs ${activeTab === tab.key ? "text-white" : "text-slate-400"}`}>
@@ -3359,11 +3355,10 @@ export default function AdminDashboardClient() {
                               key={review.id}
                               type="button"
                               onClick={() => handleReviewSelect(review.id)}
-                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${
-                                activeReviewId === review.id
-                                  ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
-                                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
-                              }`}
+                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${activeReviewId === review.id
+                                ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
+                                }`}
                             >
                               <div className="flex items-start gap-3">
                                 <input
@@ -3380,9 +3375,8 @@ export default function AdminDashboardClient() {
                                 <div className="flex-1">
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                     <span
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                        reviewStatusStyles[review.status]
-                                      }`}
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${reviewStatusStyles[review.status]
+                                        }`}
                                     >
                                       {review.status}
                                     </span>
@@ -3594,8 +3588,8 @@ export default function AdminDashboardClient() {
                                   </option>
                                   {(reviewEdit.categoryId
                                     ? subcategoriesByParent.get(
-                                        Number(reviewEdit.categoryId)
-                                      )
+                                      Number(reviewEdit.categoryId)
+                                    )
                                     : []
                                   )?.map((subcategory) => (
                                     <option key={subcategory.id} value={subcategory.id}>
@@ -3689,29 +3683,29 @@ export default function AdminDashboardClient() {
                               <div className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap max-h-48 overflow-auto">
                                 {reviewPreviewBlocks.length > 0
                                   ? reviewPreviewBlocks.map((block, index) =>
-                                      block.type === "list" ? (
-                                        <ul key={`preview-list-${index}`}>
-                                          {block.items.map((item, itemIndex) => (
-                                            <li key={`preview-item-${index}-${itemIndex}`}>
-                                              {item}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      ) : (
-                                        <p key={`preview-paragraph-${index}`}>
-                                          {block.lines.map((line, lineIndex) => (
-                                            <span
-                                              key={`preview-line-${index}-${lineIndex}`}
-                                            >
-                                              {line}
-                                              {lineIndex < block.lines.length - 1 ? (
-                                                <br />
-                                              ) : null}
-                                            </span>
-                                          ))}
-                                        </p>
-                                      )
+                                    block.type === "list" ? (
+                                      <ul key={`preview-list-${index}`}>
+                                        {block.items.map((item, itemIndex) => (
+                                          <li key={`preview-item-${index}-${itemIndex}`}>
+                                            {item}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p key={`preview-paragraph-${index}`}>
+                                        {block.lines.map((line, lineIndex) => (
+                                          <span
+                                            key={`preview-line-${index}-${lineIndex}`}
+                                          >
+                                            {line}
+                                            {lineIndex < block.lines.length - 1 ? (
+                                              <br />
+                                            ) : null}
+                                          </span>
+                                        ))}
+                                      </p>
                                     )
+                                  )
                                   : "No preview text available."}
                               </div>
                             </div>
@@ -3755,9 +3749,8 @@ export default function AdminDashboardClient() {
                                   >
                                     <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                                       <span
-                                        className={`rounded-full px-2 py-0.5 font-semibold ${
-                                          commentStatusStyles[comment.status]
-                                        }`}
+                                        className={`rounded-full px-2 py-0.5 font-semibold ${commentStatusStyles[comment.status]
+                                          }`}
                                       >
                                         {comment.status}
                                       </span>
@@ -3926,11 +3919,10 @@ export default function AdminDashboardClient() {
                       <div className="mt-3 grid gap-2 text-xs">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                              uploadHealth.checks.r2.configured
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-amber-100 text-amber-700"
-                            }`}
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${uploadHealth.checks.r2.configured
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                              }`}
                           >
                             {uploadHealth.checks.r2.configured ? "R2 configured" : "R2 missing"}
                           </span>
@@ -4202,16 +4194,16 @@ export default function AdminDashboardClient() {
                         </button>
                       </div>
 
-                  {productError ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
-                      {productError}
-                    </div>
-                  ) : null}
-                  {productMessage ? (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
-                      {productMessage}
-                    </div>
-                  ) : null}
+                      {productError ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                          {productError}
+                        </div>
+                      ) : null}
+                      {productMessage ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs px-3 py-2">
+                          {productMessage}
+                        </div>
+                      ) : null}
 
                       <div className="space-y-3">
                         <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
@@ -4258,11 +4250,10 @@ export default function AdminDashboardClient() {
                                   key={product.id}
                                   type="button"
                                   onClick={() => handleProductSelect(product.id)}
-                                  className={`w-full text-left rounded-lg border px-3 py-3 transition ${
-                                    activeProductId === product.id
-                                      ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
-                                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
-                                  }`}
+                                  className={`w-full text-left rounded-lg border px-3 py-3 transition ${activeProductId === product.id
+                                    ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
+                                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
+                                    }`}
                                 >
                                   <div className="flex items-start gap-3">
                                     <input
@@ -4287,9 +4278,8 @@ export default function AdminDashboardClient() {
                                     <div className="flex-1">
                                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                         <span
-                                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                            productStatusStyles[status]
-                                          }`}
+                                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${productStatusStyles[status]
+                                            }`}
                                         >
                                           {status}
                                         </span>
@@ -4990,11 +4980,10 @@ export default function AdminDashboardClient() {
                               key={comment.id}
                               type="button"
                               onClick={() => handleCommentSelect(comment.id)}
-                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${
-                                activeCommentId === comment.id
-                                  ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
-                                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
-                              }`}
+                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${activeCommentId === comment.id
+                                ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
+                                }`}
                             >
                               <div className="flex items-start gap-3">
                                 <input
@@ -5011,9 +5000,8 @@ export default function AdminDashboardClient() {
                                 <div className="flex-1">
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                     <span
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                        commentStatusStyles[comment.status]
-                                      }`}
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${commentStatusStyles[comment.status]
+                                        }`}
                                     >
                                       {comment.status}
                                     </span>
@@ -5288,11 +5276,10 @@ export default function AdminDashboardClient() {
                               key={report.id}
                               type="button"
                               onClick={() => handleReportSelect(report.id)}
-                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${
-                                activeReportId === report.id
-                                  ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
-                                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
-                              }`}
+                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${activeReportId === report.id
+                                ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
+                                }`}
                             >
                               <div className="flex items-start gap-3">
                                 <input
@@ -5309,9 +5296,8 @@ export default function AdminDashboardClient() {
                                 <div className="flex-1">
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                     <span
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                        reportStatusStyles[report.status]
-                                      }`}
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${reportStatusStyles[report.status]
+                                        }`}
                                     >
                                       {report.status}
                                     </span>
@@ -5402,9 +5388,8 @@ export default function AdminDashboardClient() {
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                      reviewStatusStyles[activeReport.target.review.status]
-                                    }`}
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${reviewStatusStyles[activeReport.target.review.status]
+                                      }`}
                                   >
                                     {activeReport.target.review.status}
                                   </span>
@@ -5443,7 +5428,7 @@ export default function AdminDashboardClient() {
                                     <div className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap max-h-32 overflow-auto mt-1">
                                       {toPlainText(
                                         reportTargetReviewDetail.contentHtml ??
-                                          reportTargetReviewDetail.excerpt
+                                        reportTargetReviewDetail.excerpt
                                       ) || "No preview text available."}
                                     </div>
                                     <div className="flex flex-wrap gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-3">
@@ -5474,9 +5459,8 @@ export default function AdminDashboardClient() {
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                      commentStatusStyles[activeReport.target.comment.status]
-                                    }`}
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${commentStatusStyles[activeReport.target.comment.status]
+                                      }`}
                                   >
                                     {activeReport.target.comment.status}
                                   </span>
@@ -5549,8 +5533,8 @@ export default function AdminDashboardClient() {
                                         <p className="text-xs text-slate-500 dark:text-slate-400">
                                           {reportTargetUserDetail.createdAt
                                             ? `Joined ${formatRelativeTime(
-                                                reportTargetUserDetail.createdAt
-                                              )}`
+                                              reportTargetUserDetail.createdAt
+                                            )}`
                                             : "Join date unknown"}
                                         </p>
                                       </div>
@@ -5569,8 +5553,8 @@ export default function AdminDashboardClient() {
                               </div>
                             ) : null}
                             {!activeReport.target?.review &&
-                            !activeReport.target?.comment &&
-                            !activeReport.target?.user ? (
+                              !activeReport.target?.comment &&
+                              !activeReport.target?.user ? (
                               <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Target details not available.
                               </p>
@@ -5699,11 +5683,10 @@ export default function AdminDashboardClient() {
                               key={user.userId}
                               type="button"
                               onClick={() => handleUserSelect(user.userId)}
-                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${
-                                activeUserId === user.userId
-                                  ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
-                                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
-                              }`}
+                              className={`w-full text-left rounded-lg border px-3 py-3 transition ${activeUserId === user.userId
+                                ? "border-primary bg-blue-50/70 dark:bg-blue-950/30"
+                                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 hover:border-primary/60"
+                                }`}
                             >
                               <div className="flex items-start gap-3">
                                 <input
@@ -5720,9 +5703,8 @@ export default function AdminDashboardClient() {
                                 <div className="flex-1">
                                   <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                     <span
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                        userRoleStyles[user.role]
-                                      }`}
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${userRoleStyles[user.role]
+                                        }`}
                                     >
                                       {user.role}
                                     </span>
