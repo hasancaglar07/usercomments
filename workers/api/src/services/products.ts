@@ -204,7 +204,16 @@ export async function fetchProducts(
     .in("status", visibleStatuses);
 
   if (categoryId) {
-    query = query.eq("product_categories.category_id", categoryId);
+    // Use !inner to force an inner join for filtering parent rows by child condition
+    const selectWithInner = productListSelectWithStats.replace(
+      "product_categories(category_id)",
+      "product_categories!inner(category_id)"
+    );
+    query = supabase
+      .from("products")
+      .select(selectWithInner)
+      .in("status", visibleStatuses)
+      .eq("product_categories.category_id", categoryId);
   }
 
   switch (sort) {
@@ -234,7 +243,10 @@ export async function fetchProducts(
 
   let countQuery = supabase
     .from("products")
-    .select("id", { count: "exact", head: true })
+    .select(
+      categoryId ? "id, product_categories!inner(category_id)" : "id",
+      { count: "exact", head: true }
+    )
     .in("status", visibleStatuses);
 
   if (categoryId) {
