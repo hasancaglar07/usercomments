@@ -30,6 +30,7 @@ import {
   getCurrentUser,
   signOut,
 } from "@/src/lib/auth";
+import { PROFILE_ICONS } from "@/src/lib/constants";
 import { FALLBACK_PROFILE_IMAGES } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
@@ -124,6 +125,7 @@ export default function UserProfileActionsClient({
     profilePicUrl?: string | null;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isSelf, setIsSelf] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -377,6 +379,18 @@ export default function UserProfileActionsClient({
         event.target.value = "";
       }
     }
+  };
+
+  const handleAvatarSelect = (iconName: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = origin
+      ? new URL(`/profile_icon/${iconName}`, origin).toString()
+      : `/profile_icon/${iconName}`;
+    setEditForm((current) => ({
+      ...current,
+      profilePicUrl: url,
+    }));
+    setIsAvatarModalOpen(false);
   };
 
   useEffect(() => {
@@ -986,6 +1000,14 @@ export default function UserProfileActionsClient({
                           : t(lang, "profileActions.edit.uploadPhoto")}
                       </button>
                       <button
+                        className="rounded-lg border border-border-light dark:border-border-dark px-3 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-70"
+                        type="button"
+                        onClick={() => setIsAvatarModalOpen(true)}
+                        disabled={editUploading}
+                      >
+                        {t(lang, "settings.chooseAvatar")}
+                      </button>
+                      <button
                         className="text-xs font-semibold text-text-sub-light dark:text-text-sub-dark hover:text-primary"
                         type="button"
                         onClick={() =>
@@ -1095,6 +1117,62 @@ export default function UserProfileActionsClient({
                   </div>
                 </form>
               )}
+            </div>
+          </div>
+        ) : null}
+
+        {isAvatarModalOpen ? (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setIsAvatarModalOpen(false)}
+            />
+            <div
+              className="relative w-full max-w-4xl rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                  {t(lang, "settings.avatarModalTitle")}
+                </h3>
+                <button
+                  className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                  type="button"
+                  onClick={() => setIsAvatarModalOpen(false)}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    close
+                  </span>
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                  {PROFILE_ICONS.map((icon) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      className="group relative aspect-square rounded-xl overflow-hidden border border-border-light dark:border-border-dark hover:ring-4 hover:ring-primary/50 transition-all"
+                      onClick={() => handleAvatarSelect(icon)}
+                    >
+                      <img
+                        src={`/profile_icon/${icon}`}
+                        alt={t(lang, "settings.avatarOptionAlt")}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-end pt-4">
+                <button
+                  className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                  type="button"
+                  onClick={() => setIsAvatarModalOpen(false)}
+                >
+                  {t(lang, "common.cancel")}
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

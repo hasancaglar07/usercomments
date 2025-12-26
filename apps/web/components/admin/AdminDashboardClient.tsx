@@ -28,6 +28,7 @@ import {
   formatNumber,
   formatRelativeTime,
 } from "@/src/lib/review-utils";
+import { PROFILE_ICONS } from "@/src/lib/constants";
 import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import {
   DEFAULT_LANGUAGE,
@@ -704,6 +705,7 @@ export default function AdminDashboardClient() {
     profilePicUrl: string;
   } | null>(null);
   const [userRoleEdit, setUserRoleEdit] = useState<UserRole>("user");
+  const [isUserAvatarModalOpen, setIsUserAvatarModalOpen] = useState(false);
 
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryParentId, setNewCategoryParentId] = useState("");
@@ -2667,6 +2669,17 @@ export default function AdminDashboardClient() {
       handleAccessError(message);
       setUserDetailError("Unable to update user profile.");
     }
+  };
+
+  const handleUserAvatarSelect = (iconName: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = origin
+      ? new URL(`/profile_icon/${iconName}`, origin).toString()
+      : `/profile_icon/${iconName}`;
+    setUserEdit((current) =>
+      current ? { ...current, profilePicUrl: url } : current
+    );
+    setIsUserAvatarModalOpen(false);
   };
 
   const handleUserRoleSave = async () => {
@@ -5814,18 +5827,15 @@ export default function AdminDashboardClient() {
                           </div>
                           <div className="grid gap-2">
                             <label className="text-xs text-slate-500 dark:text-slate-400">
-                              Profile picture URL
+                              Profile picture
                             </label>
-                            <input
-                              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm"
-                              value={userEdit.profilePicUrl}
-                              onChange={(event) =>
-                                setUserEdit({
-                                  ...userEdit,
-                                  profilePicUrl: event.target.value,
-                                })
-                              }
-                            />
+                            <button
+                              type="button"
+                              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                              onClick={() => setIsUserAvatarModalOpen(true)}
+                            >
+                              Choose avatar
+                            </button>
                           </div>
                           <button
                             type="button"
@@ -6064,6 +6074,59 @@ export default function AdminDashboardClient() {
           </div>
         )}
       </main>
+      {isUserAvatarModalOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsUserAvatarModalOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                Choose avatar
+              </h3>
+              <button
+                type="button"
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                onClick={() => setIsUserAvatarModalOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                {PROFILE_ICONS.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:ring-4 hover:ring-primary/50 transition-all"
+                    onClick={() => handleUserAvatarSelect(icon)}
+                  >
+                    <img
+                      src={`/profile_icon/${icon}`}
+                      alt="Avatar option"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                onClick={() => setIsUserAvatarModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

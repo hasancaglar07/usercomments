@@ -208,10 +208,18 @@ def build_product_translation_prompt(
 ) -> str:
     category_line = category_name_ru or ""
     description_line = description_ru or ""
+    
+    # Get language-specific style guide
+    style_info = LANGUAGE_STYLES.get(lang, LANGUAGE_STYLES["en"])
+    
     return (
         "Translate Russian product name/description into the target language and generate SEO fields.\n"
-        f"Target language: {lang}\n"
+        f"Target language: {lang} ({style_info['name']})\n"
         f"Category (Russian): {category_line}\n\n"
+        
+        f"📝 TONE & STYLE FOR {style_info['name'].upper()}:\n"
+        f"- Tone: {style_info['tone']}\n"
+        f"- Style: {style_info['style']}\n\n"
         "Input JSON:\n"
         "{\n"
         f"  \"name_ru\": {name_ru!r},\n"

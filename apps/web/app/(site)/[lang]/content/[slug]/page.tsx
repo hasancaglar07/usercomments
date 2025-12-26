@@ -869,7 +869,7 @@ export default async function Page(props: PageProps) {
                     {review.summary && (
                       <div className="mb-8">
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-                          {t(lang, "reviewDetail.summary")}
+                          {t(lang, "reviewDetail.summarySection")}
                         </h2>
                         <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                           {review.summary}
@@ -881,7 +881,7 @@ export default async function Page(props: PageProps) {
                     {review.faq && review.faq.length > 0 && (
                       <div className="mb-8">
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-                          {t(lang, "reviewDetail.faq")}
+                          {t(lang, "reviewDetail.faqSection")}
                         </h2>
                         <div className="space-y-4">
                           {review.faq.map((item, idx) => (
@@ -902,7 +902,7 @@ export default async function Page(props: PageProps) {
                     {review.specs && Object.keys(review.specs).length > 0 && (
                       <div className="mb-8">
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-                          {t(lang, "reviewDetail.specs")}
+                          {t(lang, "reviewDetail.specsSection")}
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                           {Object.entries(review.specs).map(([key, value], idx) => (
