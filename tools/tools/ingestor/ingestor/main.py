@@ -256,34 +256,51 @@ async def _ensure_category_ids_async(
                     logger.error("Product image processing failed: %s", e)
 
             if config.langs:
-                first_lang = config.langs[0]
-                rows = await asyncio.to_thread(
+                # Check which languages are already translated for this product
+                existing_translations = await asyncio.to_thread(
                     supabase.select,
                     "product_translations",
-                    "id",
-                    [("eq", "product_id", prod_id), ("eq", "lang", first_lang)],
+                    "lang",
+                    [("eq", "product_id", prod_id)],
                 )
-                if not rows:
+                existing_langs = {row["lang"] for row in existing_translations}
+                missing_langs = [l for l in config.langs if l not in existing_langs]
+                
+                if missing_langs:
+                    logger.info("Missing product translations for: %s. Generating...", missing_langs)
                     try:
+                        # Use existing English translation as source if available, otherwise Russian
+                        source_name = prod_name
+                        source_desc = prod_payload.get("description")
+                        
+                        # Optimization: If we have an EN translation, use it as pivot source?
+                        # For now, we will just use the original Russian source for consistency, 
+                        # or rely on translate_product handling. 
+                        # translate_product currently takes RU source arguments. 
+                        # Ideally we should refactor translate_product to support pivot, but for now 
+                        # passing the original data is safer to avoid drift.
+
                         translations = await translate_product(
                             groq,
                             prod_name,
                             prod_payload.get("description"),
                             detail.category_name,
-                            config.langs,
-                            logger,
-                        )
-                        await asyncio.to_thread(
-                            upsert_product_translations,
-                            supabase,
-                            prod_id,
-                            translations.values(),
+                            missing_langs,
                             logger,
                         )
                         
-                        # Update Main Product with Translated Data (Name, Desc, Slug)
-                        # Prefer 'en' if available, else take first
-                        main_lang_data = translations.get("en") or list(translations.values())[0]
+                        if translations:
+                           await asyncio.to_thread(
+                               upsert_product_translations,
+                               supabase,
+                               prod_id,
+                               translations.values(),
+                               logger,
+                           )
+                        
+                        # Determine if we need to update the main product record (e.g. if EN was just generated)
+                        # We prefer EN for the main slug/name.
+                        main_lang_data = translations.get("en")
                         if main_lang_data:
                             try:
                                 await asyncio.to_thread(
@@ -292,13 +309,14 @@ async def _ensure_category_ids_async(
                                     {
                                         "name": main_lang_data["name"],
                                         "description": main_lang_data["description"],
-                                        "slug": main_lang_data["slug"], # Update slug to be English/Clean
+                                        "slug": main_lang_data["slug"],
                                     },
                                     [("eq", "id", prod_id)]
                                 )
                                 logger.info("Updated main product record to %s (slug: %s)", main_lang_data["lang"], main_lang_data["slug"])
                             except Exception as update_err:
                                 logger.warning("Failed to update main product record: %s", update_err)
+                                
                     except Exception as e:
                         logger.warning("Product translation failed: %s", e)
 
@@ -587,47 +605,25 @@ async def _process_review_item_async(
             translation_payloads = []
             for lang, data in translations.items():
                 base_slug = slugify(data["slug"], max_length=80, fallback=detail.title)
-                rich_content = data["content_html"]
-
-                # Inject Pros/Cons in a format the frontend parser understands
-                # It expects a section starting with "Pros:" or "Cons:" followed by lines starting with Dash/Bullet
-                # and sections separated by double newlines.
-                # Assembly Order: Review Body -> Summary -> Pros/Cons -> FAQ -> Specs
                 
-                # 1. Summary
-                if data.get("summary"):
-                    rich_content += f'<div class="editor-summary-card"><h3>Editor\'s Summary</h3><p>{data["summary"]}</p></div>'
-
-                # 2. Pros/Cons
-                pros_cons_text = ""
-                if data.get("pros"):
-                    pros_list = "\n".join([f"- {p}" for p in data["pros"]])
-                    pros_cons_text += f"<p>Pros:<br>{pros_list}</p>"
-                if data.get("cons"):
-                    cons_list = "\n".join([f"- {c}" for c in data["cons"]])
-                    if pros_cons_text: pros_cons_text += "<br><br>"
-                    pros_cons_text += f"<p>Cons:<br>{cons_list}</p>"
+                # We no longer inject Pros/Cons/FAQ/Specs into HTML.
+                # The frontend now renders these from structured fields in the DB.
+                # This prevents "broken text" issues and allows for clean, localized UI components.
                 
-                if pros_cons_text:
-                    rich_content += f'<div class="pros-cons-block">{pros_cons_text}</div>'
-
-                # 3. FAQ
-                if data.get("faq"):
-                    faq_items = "".join([f'<li><strong>{f["question"]}</strong><p>{f["answer"]}</p></li>' for f in data["faq"]])
-                    rich_content += f'<div class="faq-card"><h3>Featured FAQ</h3><ul>{faq_items}</ul></div>'
-
-                # 4. Specs
-                if data.get("specs"):
-                    rows = "".join([f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>" for k, v in data["specs"].items()])
-                    rich_content += f'<div class="specs-card"><h3>Specifications</h3><table class="specs-table"><tbody>{rows}</tbody></table></div>'
+                raw_content = data["content_html"]
                 
                 translation_payloads.append({
                     "lang": lang,
                     "title": data["title"],
-                    "content_html": clean_html(inject_internal_links(rich_content, product_map)),
+                    "content_html": clean_html(inject_internal_links(raw_content, product_map)),
                     "meta_title": data["meta_title"],
                     "meta_description": data["meta_description"],
                     "slug": base_slug,
+                    "summary": data.get("summary"),
+                    "faq": data.get("faq"),
+                    "specs": data.get("specs"),
+                    "pros": data.get("pros"),
+                    "cons": data.get("cons"),
                 })
 
             if review_id and not dry_run:

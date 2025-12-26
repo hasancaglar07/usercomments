@@ -95,6 +95,11 @@ def upsert_review_translations(
             "meta_title": translation["meta_title"],
             "meta_description": translation["meta_description"],
             "excerpt": translation.get("meta_description", "")[:200], # Fallback excerpt
+            "summary": translation.get("summary"),
+            "faq": translation.get("faq"),
+            "specs": translation.get("specs"),
+            "pros": translation.get("pros"),
+            "cons": translation.get("cons"),
         }
         
         # Suffix slug with review identifier to ensure uniqueness across the board
