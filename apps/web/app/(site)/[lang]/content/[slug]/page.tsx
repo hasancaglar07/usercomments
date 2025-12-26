@@ -799,16 +799,16 @@ export default async function Page(props: PageProps) {
                 </div>
 
                 {/* Pros & Cons */}
-                {(extracted.pros.length > 0 || extracted.cons.length > 0) && (
+                {((review.pros && review.pros.length > 0) || (review.cons && review.cons.length > 0) || extracted.pros.length > 0 || extracted.cons.length > 0) && (
                   <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-700">
-                    {extracted.pros.length > 0 && (
+                    {((review.pros && review.pros.length > 0) || extracted.pros.length > 0) && (
                       <div className="flex flex-col gap-3">
                         <h4 className="flex items-center gap-2 text-green-600 dark:text-green-400 font-bold">
                           <span className="material-symbols-outlined">add_circle</span>{" "}
                           {t(lang, "reviewDetail.pros")}
                         </h4>
                         <ul className="space-y-2">
-                          {extracted.pros.map((p, idx) => (
+                          {((review.pros && review.pros.length > 0) ? review.pros : extracted.pros).map((p, idx) => (
                             <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
                               <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
                               {p}
@@ -817,14 +817,14 @@ export default async function Page(props: PageProps) {
                         </ul>
                       </div>
                     )}
-                    {extracted.cons.length > 0 && (
+                    {((review.cons && review.cons.length > 0) || extracted.cons.length > 0) && (
                       <div className="flex flex-col gap-3">
                         <h4 className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold">
                           <span className="material-symbols-outlined">remove_circle</span>{" "}
                           {t(lang, "reviewDetail.cons")}
                         </h4>
                         <ul className="space-y-2">
-                          {extracted.cons.map((c, idx) => (
+                          {((review.cons && review.cons.length > 0) ? review.cons : extracted.cons).map((c, idx) => (
                             <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
                               <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
                               {c}
@@ -877,24 +877,10 @@ export default async function Page(props: PageProps) {
                       </div>
                     )}
 
-                    {/* FAQ Section */}
-                    {review.faq && review.faq.length > 0 && (
-                      <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
-                          {t(lang, "reviewDetail.faqSection")}
-                        </h2>
-                        <div className="space-y-4">
-                          {review.faq.map((item, idx) => (
-                            <div key={idx}>
-                              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
-                                {item.question}
-                              </h3>
-                              <p className="text-slate-600 dark:text-slate-300">
-                                {item.answer}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                    {/* Table of Contents (Moved Inline) */}
+                    {extracted.blocks.some(b => b.type === "h2" || b.type === "h3") && (
+                      <div className="mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <TableOfContents contentSelector=".prose" titleLabel={t(lang, "common.tableOfContents")} />
                       </div>
                     )}
 
@@ -952,12 +938,29 @@ export default async function Page(props: PageProps) {
                         {review.excerpt ?? ""}
                       </p>
                     )}
+
+                    {/* FAQ Section (Moved to Bottom) */}
+                    {review.faq && review.faq.length > 0 && (
+                      <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
+                          {t(lang, "reviewDetail.faqSection")}
+                        </h2>
+                        <div className="space-y-6">
+                          {review.faq.map((item, idx) => (
+                            <div key={idx} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl">
+                              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3">
+                                {item.question}
+                              </h3>
+                              <div
+                                className="text-slate-600 dark:text-slate-300 leading-relaxed prose-sm dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: item.answer }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {extracted.blocks.some(b => b.type === "h2" || b.type === "h3") && (
-                    <div className="p-6 lg:pl-0 lg:pt-8 w-full lg:w-auto">
-                      <TableOfContents contentSelector=".prose" titleLabel={t(lang, "common.tableOfContents")} />
-                    </div>
-                  )}
                 </div>
 
                 {/* Helpful Bar */}

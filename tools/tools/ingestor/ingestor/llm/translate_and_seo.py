@@ -37,7 +37,14 @@ _REQUIRED_KEYS = {
 
 def _normalize_payload(payload: dict, lang: str, fallback_title: str) -> dict:
     data = {key: (payload.get(key) or "") for key in _REQUIRED_KEYS}
-    data["title"] = normalize_whitespace(str(data["title"])) or fallback_title
+    # Sanitize title to prevent JSON leakage
+    raw_title = normalize_whitespace(str(data["title"]))
+    if '", "content_html":' in raw_title:
+         raw_title = raw_title.split('", "content_html":')[0]
+    if '", "' in raw_title: # Generic catch for other JSON fields leaking into title
+         raw_title = raw_title.split('", "')[0]
+    data["title"] = raw_title.strip('"').strip() or fallback_title
+
     data["content_html"] = clean_html(str(data["content_html"]))
     data["meta_title"] = normalize_whitespace(str(data["meta_title"])) or data["title"]
     data["meta_description"] = normalize_whitespace(str(data["meta_description"]))
@@ -61,7 +68,19 @@ def _normalize_payload(payload: dict, lang: str, fallback_title: str) -> dict:
     # Ensure pros/cons/faq are correctly typed
     data["pros"] = [str(x) for x in payload.get("pros", []) if x][:20]
     data["cons"] = [str(x) for x in payload.get("cons", []) if x][:20]
-    data["faq"] = payload.get("faq") if isinstance(payload.get("faq"), list) else []
+    
+    # Robust FAQ normalization
+    raw_faq = payload.get("faq")
+    cleaned_faq = []
+    if isinstance(raw_faq, list):
+        for item in raw_faq:
+            if isinstance(item, dict) and 'question' in item and 'answer' in item:
+                 cleaned_faq.append({
+                     "question": str(item['question']),
+                     "answer": str(item['answer'])
+                 })
+    data["faq"] = cleaned_faq
+
     data["specs"] = payload.get("specs") if isinstance(payload.get("specs"), dict) else {}
     data["summary"] = normalize_whitespace(str(payload.get("summary") or ""))
     
@@ -179,11 +198,10 @@ async def translate_review(
                     metadata["specs"] = {}
                 # Format aspects as "Aspect: 9/10"
                 for k, v in sentiment_data["aspects"].items():
-                     metadata["specs"][k] = f"{v}/10"
-                
-                # Add overall sentiment if not present
-                if sentiment_data.get("key_emotion"):
-                    metadata["specs"]["Verdict"] = sentiment_data["key_emotion"]
+                     if isinstance(v, int) or isinstance(v, float):
+                         metadata["specs"][k] = f"{v}/10"
+                     else:
+                         metadata["specs"][k] = str(v)
             
             # SUPER INTELLIGENCE: Inject Alt Tags into HTML images
             alt_tags = metadata.get("image_alt_tags", [])
@@ -214,15 +232,18 @@ async def translate_review(
 
             return metadata
         else:
-            # Return minimal structure with translated content
+            # Metadata generation failed
+            logger.error("Metadata generation (enrichment) failed for %s. Returning translated content without rich snippets.", lang)
+            # Return minimal structure with translated content. 
+            # IMPORTANT: Do not fallback to input 'pros'/'cons' as they might be in source language (e.g. Russian).
             return {
                 "title": title,
                 "content_html": combined_content,
                 "summary": "",
                 "specs": {},
                 "faq": [],
-                "pros": pros or [],
-                "cons": cons or [],
+                "pros": [], 
+                "cons": [],
                 "meta_title": title[:60],
                 "meta_description": title[:160],
                 "og_title": title[:60],
@@ -254,6 +275,7 @@ async def translate_review(
     other_langs = [l for l in langs if l != "en"]
     
     async def _do_one(lang):
+        logger.info(f"Starting translation for language: {lang}")
         try:
             content_length = len(content_html_ru or "")
             
@@ -272,6 +294,7 @@ async def translate_review(
                         results["en"].get("cons", cons_ru)
                     )
                 else:
+                    logger.info(f"Using English pivot for {lang}")
                     prompt = build_pivot_translation_prompt(lang, results["en"])
                     parsed = await _translate_with_retry(prompt, lang)
             else:
@@ -280,25 +303,32 @@ async def translate_review(
                     logger.info("Long content (%d chars), using chunked translation for %s (direct)", content_length, lang)
                     parsed = await _translate_chunked(lang, title_ru, content_html_ru, category_name_ru, pros_ru, cons_ru)
                 else:
+                    logger.info(f"Direct translation from Russian for {lang}")
                     prompt = build_translation_prompt(lang, title_ru, content_html_ru, category_name_ru, pros_ru, cons_ru)
                     parsed = await _translate_with_retry(prompt, lang)
             
             if parsed:
+                # Log what structured data we got
+                keys_found = [k for k in ['summary', 'faq', 'specs', 'pros', 'cons'] if parsed.get(k)]
+                logger.info(f"Translation success for {lang}. Structured data found: {keys_found}")
+                
                 normalized = _normalize_payload(parsed, lang, fallback_title=title_ru)
                 return lang, normalized
             else:
                 logger.error("Failed to translate review to %s after all attempts", lang)
                 return lang, None
         except Exception as e:
-            logger.error("Failed to translate review to %s: %s", lang, e)
+            logger.error("Failed to translate review to %s: %s", lang, e, exc_info=True)
             return lang, None
 
     if other_langs:
+        logger.info(f"Processing other languages: {other_langs}")
         items = await asyncio.gather(*[_do_one(l) for l in other_langs])
         for lang, res in items:
             if res:
                 results[lang] = res
-                
+    
+    logger.info(f"Translation complete. Languages generated: {list(results.keys())}")
     return results
 
 

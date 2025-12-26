@@ -27,6 +27,11 @@ type DbReviewTranslationRow = {
   content_html?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
+  summary?: string | null;
+  faq?: unknown;
+  specs?: unknown;
+  pros?: unknown;
+  cons?: unknown;
 };
 
 type DbReviewRow = {
@@ -120,7 +125,12 @@ const reviewTranslationSelect = `
     excerpt,
     content_html,
     meta_title,
-    meta_description
+    meta_description,
+    summary,
+    faq,
+    specs,
+    pros,
+    cons
   )
 `;
 
@@ -316,6 +326,11 @@ export async function fetchReviewBySlug(
     content_html,
     meta_title,
     meta_description,
+    summary,
+    faq,
+    specs,
+    pros,
+    cons,
     reviews(
       ${reviewDetailSelect},
       review_translations(lang, slug)
@@ -413,6 +428,11 @@ export async function fetchReviewBySlug(
         content_html: translation.content_html ?? null,
         meta_title: translation.meta_title ?? null,
         meta_description: translation.meta_description ?? null,
+        summary: translation.summary ?? null,
+        faq: translation.faq,
+        specs: translation.specs,
+        pros: translation.pros,
+        cons: translation.cons,
       },
       ...translationList
         .filter((item) => item.lang !== translation.lang)

@@ -22,6 +22,9 @@ export type Review = {
   recommend?: boolean;
   pros?: string[];
   cons?: string[];
+  summary?: string;
+  faq?: { question: string; answer: string }[];
+  specs?: Record<string, string | number>;
   author: {
     username: string;
     displayName?: string;

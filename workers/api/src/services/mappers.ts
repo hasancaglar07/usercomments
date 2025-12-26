@@ -39,6 +39,11 @@ type DbReview = {
     content_html?: string | null;
     meta_title?: string | null;
     meta_description?: string | null;
+    summary?: string | null;
+    faq?: unknown;
+    specs?: unknown;
+    pros?: unknown;
+    cons?: unknown;
   }[]
   | null;
   rating_avg?: number | string | null;
@@ -209,6 +214,11 @@ export function mapReviewRow(
         contentHtml: translation.content_html ?? undefined,
         metaTitle: translation.meta_title ?? undefined,
         metaDescription: translation.meta_description ?? undefined,
+        summary: translation.summary ?? undefined,
+        faq: translation.faq,
+        specs: translation.specs,
+        pros: translation.pros,
+        cons: translation.cons,
       }))
     : [];
   const preferredTranslation = options?.lang
@@ -217,8 +227,8 @@ export function mapReviewRow(
   const photoUrls = normalizeStringArray(row.photo_urls)
     ?.map((u) => fixUrl(u, options?.r2BaseUrl))
     .filter((u): u is string => !!u);
-  const pros = normalizeStringArray(row.pros);
-  const cons = normalizeStringArray(row.cons);
+  const pros = normalizeStringArray(preferredTranslation?.pros);
+  const cons = normalizeStringArray(preferredTranslation?.cons);
   const excerpt = preferredTranslation?.excerpt ?? row.excerpt ?? "";
   const contentHtml = resolveReviewContentHtml(
     preferredTranslation?.contentHtml ?? row.content_html ?? undefined,
@@ -261,6 +271,9 @@ export function mapReviewRow(
     recommend: row.recommend ?? undefined,
     pros,
     cons,
+    summary: preferredTranslation?.summary ?? undefined,
+    faq: (preferredTranslation?.faq as any) ?? undefined,
+    specs: (preferredTranslation?.specs as any) ?? undefined,
     author: {
       username: profile?.username ?? "unknown",
       displayName: profile?.username ?? undefined,
