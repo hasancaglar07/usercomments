@@ -348,8 +348,14 @@ export default async function Page(props: PageProps) {
   const productLink = productSlug
     ? localizePath(`/products/${productSlug}`, lang)
     : null;
+  // Use productDetail.name only if translation matches requested lang
+  // Otherwise the API returned a fallback language translation
+  const productNameFromDetail =
+    productDetail?.translationLang === lang || !productDetail?.translationLang
+      ? productDetail?.name
+      : undefined;
   const productName =
-    productDetail?.name ?? review.product?.name ?? review.title;
+    productNameFromDetail ?? review.product?.name ?? review.title;
   const productImage = getOptimizedImageUrl(
     productDetail?.images?.[0]?.url ?? productImg ?? DEFAULT_REVIEW_IMAGE,
     900

@@ -725,23 +725,47 @@ export async function fetchProductBySlug(
       return null;
     }
 
-    const { data: fallbackTranslation, error: fallbackError } = await supabase
+    // First, try to get translation in the requested lang
+    const { data: requestedLangTranslation, error: requestedLangError } = await supabase
       .from("product_translations")
       .select(translationSelect)
       .eq("product_id", lookup.product_id)
-      .eq("lang", DEFAULT_LANGUAGE)
+      .eq("lang", lang)
       .maybeSingle();
 
-    if (fallbackError) {
-      throw fallbackError;
+    if (requestedLangError) {
+      throw requestedLangError;
     }
 
-    translation = fallbackTranslation as
-      | (DbProductTranslationRow & {
-        product_id: string;
-        products: (DbProductRow & { status?: string | null }) | null;
-      })
-      | null;
+    if (requestedLangTranslation) {
+      translation = requestedLangTranslation as
+        | (DbProductTranslationRow & {
+          product_id: string;
+          products: (DbProductRow & { status?: string | null }) | null;
+        })
+        | null;
+    }
+
+    // If no translation in requested lang, fallback to DEFAULT_LANGUAGE
+    if (!translation) {
+      const { data: fallbackTranslation, error: fallbackError } = await supabase
+        .from("product_translations")
+        .select(translationSelect)
+        .eq("product_id", lookup.product_id)
+        .eq("lang", DEFAULT_LANGUAGE)
+        .maybeSingle();
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      translation = fallbackTranslation as
+        | (DbProductTranslationRow & {
+          product_id: string;
+          products: (DbProductRow & { status?: string | null }) | null;
+        })
+        | null;
+    }
 
     if (!translation) {
       const { data: anyTranslation, error: anyError } = await supabase
