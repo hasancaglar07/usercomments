@@ -65,7 +65,7 @@ export function ReviewCardHomepage({
   if (layout === "vertical") {
     return (
       <article className="group relative flex flex-col bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.12)] border border-gray-100/50 dark:border-gray-800 transition-all duration-300 hover:-translate-y-1 h-full overflow-hidden">
-        <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-100 dark:bg-gray-800">
+        <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-100 dark:bg-gray-800 active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
@@ -140,11 +140,11 @@ export function ReviewCardHomepage({
           )}
 
           <div className="flex items-center gap-4 pt-2">
-            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer">
+            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer active-press">
               <span className="material-symbols-outlined text-[18px]">thumb_up</span>
               <span>{likesLabel}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer">
+            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer active-press">
               <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
               <span>{commentsLabel}</span>
             </div>
@@ -157,7 +157,7 @@ export function ReviewCardHomepage({
   return (
     <article className="group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
       <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
-        <Link href={href} className="block h-full w-full">
+        <Link href={href} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
@@ -204,7 +204,7 @@ export function ReviewCardHomepage({
 
         {/* Content: Title & Rating */}
         <div className="mb-2">
-          <Link href={href} className="group-hover:text-primary transition-colors">
+          <Link href={href} className="group-hover:text-primary transition-colors active-press block">
             <h3 className="text-[17px] sm:text-xl font-bold text-text-main dark:text-white leading-tight line-clamp-2">
               {review.title}
             </h3>
@@ -251,11 +251,11 @@ export function ReviewCardHomepage({
           )}
 
           <div className="flex items-center gap-6 pt-3 border-t border-gray-50 dark:border-gray-800">
-            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide">
+            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press">
               <span className="material-symbols-outlined text-[18px]">thumb_up</span>
               <span>{likesLabel}</span>
             </button>
-            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide">
+            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press">
               <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
               <span>{commentsLabel}</span>
             </button>
@@ -293,7 +293,7 @@ export function ReviewCardTrending({
   return (
     <article className="group flex flex-row sm:flex-col bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 hover:-translate-y-0.5 h-full">
       <div className="w-24 min-h-[6rem] sm:w-full sm:h-48 sm:min-h-0 shrink-0 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-        <Link href={href} className="block h-full w-full relative">
+        <Link href={href} className="block h-full w-full relative active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
@@ -319,7 +319,7 @@ export function ReviewCardTrending({
           </div>
         </div>
 
-        <Link href={href} className="group-hover:text-primary transition-colors mb-1 block">
+        <Link href={href} className="group-hover:text-primary transition-colors mb-1 block active-press">
           <h3 className="text-[13px] sm:text-lg font-bold text-text-main dark:text-white leading-4 sm:leading-tight line-clamp-2">
             {review.title}
           </h3>
@@ -332,11 +332,11 @@ export function ReviewCardTrending({
         <div className="hidden sm:flex mt-auto items-center gap-3 pt-2 sm:pt-3 border-t border-gray-50 dark:border-gray-800/50">
           <span className="text-[10px] sm:text-xs text-text-muted truncate">{postedLabel}</span>
           <div className="flex items-center gap-3 ml-auto text-text-muted">
-            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer">
+            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer active-press">
               <span className="material-symbols-outlined text-[14px] sm:text-[16px]">thumb_up</span>
               {likesLabel}
             </span>
-            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer">
+            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer active-press">
               <span className="material-symbols-outlined text-[14px] sm:text-[16px]">chat_bubble</span>
               {commentsLabel}
             </span>
@@ -417,7 +417,7 @@ export function ReviewCardCatalog({
           </div>
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight group-hover:text-primary transition-colors cursor-pointer">
             <Link
-              className="hover:underline"
+              className="hover:underline active-press inline-block"
               href={href}
               prefetch={false}
             >
@@ -525,7 +525,7 @@ export function ReviewCardCategory({
           <RatingStarsCategory stars={ratingStars} />
         </div>
         <h3 className="text-lg font-bold text-[#0d141b] group-hover:text-primary cursor-pointer hover:underline decoration-primary">
-          <Link href={href} prefetch={false}>
+          <Link href={href} prefetch={false} className="active-press inline-block">
             {review.title}
           </Link>
         </h3>
@@ -622,7 +622,7 @@ export function ReviewCardProfile({
           </span>
         </div>
         <button
-          className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+          className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark active-press"
           type="button"
           data-review-report
           onClick={() =>
@@ -651,7 +651,7 @@ export function ReviewCardProfile({
             </span>
           </div>
           <h2 className="text-xl font-bold text-text-main-light dark:text-text-main-dark mb-2 hover:text-primary transition-colors">
-            <Link href={href} prefetch={false}>
+            <Link href={href} prefetch={false} className="active-press inline-block">
               {review.title}
             </Link>
           </h2>
@@ -659,7 +659,7 @@ export function ReviewCardProfile({
             {review.excerpt}
           </p>
           <Link
-            className="text-primary text-sm font-bold hover:underline mb-4 inline-block"
+            className="text-primary text-sm font-bold hover:underline mb-4 inline-block active-press"
             href={href}
             prefetch={false}
           >
@@ -696,7 +696,7 @@ export function ReviewCardProfile({
               ) : null}
             </div>
             <button
-              className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium"
+              className="flex items-center gap-1.5 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors text-sm font-medium active-press"
               type="button"
               data-review-share
               onClick={() => onShare?.(review.slug, review.title)}

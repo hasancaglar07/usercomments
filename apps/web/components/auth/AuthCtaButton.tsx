@@ -31,14 +31,14 @@ export default function AuthCtaButton({
   const resolvedAuthHref = localizePath(authenticatedHref, lang);
   const resolvedGuestHref = guestHref.startsWith("/")
     ? (() => {
-        const base =
-          typeof window !== "undefined" ? window.location.origin : "http://localhost";
-        const url = new URL(localizePath(guestHref, lang), base);
-        if (!url.searchParams.has("next")) {
-          url.searchParams.set("next", resolvedAuthHref);
-        }
-        return `${url.pathname}${url.search}`;
-      })()
+      const base =
+        typeof window !== "undefined" ? window.location.origin : "http://localhost";
+      const url = new URL(localizePath(guestHref, lang), base);
+      if (!url.searchParams.has("next")) {
+        url.searchParams.set("next", resolvedAuthHref);
+      }
+      return `${url.pathname}${url.search}`;
+    })()
     : guestHref;
   const linkHref = isAuthenticated ? resolvedAuthHref : resolvedGuestHref;
   const isInternal = linkHref.startsWith("/");
@@ -61,7 +61,7 @@ export default function AuthCtaButton({
     if (isInternal) {
       return (
         <Link
-          className={className}
+          className={`${className} active-press`}
           href={linkHref}
           onClick={handleAnchorClick}
           onMouseEnter={handlePrefetch}
@@ -73,7 +73,7 @@ export default function AuthCtaButton({
     }
     return (
       <a
-        className={className}
+        className={`${className} active-press`}
         href={linkHref}
         onClick={handleAnchorClick}
         onMouseEnter={handlePrefetch}
@@ -99,7 +99,7 @@ export default function AuthCtaButton({
 
   return (
     <button
-      className={className}
+      className={`${className} active-press`}
       onClick={handleButtonClick}
       onMouseEnter={handlePrefetch}
       onFocus={handlePrefetch}

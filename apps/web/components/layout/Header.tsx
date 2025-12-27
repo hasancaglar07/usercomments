@@ -34,7 +34,7 @@ export default function Header({ lang, categories }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           <Link
-            className="flex items-center gap-2 flex-shrink-0 cursor-pointer"
+            className="flex items-center gap-2 flex-shrink-0 cursor-pointer active-press"
             href={homeHref}
           >
             <span className="material-symbols-outlined text-primary text-3xl">
@@ -75,7 +75,7 @@ export default function Header({ lang, categories }: HeaderProps) {
               <div className="h-10 w-20 bg-gray-100 dark:bg-gray-800 animate-pulse rounded-lg" />
             ) : isAuthenticated ? (
               <Link
-                className="flex items-center justify-center h-10 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-text-main dark:text-white text-sm font-bold rounded-lg transition-colors gap-2"
+                className="flex items-center justify-center h-10 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-text-main dark:text-white text-sm font-bold rounded-lg transition-colors gap-2 active-press"
                 href={profileHref}
               >
                 <span className="material-symbols-outlined text-[20px]">account_circle</span>
@@ -83,7 +83,7 @@ export default function Header({ lang, categories }: HeaderProps) {
               </Link>
             ) : (
               <Link
-                className="flex items-center justify-center h-10 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-text-main dark:text-white text-sm font-bold rounded-lg transition-colors"
+                className="flex items-center justify-center h-10 px-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-text-main dark:text-white text-sm font-bold rounded-lg transition-colors active-press"
                 href={loginHref}
               >
                 <span className="truncate">{t(resolvedLang, "header.signIn")}</span>
@@ -96,7 +96,7 @@ export default function Header({ lang, categories }: HeaderProps) {
             {categories.map((category) => (
               <Link
                 key={category.id}
-                className="flex-shrink-0 px-3 py-1.5 text-[13px] font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-700 whitespace-nowrap active:scale-95 active:bg-gray-100 dark:active:bg-gray-700 transition-all"
+                className="flex-shrink-0 px-3 py-1.5 text-[13px] font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-700 whitespace-nowrap active:bg-gray-100 dark:active:bg-gray-700 transition-all active-press"
                 href={localizePath(`/catalog/reviews/${category.id}`, resolvedLang)}
               >
                 {category.name}

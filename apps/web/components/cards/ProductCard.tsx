@@ -40,7 +40,7 @@ export default function ProductCard({
     <article className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="flex flex-col sm:flex-row">
         <Link
-          className="sm:w-48 sm:shrink-0"
+          className="sm:w-48 sm:shrink-0 active-press"
           href={productHref}
           aria-label={t(resolvedLang, "productCard.ariaView", { name: product.name })}
           prefetch={false}
@@ -63,7 +63,7 @@ export default function ProductCard({
               </span>
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-2">
-              <Link className="hover:text-primary" href={productHref} prefetch={false}>
+              <Link className="hover:text-primary active-press inline-block" href={productHref} prefetch={false}>
                 {product.name}
               </Link>
             </h3>
@@ -83,14 +83,14 @@ export default function ProductCard({
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Link
-              className="text-xs font-semibold text-primary hover:underline"
+              className="text-xs font-semibold text-primary hover:underline active-press"
               href={productHref}
               prefetch={false}
             >
               {t(resolvedLang, "productCard.viewProduct")}
             </Link>
             <Link
-              className="text-xs font-semibold text-slate-500 hover:text-primary"
+              className="text-xs font-semibold text-slate-500 hover:text-primary active-press"
               href={reviewHref}
               prefetch={false}
             >

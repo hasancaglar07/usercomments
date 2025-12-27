@@ -46,7 +46,7 @@ export function SidebarHomepage({
           {topReviewers.map((reviewer) => (
             <Link
               key={`${reviewer.profile.username}-${reviewer.rankLabel}`}
-              className="flex items-center justify-between group cursor-pointer"
+              className="flex items-center justify-between group cursor-pointer active-press"
               href={localizePath(
                 `/users/${encodeURIComponent(reviewer.profile.username.toLowerCase())}`,
                 lang
@@ -74,7 +74,7 @@ export function SidebarHomepage({
           ))}
         </div>
         <Link
-          className="mt-4 block w-full py-2 text-xs font-bold text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition-colors text-center"
+          className="mt-4 block w-full py-2 text-xs font-bold text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition-colors text-center active-press"
           href={leaderboardHref}
         >
           {t(resolvedLang, "sidebar.viewLeaderboard")}
@@ -109,7 +109,7 @@ export function SidebarHomepage({
           {popularCategories.map((category) => (
             <Link
               key={category.id}
-              className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active-press"
               href={localizePath(`/catalog/reviews/${category.id}`, lang)}
             >
               {category.name}
@@ -224,7 +224,7 @@ export function SidebarCategory({
           {bestItems.map((item) => (
             <Link
               key={item.rankLabel}
-              className="flex gap-3 items-center group cursor-pointer"
+              className="flex gap-3 items-center group cursor-pointer active-press"
               href={localizePath(`/content/${item.review.slug}`, lang)}
             >
               <span className="text-xl font-bold text-gray-300 w-6 text-center group-hover:text-primary transition-colors">
@@ -254,7 +254,7 @@ export function SidebarCategory({
             </Link>
           ))}
         </div>
-        <button className="w-full mt-5 py-2 text-sm font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors">
+        <button className="w-full mt-5 py-2 text-sm font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors active-press">
           {t(resolvedLang, "sidebar.viewTop100")}
         </button>
       </div>
@@ -269,7 +269,7 @@ export function SidebarCategory({
               className="flex items-center justify-between group"
             >
               <Link
-                className="flex items-center gap-3 cursor-pointer"
+                className="flex items-center gap-3 cursor-pointer active-press"
                 href={localizePath(
                   `/users/${encodeURIComponent(author.profile.username.toLowerCase())}`,
                   lang
@@ -289,7 +289,7 @@ export function SidebarCategory({
                   </p>
                 </div>
               </Link>
-              <button className="size-8 rounded-full bg-[#e7edf3] flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors shrink-0">
+              <button className="size-8 rounded-full bg-[#e7edf3] flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors shrink-0 active-press">
                 <span className="material-symbols-outlined text-lg">
                   person_add
                 </span>
@@ -311,7 +311,7 @@ export function SidebarCategory({
             return (
               <Link
                 key={tag.id}
-                className="text-xs font-medium text-[#4c739a] bg-[#f6f7f8] px-3 py-1.5 rounded-md hover:bg-[#e7edf3] transition-colors"
+                className="text-xs font-medium text-[#4c739a] bg-[#f6f7f8] px-3 py-1.5 rounded-md hover:bg-[#e7edf3] transition-colors active-press"
                 href={localizePath(href, lang)}
               >
                 {tag.name}
@@ -355,7 +355,7 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
         </p>
         <div className="flex flex-wrap gap-2">
           <UserProfileShareLink
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-background-light dark:bg-background-dark text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-background-light dark:bg-background-dark text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors active-press"
             href={localizePath(`/users/${profile.username}`, lang)}
             aria-label={t(resolvedLang, "sidebar.copyProfileLink")}
           >
@@ -372,7 +372,7 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
       <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
         <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-4 flex items-center justify-between">
           {t(resolvedLang, "sidebar.achievements")}
-          <UserProfileAchievementsTrigger className="text-xs font-normal text-primary cursor-pointer hover:underline">
+          <UserProfileAchievementsTrigger className="text-xs font-normal text-primary cursor-pointer hover:underline active-press">
             {t(resolvedLang, "sidebar.viewAll")}
           </UserProfileAchievementsTrigger>
         </h3>
@@ -408,7 +408,7 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
           {popularReviews.map((item) => (
             <Link
               key={item.review.id}
-              className="flex gap-3 items-center group/item"
+              className="flex gap-3 items-center group/item active-press"
               href={localizePath(`/content/${item.review.slug}`, lang)}
             >
               <div
