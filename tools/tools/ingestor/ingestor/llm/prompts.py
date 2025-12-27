@@ -111,7 +111,7 @@ def build_translation_prompt(
         "- Brand names/models: If in English/Latin, keep as-is. If in Russian, TRANSLITERATE or TRANSLATE to Latin.\n"
         "- NO CYRILLIC in output.\n"
         "- Output ONLY raw JSON. No markdown code blocks.\n"
-        "- Escape all double quotes within strings.\n"
+        "- CRITICAL: Escape all double quotes within strings (e.g. \"value with \\\"quotes\\\"\")\n"
         "- Ensure strictly valid JSON syntax."
     )
 
@@ -171,6 +171,7 @@ def build_pivot_translation_prompt(lang: str, en_data: dict) -> str:
         "- Brand names/models: Keep as-is (Latin). everything else MUST be in target language.\n"
         "- NO CYRILLIC in output.\n"
         "- Output ONLY raw JSON. No markdown code blocks.\n"
+        "- CRITICAL: Escape all double quotes within strings (e.g. \"value with \\\"quotes\\\"\")\n"
         "- Ensure valid JSON syntax."
     )
 
@@ -179,7 +180,9 @@ def build_repair_prompt(raw_output: str) -> str:
     return (
         "Your previous response was invalid JSON. "
         "Fix the syntax errors (missing brackets, unescaped quotes, trailing commas).\n"
-        "Return ONLY a valid raw JSON object. NO markdown formatting.\n\n"
+        "Return ONLY a valid raw JSON object. NO markdown formatting.\n"
+        "CRITICAL: DO NOT TRANSLATE THE CONTENT. Preserve the original text exactly as it was, just fix the JSON syntax.\n"
+        "CRITICAL: ESCAPE ALL DOUBLE QUOTES inside string values.\n\n"
         "Invalid output:\n"
         f"{raw_output}\n"
     )
@@ -305,7 +308,7 @@ def build_chunked_translation_prompt(lang: str, chunk: str, chunk_num: int, tota
         "Technical rules:\n"
         "- Output ONLY the JSON object, no markdown.\n"
         "- Ensure valid JSON syntax.\n"
-        "- ESCAPE ALL DOUBLE QUOTES inside the HTML (e.g., class=\"classname\", href=\"url\").\n"
+        "- CRITICAL: ESCAPE ALL DOUBLE QUOTES inside the HTML string value. (e.g. \"<div class=\\\"classname\\\">\" NOT \"<div class=\"classname\">\" )\n"
         "- The content must be complete - do not truncate."
     )
 
@@ -356,6 +359,7 @@ def build_metadata_prompt(lang: str, title: str, content_preview: str, category:
         
         "Technical rules:\n"
         "- Output ONLY raw JSON, no markdown.\n"
+        "- CRITICAL: Escape all double quotes within strings.\n"
         "- Ensure valid JSON syntax."
     )
 

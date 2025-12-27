@@ -206,7 +206,7 @@ export async function fetchProducts(
   if (categoryId) {
     // Use !inner to force an inner join for filtering parent rows by child condition
     const selectWithInner = productListSelectWithStats.replace(
-      "product_categories(category_id)",
+      /product_categories\s*\(\s*category_id\s*\)/,
       "product_categories!inner(category_id)"
     );
     query = supabase

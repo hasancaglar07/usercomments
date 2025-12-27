@@ -333,6 +333,114 @@ class PlurkProvider:
             log(f"Plurk Exception: {e}")
             return False
 
+class PinterestProvider:
+    def __init__(self, access_token):
+        self.access_token = access_token
+        self.api_url = "https://api.pinterest.com/v5"
+        self.headers = {"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"}
+        # Auto-detect or create board
+        self.board_id = self._get_or_create_board("UserReview Best Products")
+
+    def _get_or_create_board(self, name):
+        try:
+            import requests
+            # List first
+            r = requests.get(f"{self.api_url}/boards", headers=self.headers)
+            if r.status_code == 200:
+                for b in r.json().get('items', []):
+                    if b['name'].lower() == name.lower():
+                        return b['id']
+            # Create if not found
+            r = requests.post(f"{self.api_url}/boards", json={"name": name, "privacy": "PUBLIC"}, headers=self.headers)
+            if r.status_code == 201:
+                log(f"IyI Created Pinterest Board: {name}")
+                return r.json()['id']
+        except Exception as e:
+            log(f"Pinterest Board Error: {e}")
+        return None
+
+    def _extract_image(self, url):
+        try:
+            import requests
+            import re
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                # Find og:image
+                m = re.search(r'<meta property="og:image" content="([^"]+)"', r.text)
+                if m:
+                    return m.group(1)
+        except:
+            pass
+        return None
+
+    def post(self, title, body, tags, canonical_url):
+        if not self.board_id:
+            log("Pinterest Error: No Board ID found or created.")
+            return False
+            
+        img_url = self._extract_image(canonical_url)
+        if not img_url:
+            log("Pinterest Skip: No Image found (og:image).")
+            return False
+            
+        try:
+            import requests
+            payload = {
+                "board_id": self.board_id,
+                "title": title[:100],
+                "description": f"{body[:400]}... #review {' '.join(['#'+t for t in tags[:3]])}",
+                "link": canonical_url,
+                "media_source": {
+                    "source_type": "image_url",
+                    "url": img_url
+                }
+            }
+            
+            r = requests.post(f"{self.api_url}/pins", json=payload, headers=self.headers)
+            if r.status_code == 201:
+                log(f"✓ Posted to Pinterest (Board: {self.board_id})")
+                return True
+            else:
+                log(f"Pinterest Error: {r.text}")
+                return False
+        except Exception as e:
+            log(f"Pinterest Exception: {e}")
+            return False
+
+class RaindropProvider:
+    def __init__(self, token):
+        self.token = token
+        self.endpoint = "https://api.raindrop.io/rest/v1/raindrop"
+        
+    def post(self, title, body, tags, canonical_url):
+        try:
+            import requests
+            headers = {"Authorization": f"Bearer {self.token}"}
+            payload = {
+                "link": canonical_url,
+                "title": title,
+                "excerpt": body[:250],
+                "tags": tags[:5],
+                "pleaseParse": {} 
+            }
+            
+            r = requests.post(self.endpoint, json=payload, headers=headers, timeout=30)
+            
+            if r.status_code == 200:
+                res = r.json()
+                if res.get('result'):
+                    log(f"✓ Posted to Raindrop.io (ID: {res.get('item', {}).get('_id')})")
+                    return True
+                else:
+                    log(f"Raindrop Error: {res.get('errorMessage')}")
+                    return False
+            else:
+                log(f"Raindrop HTTP Error: {r.status_code} - {r.text}")
+                return False
+        except Exception as e:
+            log(f"Raindrop Exception: {e}")
+            return False
+
 def base36(n):
     # Quick helper for Plurk Link
     if not n: return ""
@@ -375,6 +483,76 @@ class InstapaperProvider:
                 return False
         except Exception as e:
             log(f"Instapaper Exception: {e}")
+            return False
+
+class IFTTTProvider:
+    def __init__(self, key, event_name):
+        self.key = key
+        self.event_name = event_name
+        self.endpoint = f"https://maker.ifttt.com/trigger/{self.event_name}/with/key/{self.key}"
+
+    def _extract_image(self, url):
+        try:
+            import requests
+            import re
+            
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+            r = requests.get(url, headers=headers, timeout=10)
+            
+            # Simple regex to find og:image
+            match = re.search(r'<meta property="og:image" content="([^"]+)"', r.text)
+            if match:
+                return match.group(1)
+            
+            # Fallback 2: Twitter Image
+            match = re.search(r'<meta name="twitter:image" content="([^"]+)"', r.text)
+            if match:
+                return match.group(1)
+
+            return ""
+        except:
+            return ""
+        
+    def post(self, title, body, tags, canonical_url):
+        try:
+            import requests
+            
+            # Extract Image URL for Pinterest
+            image_url = self._extract_image(canonical_url)
+            
+            # IFTTT Webhook accepts 3 values. We are repurposing them for maximum compatibility:
+            # value1: Title + Tags (Rich Text)
+            # value2: Canonical URL (Link)
+            # value3: Image URL (For Pinterest/Instagram) OR Summary if no image found.
+            
+            # Combine Title and Tags for Value1 to save space
+            combined_text = f"{title}"
+            
+            # Prepare Value3: Image URL is priority for Pinterest
+            val3 = image_url
+            if not val3:
+                # Fallback to summary if no image found
+                 val3 = f"{body[:300]}... #{' #'.join(tags[:3])}"
+
+            payload = {
+                "value1": combined_text,
+                "value2": canonical_url,
+                "value3": val3
+            }
+            
+            r = requests.post(self.endpoint, json=payload, timeout=30)
+            
+            if r.status_code == 200:
+                log(f"✓ Triggered IFTTT Event: {self.event_name}")
+                if image_url:
+                     log(f"  ↳ Included Image: {image_url}")
+                return True
+            else:
+                log(f"IFTTT Error: {r.text}")
+                return False
+                
+        except Exception as e:
+            log(f"IFTTT Exception: {e}")
             return False
 
 class TelegramProvider:
@@ -629,152 +807,188 @@ class BloggerProvider:
 # --- Main Execution ---
 
 def main():
-    parser = argparse.ArgumentParser(description="Web 2.0 Syndication Bot")
-    parser.add_argument('--limit', type=int, default=1, help='Number of posts to syndicate per run')
-    parser.add_argument('--manual', type=str, help='Manual URL to syndication')
+    parser = argparse.ArgumentParser(description="UserReview Syndicator Bot (SEO Pro Edition)")
+    parser.add_argument("--limit", type=int, default=999999, help="Total posts limit (practically infinite)")
+    parser.add_argument("--refresh", action="store_true", help="Force refresh sitemap cache")
     args = parser.parse_args()
-    
-    log("Starting Syndication Bot...")
-    
-    # 1. Load History
-    history = load_history()
-    
-    # 2. Get Targets
-    if args.manual:
-        targets = [args.manual]
-    else:
-        all_urls = fetch_all_urls()
-        clean_urls = {u.split('#')[0] for u in all_urls}
-        targets = []
-        for u in clean_urls:
-            if u not in history:
-                targets.append(u)
-    
-    log(f"Found {len(targets)} unsyndicated URLs.")
-    
-    if not targets:
-        log("Nothing to do.")
-        return
 
-    # 3. Process Limit
-    targets_to_process = targets[:args.limit]
-    
-    # 4. Initialize Providers
+    # --- 1. Load History ---
+    global history
+    history = load_history()
+    log(f"Loaded history: {len(history)} items processed.")
+
+    # --- 2. Initialize Providers ---
     providers = []
     
-    # Medium
-    if MEDIUM_TOKEN:
-        providers.append(MediumProvider(MEDIUM_TOKEN, MEDIUM_USER_ID))
-
+    # IFTTT (The Core)
+    # IFTTT (The Core)
+    if_key = os.getenv('IFTTT_WEBHOOK_KEY')
+    if_event = os.getenv('IFTTT_EVENT_NAME')
+    
+    if if_key and if_event:
+        providers.append(IFTTTProvider(if_key, if_event))
+        log("✅ IFTTT Provider ACTIVE")
+    
     # Tumblr
-    T_KEY = os.getenv("TUMBLR_CONSUMER_KEY")
-    T_SECRET = os.getenv("TUMBLR_CONSUMER_SECRET")
-    T_O_TOKEN = os.getenv("TUMBLR_OAUTH_TOKEN")
-    T_O_SECRET = os.getenv("TUMBLR_OAUTH_SECRET")
-    T_BLOG = os.getenv("TUMBLR_BLOG_NAME")
-    
-    if T_KEY and T_SECRET and T_O_TOKEN and T_O_SECRET and T_BLOG:
-        providers.append(TumblrProvider(T_KEY, T_SECRET, T_O_TOKEN, T_O_SECRET, T_BLOG))
-        
-    # Blogger
-    BLOGGER_KEY = os.getenv("BLOGGER_KEY_FILE", r"C:\Users\ihsan\Desktop\review\apps\web\public\acikliyorum-87f375f7fde3.json")
-    BLOGGER_ID = os.getenv("BLOGGER_BLOG_ID", "3527159266533680303")
-    
-    if os.path.exists(BLOGGER_KEY) and BLOGGER_ID:
-         providers.append(BloggerProvider(BLOGGER_KEY, BLOGGER_ID))
-         
-    # WordPress
-    WP_URL = os.getenv("WORDPRESS_URL")
-    WP_USER = os.getenv("WORDPRESS_USER")
-    WP_PASS = os.getenv("WORDPRESS_PASSWORD")
-    
-    if WP_URL and WP_USER and WP_PASS:
-        providers.append(WordPressProvider(WP_URL, WP_USER, WP_PASS))
+    if 'TUMBLR_CONSUMER_KEY' in os.environ:
+       try:
+           providers.append(TumblrProvider(
+               os.environ['TUMBLR_CONSUMER_KEY'], os.environ['TUMBLR_CONSUMER_SECRET'],
+               os.environ['TUMBLR_OAUTH_TOKEN'], os.environ['TUMBLR_OAUTH_SECRET']
+           ))
+           log("✅ Tumblr Provider ACTIVE")
+       except: pass
 
-    # LiveJournal
-    LJ_USER = os.getenv("LIVEJOURNAL_USER")
-    LJ_PASS = os.getenv("LIVEJOURNAL_PASSWORD")
+    # Blogger
+    token_file = 'blogger_token.json' 
+    client_secrets = 'client_secrets.json' 
+    if os.path.exists(token_file) and os.path.exists(client_secrets):
+        try:
+             blog_id = os.environ.get('BLOGGER_BLOG_ID', '2378878950669279769')
+             # Note: BloggerProvider signature might vary, checking previous usage: (key_file, blog_id) or (client_secrets, blog_id, token_file...?)
+             # Based on previous robust code: BloggerProvider(key_file, blog_id) usually expects service account or Oauth. 
+             # Let's align with the file's BloggerProvider: __init__(self, key_file, blog_id, token_file=None, client_secrets_file=None)
+             # If key_file is None, it uses OAuth flow with token_file and client_secrets_file.
+             providers.append(BloggerProvider(None, blog_id, token_file, client_secrets))
+             log("✅ Blogger Provider ACTIVE")
+        except Exception as e:
+            log(f"⚠️ Blogger Error: {e}")
+
+    # WordPress
+    if 'WORDPRESS_URL' in os.environ:
+        providers.append(WordPressProvider(
+            os.environ['WORDPRESS_URL'], os.environ['WORDPRESS_USER'], os.environ['WORDPRESS_PASSWORD']
+        ))
+        log("✅ WordPress Provider ACTIVE")
+
+    # LiveJournal / Dreamwidth
+    if 'LIVEJOURNAL_USER' in os.environ:
+        providers.append(LiveJournalProvider(
+            os.environ['LIVEJOURNAL_USER'], os.environ['LIVEJOURNAL_PASSWORD']
+        ))
+        log("✅ LiveJournal Provider ACTIVE")
     
-    if LJ_USER and LJ_PASS:
-        providers.append(LiveJournalProvider(LJ_USER, LJ_PASS))
-        
-    # Dreamwidth
-    DW_USER = os.getenv("DREAMWIDTH_USER")
-    DW_PASS = os.getenv("DREAMWIDTH_PASSWORD")
-    if DW_USER and DW_PASS:
-        providers.append(DreamwidthProvider(DW_USER, DW_PASS))
+    if 'DREAMWIDTH_USER' in os.environ:
+        providers.append(DreamwidthProvider(
+            os.environ['DREAMWIDTH_USER'], os.environ['DREAMWIDTH_PASSWORD']
+        ))
+        log("✅ Dreamwidth Provider ACTIVE")
 
     # Mastodon
-    MASTODON_URL = os.getenv("MASTODON_INSTANCE")
-    MASTODON_TOKEN = os.getenv("MASTODON_ACCESS_TOKEN")
-    if MASTODON_URL and MASTODON_TOKEN:
-        providers.append(MastodonProvider(MASTODON_URL, MASTODON_TOKEN))
-        
+    if 'MASTODON_ACCESS_TOKEN' in os.environ:
+         providers.append(MastodonProvider(
+             os.environ.get('MASTODON_INSTANCE', 'https://mastodon.social'),
+             os.environ['MASTODON_ACCESS_TOKEN']
+         ))
+         log("✅ Mastodon Provider ACTIVE")
+         
     # Telegram
-    TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    TG_CHAT = os.getenv("TELEGRAM_CHAT_ID")
-    if TG_TOKEN and TG_CHAT:
-        providers.append(TelegramProvider(TG_TOKEN, TG_CHAT))
+    if 'TELEGRAM_BOT_TOKEN' in os.environ:
+        providers.append(TelegramProvider(
+            os.environ['TELEGRAM_BOT_TOKEN'], os.environ['TELEGRAM_CHAT_ID']
+        ))
+        log("✅ Telegram Provider ACTIVE")
         
     # Instapaper
-    INSTA_USER = os.getenv("INSTAPAPER_USER")
-    INSTA_PASS = os.getenv("INSTAPAPER_PASSWORD")
-    if INSTA_USER and INSTA_PASS:
-        providers.append(InstapaperProvider(INSTA_USER, INSTA_PASS))
-        
+    if 'INSTAPAPER_USER' in os.environ:
+        providers.append(InstapaperProvider(
+            os.environ['INSTAPAPER_USER'], os.environ['INSTAPAPER_PASSWORD']
+        ))
+        log("✅ Instapaper Provider ACTIVE")
+
     # Plurk
-    PL_KEY = os.getenv("PLURK_APP_KEY")
-    PL_SEC = os.getenv("PLURK_APP_SECRET")
-    PL_TOK = os.getenv("PLURK_ACCESS_TOKEN")
-    PL_TOK_SEC = os.getenv("PLURK_ACCESS_SECRET")
-    if PL_KEY and PL_TOK:
-        providers.append(PlurkProvider(PL_KEY, PL_SEC, PL_TOK, PL_TOK_SEC))
+    if 'PLURK_CONSUMER_KEY' in os.environ:
+        providers.append(PlurkProvider(
+            os.environ['PLURK_CONSUMER_KEY'], os.environ['PLURK_CONSUMER_SECRET'],
+            os.environ['PLURK_ACCESS_TOKEN'], os.environ['PLURK_ACCESS_SECRET']
+        ))
+        log("✅ Plurk Provider ACTIVE")
+        
+    # Raindrop
+    if 'RAINDROP_ACCESS_TOKEN' in os.environ:
+        providers.append(RaindropProvider(os.environ['RAINDROP_ACCESS_TOKEN']))
+        log("✅ Raindrop Provider ACTIVE")
+
 
     if not providers:
-        log("No providers configured. Please check run_syndicator.bat")
+        log("❌ No providers configured! Check environment variables.")
         return
-        # We continue to show what WOULD happen
-        
-    # 5. Loop
-    for url in targets_to_process:
-        log(f"Processing: {url}")
-        
-        if '/login' in url or '/search' in url or '/admin' in url:
-            log("Skipping system page.")
-            history[url] = {"skipped": True, "date": str(datetime.now())}
-            save_history(history)
-            continue
 
-        # Generate Content
-        content = generate_social_content(url)
-        if not content:
-            log("Failed to generate content.")
-            continue
+    log("🚀 Syndicator Bot Started (SEO Strategy: 70% New / 30% Old, 15-45m Delay)")
+
+    while True: # INFINITE LOOP
+        try:
+            # --- 3. Fetch & Filter URLs ---
+            all_urls = fetch_all_urls(refresh=args.refresh)
             
-        success_flags = []
-        
-        # Post to Providers
-        for provider in providers:
-            p_name = provider.__class__.__name__
-            res = provider.post(content['title'], content['body'], content['tags'], url)
-            if res:
-                success_flags.append(p_name)
-        
-        # Update History
-        if success_flags:
-            history[url] = {
-                "platforms": success_flags,
-                "date": str(datetime.now()),
-                "title": content['title']
-            }
-            save_history(history)
-            log("Sleeping 10s...")
-            time.sleep(10)
-        else:
-            if not providers: 
-                log(f"[SIMULATION] Would post '{content['title']}' for {url}")
+            # STRICT FILTER: Only /en/ URLs
+            en_urls = [u for u in all_urls if "/en/" in u]
+            log(f"Total English URLs found: {len(en_urls)}")
+
+            # Identify candidates (not in history)
+            candidates = [u for u in en_urls if u not in history]
+            
+            if not candidates:
+                log("😴 No new candidates found. Sleeping 1 hour before re-checking sitemap...")
+                time.sleep(3600)
+                args.refresh = True # Force refresh next time
+                continue
+
+            # --- 4. Smart Selection Strategy (70% New / 30% Old) ---
+            import random
+            
+            target_url = None
+            
+            if len(candidates) > 10:
+                split_index = int(len(candidates) * 0.8) # Last 20% is "New"
+                new_pool = candidates[split_index:]
+                old_pool = candidates[:split_index]
+                
+                roll = random.random()
+                if roll < 0.70 and new_pool: # 70% chance for NEW
+                    target_url = random.choice(new_pool)
+                    log(f"🎯 Strategy: FRESH CONTENT selected ({len(new_pool)} candidates)")
+                elif old_pool: # 30% chance for OLD
+                    target_url = random.choice(old_pool)
+                    log(f"🏺 Strategy: ARCHIVE REVIVAL selected ({len(old_pool)} candidates)")
+                else:
+                    target_url = random.choice(candidates)
             else:
-                log("Failed to post to any platform.")
+                target_url = random.choice(candidates)
+
+            log(f"Processing: {target_url}")
+
+            # --- 5. Generate Content ---
+            content = generate_social_content(target_url)
+            
+            if content:
+                success_count = 0
+                for provider in providers:
+                    if provider.post(content['title'], content['body'], content['tags'], target_url):
+                        success_count += 1
+                
+                if success_count > 0:
+                    history[target_url] = datetime.now().isoformat()
+                    save_history(history)
+                    log(f"✅ Successfully syndicated to {success_count} platforms.")
+                    
+                    # --- 6. Human-Like Delay (15m - 45m) ---
+                    delay = random.randint(900, 2700) 
+                    # Calculate next time safely
+                    import datetime as dt_module
+                    next_time = dt_module.datetime.now() + dt_module.timedelta(seconds=delay)
+                    log(f"⏳ Human Delay: Sleeping for {delay // 60} minutes... (Next post around {next_time.strftime('%H:%M')})")
+                    time.sleep(delay)
+                else:
+                    log("❌ Failed to syndicate to any provider. Sleeping 5 mins retry.")
+                    time.sleep(300)
+            else:
+                log("⚠️ Content generation failed. Skipping.")
+                time.sleep(60)
+
+        except Exception as e:
+            log(f"🔥 CRITICAL LOOP ERROR: {e}")
+            time.sleep(600)
 
 if __name__ == "__main__":
     main()

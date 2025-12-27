@@ -53,10 +53,12 @@ run_indexnow.bat
 run_indexer.bat
 run_pinterest_auth.bat
 run_plurk_auth.bat
+run_raindrop_auth.bat
 tools/tools/auth_tumblr.py
 tools/tools/auth_pinterest.py
 tools/tools/get_tumblr_info.py
 tools/tools/auth_plurk.py
+tools/tools/auth_raindrop.py
 
 # Tokens and Keys
 client_secrets.json
@@ -65,3 +67,5 @@ sitemap_cache.json
 syndication_history.json
 apps/web/public/acikliyorum-*.json
 apps/web/public/client_secrets.json
+
+SOSYAL_MEDYA_BOTU_BASLAT.bat

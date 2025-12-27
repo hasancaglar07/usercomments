@@ -10,22 +10,33 @@ def parse_json_strict(raw: str) -> Optional[dict]:
     
     # Pre-clean: Remove markdown code blocks
     cleaned = raw.strip()
+    
+    # Handle markdown code blocks
     if "```" in cleaned:
-        # Match anything between ```json and ``` or just ``` and ```
-        # Use simple split approach which is often more robust than complex regex for this specific case
+        # Try to extract content between ```json and ``` or just ``` and ```
         parts = cleaned.split("```")
-        # Usually parts[1] is the content, parts[0] is empty or text before
-        if len(parts) >= 3:
-            # parts[1] might be "json\n{...}"
-            candidate = parts[1]
-            if candidate.lstrip().startswith("json"):
-                candidate = candidate.lstrip()[4:]
+        # Usually parts[1] is the content.
+        # If there are multiple blocks, we might need the one that looks like JSON.
+        candidate = None
+        for i in range(1, len(parts), 2):
+            chunk = parts[i].strip()
+            if chunk.startswith("json"):
+                chunk = chunk[4:].strip()
+            # Simple check if it looks like an object
+            if chunk.startswith("{") and chunk.endswith("}"):
+                candidate = chunk
+                break
+        
+        if candidate:
             cleaned = candidate
         else:
-            # Fallback cleanup for simple code blocks if split method yielded weird results
-            lines = cleaned.splitlines()
-            if lines[0].strip().startswith("```") and lines[-1].strip().startswith("```"):
-                cleaned = "\n".join(lines[1:-1])
+            # Fallback: simple split if the loop didn't find a bounded JSON structure
+            # taking the first block is usually the best guess
+            if len(parts) >= 2:
+                candidate = parts[1]
+                if candidate.lstrip().startswith("json"):
+                    candidate = candidate.lstrip()[4:]
+                cleaned = candidate.strip()
 
     cleaned = cleaned.strip()
     
@@ -44,39 +55,37 @@ def parse_json_strict(raw: str) -> Optional[dict]:
         candidate = cleaned
 
     # 3. Regex Fixes
-    # Fix trailing commas
+    # Fix trailing commas: , followed by ] or }
     candidate = re.sub(r",\s*([\]}])", r"\1", candidate)
-    
-    # Fix unescaped newlines inside strings (simple heuristic)
-    # This is risky but often needed for HTML content. 
-    # Better to NOT do aggressive regex on content if we can avoid it.
     
     try:
         return json.loads(candidate)
     except json.JSONDecodeError:
         pass
 
-    # 4. Fallback: Python literal eval (often LLMs output Python dicts with single quotes or True/False)
+    # 4. Fallback: Python literal eval
     try:
-        # Convert null to None, true to True, false to False for python eval
+        # Convert null -> None, true -> True, false -> False
+        # Be careful not to replace them inside strings ideally, but this is a rough fallback
         py_candidate = candidate.replace("null", "None").replace("true", "True").replace("false", "False")
         return ast.literal_eval(py_candidate)
-    except (ValueError, SyntaxError):
+    except (ValueError, SyntaxError, MemoryError, RecursionError):
         pass
 
     # 5. Fallback for single-key JSON with unescaped quotes or newlines (common in LLM output)
     # Example: {"translated_text": "<div class="foo">...</div>"}
-    # We capture the key and the content, then manually escape quotes and newlines.
+    # Capture key group 1, value group 2
     match = re.match(r'^\s*\{\s*"([^"]+)"\s*:\s*"(.*)"\s*\}\s*$', cleaned, re.DOTALL)
     if match:
         key = match.group(1)
         content = match.group(2)
         
-        # Fix 1: Escape unescaped double quotes to \"
+        # Escape unescaped double quotes
+        # Use a simplified approach: Replace " with \" unless it's already escaped
         # We match any " that is preceded by \ (negative lookbehind)
         content_fixed = re.sub(r'(?<!\\)"', r'\\"', content)
         
-        # Fix 2: Escape literal control characters which are invalid in JSON strings
+        # Escape literal control characters which are invalid in JSON strings
         content_fixed = content_fixed.replace('\n', '\\n').replace('\r', '').replace('\t', '\\t')
 
         try:

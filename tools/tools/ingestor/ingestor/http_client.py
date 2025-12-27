@@ -79,6 +79,14 @@ class HttpClient:
                 if attempt >= self.max_retries:
                     time.sleep(random.uniform(10, 20)) 
                     break
+                
+                # Check for Proxy Failure
+                if self.session.proxies and ("ProxyError" in str(exc) or "407" in str(exc) or "Tunnel connection failed" in str(exc)):
+                    self.logger.warning("Proxy failed (%s). Switching to DIRECT connection for fallback.", exc)
+                    self.session.proxies = {} # Disable proxy for this session
+                    time.sleep(1)
+                    continue
+
                 host = urlparse(url).netloc
                 self.logger.warning(
                     "Connection error (attempt %d): %s", attempt + 1, exc
