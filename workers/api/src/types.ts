@@ -212,6 +212,17 @@ export type Product = {
   }[];
 };
 
+export type SearchSuggestion = {
+  id: string;
+  type: "review" | "product";
+  slug: string;
+  title: string;
+  imageUrl?: string;
+  ratingAvg?: number;
+  ratingCount?: number;
+  reviewCount?: number;
+};
+
 export type ProductTranslation = {
   lang: string;
   slug: string;

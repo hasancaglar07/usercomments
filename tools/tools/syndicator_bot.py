@@ -798,8 +798,6 @@ class BloggerProvider:
                  log(f"Blogger API Error: {api_err}")
                  if "403" in str(api_err):
                      log("(!) Permission Denied. Please run 'run_blogger_auth.bat' to authorize correctly.")
-                 return False
-            
         except Exception as e:
             log(f"Blogger General Exception: {e}")
             return False
@@ -908,6 +906,7 @@ def main():
     if 'RAINDROP_ACCESS_TOKEN' in os.environ:
         providers.append(RaindropProvider(os.environ['RAINDROP_ACCESS_TOKEN']))
         log("✅ Raindrop Provider ACTIVE")
+
 
 
     if not providers:

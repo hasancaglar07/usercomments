@@ -7,6 +7,7 @@ import type {
   PaginationInfo,
   Product,
   Review,
+  SearchSuggestion,
   UserProfile,
 } from "@/src/types";
 import { DEFAULT_LANGUAGE, type SupportedLanguage } from "@/src/lib/i18n";
@@ -503,6 +504,27 @@ export async function searchReviews(
   return fetchJson<PaginatedResult<Review>>(`/api/search?${searchParams}`, {
     next: { revalidate: 30 },
   });
+}
+
+export async function searchSuggestions(
+  query: string,
+  limit = 8,
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  signal?: AbortSignal
+): Promise<PaginatedResult<SearchSuggestion>> {
+  const searchParams = new URLSearchParams({
+    q: query,
+    limit: String(limit),
+    lang,
+  });
+  return fetchJson<PaginatedResult<SearchSuggestion>>(
+    `/api/search/suggest?${searchParams}`,
+    {
+      next: { revalidate: 30 },
+      timeoutMs: 4000,
+      signal,
+    }
+  );
 }
 
 export async function getCategories(

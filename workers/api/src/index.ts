@@ -40,11 +40,12 @@ import {
   fetchProductBySlug,
   fetchProductTranslations,
   fetchProducts,
+  searchProductSuggestions,
   searchProducts,
   upsertProductTranslations,
   updateAdminProduct,
 } from "./services/products";
-import { searchReviews } from "./services/search";
+import { searchReviews, searchReviewSuggestions } from "./services/search";
 import { fetchUserProfileRecord } from "./services/users";
 import { createPresignedUploadUrl } from "./services/uploads";
 import { fetchLeaderboard, refreshLeaderboardStats } from "./services/leaderboard";
@@ -565,6 +566,12 @@ const searchQuerySchema = z.object({
     .positive()
     .max(MAX_PAGE_SIZE)
     .default(DEFAULT_PAGE_SIZE),
+  lang: langSchema,
+});
+
+const searchSuggestQuerySchema = z.object({
+  q: z.string().trim().min(2).max(80),
+  limit: z.coerce.number().int().positive().max(12).default(8),
   lang: langSchema,
 });
 
@@ -1566,6 +1573,36 @@ async function handleSearch({ env, url }: HandlerContext): Promise<Response> {
   return jsonResponse(result);
 }
 
+async function handleSearchSuggest({
+  env,
+  url,
+}: HandlerContext): Promise<Response> {
+  const { q, limit, lang } = searchSuggestQuerySchema.parse(getQueryObject(url));
+  const trimmed = q.trim();
+  if (!trimmed) {
+    return jsonResponse({
+      items: [],
+      pageInfo: buildPaginationInfo(1, limit, 0),
+    });
+  }
+
+  const [reviewItems, productItems] = await Promise.all([
+    searchReviewSuggestions(env, { q: trimmed, limit, lang }),
+    searchProductSuggestions(env, { q: trimmed, limit, lang }),
+  ]);
+
+  const sortedProducts = productItems.sort((a, b) => b.score - a.score);
+  const sortedReviews = reviewItems.sort((a, b) => b.score - a.score);
+  const merged = [...sortedProducts, ...sortedReviews]
+    .slice(0, limit)
+    .map(({ score, ...item }) => item);
+
+  return jsonResponse({
+    items: merged,
+    pageInfo: buildPaginationInfo(1, limit, merged.length),
+  });
+}
+
 async function handleLeaderboard({ env, url }: HandlerContext): Promise<Response> {
   const { metric, timeframe, page, pageSize } = leaderboardQuerySchema.parse(
     getQueryObject(url)
@@ -2509,6 +2546,12 @@ const routes: Route[] = [
     pattern: new URLPattern({ pathname: "/api/profile" }),
     handler: handleProfileUpdate,
     noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/search/suggest" }),
+    handler: handleSearchSuggest,
+    cacheTtl: (env) => env.CACHE_TTL_SEARCH_SEC,
   },
   {
     method: "GET",

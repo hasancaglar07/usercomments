@@ -6,6 +6,7 @@ import type {
   Product,
   ProductStatus,
   ProductTranslation,
+  SearchSuggestion,
 } from "../types";
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type SupportedLanguage } from "../utils/i18n";
 import { buildPaginationInfo } from "../utils/pagination";
@@ -45,6 +46,15 @@ type DbProductStatsLookupRow = {
   recommend_up?: number | string | null;
   recommend_down?: number | string | null;
   photo_count?: number | string | null;
+};
+
+type ProductSearchRow = {
+  product_id: string;
+  translation_lang?: string | null;
+  translation_slug?: string | null;
+  translation_name?: string | null;
+  translation_description?: string | null;
+  score?: number | string | null;
 };
 
 type DbProductRow = {
@@ -88,6 +98,68 @@ function buildIlikePattern(query?: string): string | null {
   }
   const escaped = normalized.replace(/[%_]/g, "\\$&");
   return `%${escaped}%`;
+}
+
+function normalizeScore(value: number | string | null | undefined): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function fetchProductSearchRows(
+  env: ParsedEnv,
+  options: {
+    q: string;
+    lang: SupportedLanguage;
+    limit: number;
+    includePending?: boolean;
+  }
+): Promise<ProductSearchRow[]> {
+  const supabase = getSupabaseClient(env);
+  const normalized = options.q.trim().replace(/,/g, " ");
+
+  if (!normalized) {
+    return [];
+  }
+
+  const { data, error } = await supabase.rpc("search_products_i18n", {
+    query: normalized,
+    target_lang: options.lang,
+    limit_count: options.limit,
+    include_pending: options.includePending ?? false,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as ProductSearchRow[];
+}
+
+async function fetchProductRowsForSearch(
+  env: ParsedEnv,
+  productIds: string[]
+): Promise<DbProductRow[]> {
+  if (productIds.length === 0) {
+    return [];
+  }
+
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("products")
+    .select(productListSelectWithStats)
+    .in("id", productIds);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as DbProductRow[];
 }
 
 const productListSelect = `
@@ -204,25 +276,7 @@ export async function fetchProducts(
     .in("status", visibleStatuses);
 
   if (categoryId) {
-    // Use !inner to force an inner join for filtering parent rows by child condition
-    const selectWithInner = `
-      id,
-      slug,
-      name,
-      description,
-      status,
-      created_at,
-      updated_at,
-      brands(id, slug, name, status),
-      product_images(id, url, sort_order),
-      product_categories!inner(category_id),
-      product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count)
-    `;
-    query = supabase
-      .from("products")
-      .select(selectWithInner)
-      .in("status", visibleStatuses)
-      .eq("product_categories.category_id", categoryId);
+    query = query.eq("product_categories.category_id", categoryId);
   }
 
   switch (sort) {
@@ -253,7 +307,7 @@ export async function fetchProducts(
   let countQuery = supabase
     .from("products")
     .select(
-      categoryId ? "id, product_categories!inner(category_id)" : "id",
+      categoryId ? "id, product_categories(category_id)" : "id",
       { count: "exact", head: true }
     )
     .in("status", visibleStatuses);
@@ -1150,70 +1204,115 @@ export async function searchProducts(
     includePending?: boolean;
   }
 ): Promise<Product[]> {
-  const supabase = getSupabaseClient(env);
   const { q, lang, limit, includePending } = options;
-  const normalized = q.trim().replace(/,/g, " ");
+  const rows = await fetchProductSearchRows(env, {
+    q,
+    lang,
+    limit,
+    includePending,
+  });
 
-  if (!normalized) {
+  if (rows.length === 0) {
     return [];
   }
 
-  const escaped = normalized.replace(/[%_]/g, "\\$&");
-  const pattern = `%${escaped}%`;
-
-  let query = supabase
-    .from("product_translations")
-    .select(
-      `
-        product_id,
-        lang,
-        slug,
-        name,
-        products(
-          ${productListSelectBase}
-        )
-      `
-    )
-    .eq("lang", lang)
-    .or(`name.ilike.${pattern},slug.ilike.${pattern}`)
-    .limit(limit);
-
-  const visibleStatuses: ProductStatus[] = includePending
-    ? ["published", "hidden", "pending"]
-    : ["published", "hidden"];
-  query = query.in("products.status", visibleStatuses);
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw error;
-  }
-
-  const rows = (data ?? []) as any as Array<
-    DbProductTranslationRow & { products: DbProductRow | null }
-  >;
+  const productIds = rows
+    .map((row) => row.product_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  const productRows = await fetchProductRowsForSearch(env, productIds);
+  const productMap = new Map(productRows.map((row) => [row.id, row]));
 
   return rows
     .map((row) => {
-      if (!row.products) {
+      const product = productMap.get(row.product_id);
+      if (!product) {
         return null;
       }
-      const merged = {
-        ...row.products,
+      const translationLang = row.translation_lang ?? lang;
+      const merged: DbProductRow = {
+        ...product,
         product_translations: [
           {
-            lang: row.lang,
-            slug: row.slug,
-            name: row.name,
+            lang: translationLang,
+            slug: row.translation_slug ?? product.slug,
+            name: row.translation_name ?? product.name,
+            description: row.translation_description ?? product.description ?? null,
+            meta_title: null,
+            meta_description: null,
           },
         ],
       };
-      return mapProductRow(merged as DbProductRow, {
-        lang,
+      return mapProductRow(merged, {
+        lang: translationLang,
         r2BaseUrl: env.R2_PUBLIC_BASE_URL,
       });
     })
     .filter((item): item is Product => Boolean(item));
+}
+
+export async function searchProductSuggestions(
+  env: ParsedEnv,
+  options: {
+    q: string;
+    lang: SupportedLanguage;
+    limit: number;
+  }
+): Promise<Array<SearchSuggestion & { score: number }>> {
+  const rows = await fetchProductSearchRows(env, {
+    q: options.q,
+    lang: options.lang,
+    limit: options.limit,
+    includePending: false,
+  });
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const productIds = rows
+    .map((row) => row.product_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  const productRows = await fetchProductRowsForSearch(env, productIds);
+  const productMap = new Map(productRows.map((row) => [row.id, row]));
+
+  return rows
+    .map((row) => {
+      const product = productMap.get(row.product_id);
+      if (!product) {
+        return null;
+      }
+      const translationLang = row.translation_lang ?? options.lang;
+      const merged: DbProductRow = {
+        ...product,
+        product_translations: [
+          {
+            lang: translationLang,
+            slug: row.translation_slug ?? product.slug,
+            name: row.translation_name ?? product.name,
+            description: row.translation_description ?? product.description ?? null,
+            meta_title: null,
+            meta_description: null,
+          },
+        ],
+      };
+      const mapped = mapProductRow(merged, {
+        lang: translationLang,
+        r2BaseUrl: env.R2_PUBLIC_BASE_URL,
+      });
+
+      return {
+        id: mapped.id,
+        type: "product",
+        slug: mapped.slug,
+        title: mapped.name,
+        imageUrl: mapped.images?.[0]?.url,
+        ratingAvg: mapped.stats?.ratingAvg,
+        ratingCount: mapped.stats?.ratingCount,
+        reviewCount: mapped.stats?.reviewCount,
+        score: normalizeScore(row.score),
+      };
+    })
+    .filter((item): item is SearchSuggestion & { score: number } => Boolean(item));
 }
 
 export async function findOrCreateProduct(

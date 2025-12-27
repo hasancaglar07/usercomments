@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import HeaderSearch from "@/components/search/HeaderSearch";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 import type { Category } from "@/src/types";
@@ -21,7 +22,6 @@ export default function Header({ lang, categories }: HeaderProps) {
     user?.email?.split("@")[0] ||
     t(resolvedLang, "header.accountFallback");
   const homeHref = localizePath("/", resolvedLang);
-  const searchAction = localizePath("/search", resolvedLang);
   const loginHref = localizePath("/user/login", resolvedLang);
   const addReviewHref = localizePath("/node/add/review", resolvedLang);
   const profileHref = localizePath(
@@ -44,22 +44,9 @@ export default function Header({ lang, categories }: HeaderProps) {
               UserReview
             </h1>
           </Link>
-          <div className="hidden md:flex flex-1 max-w-2xl mx-4">
-            <form className="relative w-full group" action={searchAction} method="get">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="material-symbols-outlined text-gray-400">
-                  search
-                </span>
-              </div>
-              <input
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg leading-5 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition duration-150 ease-in-out"
-                name="q"
-                placeholder={t(resolvedLang, "header.searchPlaceholder")}
-                type="text"
-              />
-            </form>
-          </div>
+          <HeaderSearch lang={resolvedLang} />
           <div className="flex items-center gap-3">
+            <HeaderSearch lang={resolvedLang} variant="mobile" />
             <AuthCtaButton
               as="a"
               className="hidden sm:flex items-center justify-center h-10 px-4 bg-primary hover:bg-primary-dark text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
@@ -79,7 +66,7 @@ export default function Header({ lang, categories }: HeaderProps) {
                 href={profileHref}
               >
                 <span className="material-symbols-outlined text-[20px]">account_circle</span>
-                <span className="truncate max-w-[100px]">{username}</span>
+                <span className="hidden sm:block truncate max-w-[100px]">{username}</span>
               </Link>
             ) : (
               <Link
