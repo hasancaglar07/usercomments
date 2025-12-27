@@ -45,11 +45,23 @@ coverage.xml
 dmypy.json
 .pyre/
 
-# Environments
-.env*
-!.env.example
-!.env.production.example
+# Secret Files (Bot & Auth)
+run_syndicator.bat
+run_blogger_auth.bat
+run_tumblr_auth.bat
+run_indexnow.bat
+run_indexer.bat
+run_pinterest_auth.bat
+run_plurk_auth.bat
+tools/tools/auth_tumblr.py
+tools/tools/auth_pinterest.py
+tools/tools/get_tumblr_info.py
+tools/tools/auth_plurk.py
 
-# OS
-.DS_Store
-Thumbs.db
+# Tokens and Keys
+client_secrets.json
+blogger_token.json
+sitemap_cache.json
+syndication_history.json
+apps/web/public/acikliyorum-*.json
+apps/web/public/client_secrets.json

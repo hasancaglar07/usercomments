@@ -16,24 +16,37 @@ export default function UserSettingsClient() {
   const lang = normalizeLanguage(
     typeof params?.lang === "string" ? params.lang : undefined
   );
-  const profileSchema = useMemo(
-    () =>
-      z.object({
-        username: z
-          .string()
-          .trim()
-          .min(3, t(lang, "profileActions.validation.usernameShort"))
-          .max(24, t(lang, "profileActions.validation.usernameLong"))
-          .regex(/^[a-z0-9_-]+$/i, t(lang, "profileActions.validation.usernameInvalid")),
-        bio: z
-          .string()
-          .trim()
-          .max(280, t(lang, "profileActions.validation.bioLong"))
-          .optional(),
-        profilePicUrl: z.string().url().optional().nullable(),
+  const profileSchema = useMemo(() => {
+    const profilePicUrlSchema = z.union([
+      z.string().url({
+        message: t(lang, "profileActions.validation.profileInvalid"),
       }),
-    [lang]
-  );
+      z
+        .string()
+        .regex(
+          /^\/profile_icon\//,
+          t(lang, "profileActions.validation.profileInvalid")
+        ),
+    ]);
+
+    return z.object({
+      username: z
+        .string()
+        .trim()
+        .min(3, t(lang, "profileActions.validation.usernameShort"))
+        .max(24, t(lang, "profileActions.validation.usernameLong"))
+        .regex(
+          /^[a-z0-9_-]+$/i,
+          t(lang, "profileActions.validation.usernameInvalid")
+        ),
+      bio: z
+        .string()
+        .trim()
+        .max(280, t(lang, "profileActions.validation.bioLong"))
+        .optional(),
+      profilePicUrl: profilePicUrlSchema.optional().nullable(),
+    });
+  }, [lang]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

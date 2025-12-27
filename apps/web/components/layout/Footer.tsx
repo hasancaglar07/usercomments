@@ -66,6 +66,15 @@ export default function Footer({ lang }: FooterProps) {
               >
                 <span className="text-sm font-bold uppercase">IG</span>
               </a>
+              <a
+                href="/feed.xml"
+                target="_blank"
+                rel="noreferrer"
+                className="size-10 flex items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800 text-gray-500 hover:bg-[#ee802f] hover:text-white transition-all duration-200"
+                aria-label="RSS Feed"
+              >
+                <span className="material-symbols-outlined text-xl">rss_feed</span>
+              </a>
             </div>
           </div>
 

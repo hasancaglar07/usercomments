@@ -530,6 +530,11 @@ const adminCategoryUpdateSchema = z
     "At least one field is required."
   );
 
+const profilePicUrlSchema = z.union([
+  z.string().url(),
+  z.string().regex(/^\/profile_icon\//),
+]);
+
 const profileUpdateSchema = z
   .object({
     username: z
@@ -540,7 +545,7 @@ const profileUpdateSchema = z
       .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _.")
       .optional(),
     bio: z.string().trim().max(280).optional().nullable(),
-    profilePicUrl: z.string().url().optional().nullable(),
+    profilePicUrl: profilePicUrlSchema.optional().nullable(),
   })
   .refine(
     (value) =>
@@ -2299,7 +2304,9 @@ async function handleAdminUserUpdate({ env, request, params }: HandlerContext): 
   if (payload.profilePicUrl !== undefined) {
     updatePayload.profilePicUrl = payload.profilePicUrl;
   }
-  const updated = await updateProfileByUserId(env, userId, updatePayload);
+  const updated = await updateProfileByUserId(env, userId, updatePayload, {
+    useAdminClient: true,
+  });
   if (!updated) {
     return errorResponse(404, "User not found");
   }

@@ -118,6 +118,7 @@ If no new rule is detected → do not update the file.
 
 \- When the user disputes a diagnosis, re-check assumptions and offer alternative root causes before repeating the same conclusion, because they expect responsive troubleshooting
 \- Communication: Kullanıcı sert/argo ifade kullandığında sakin, kısa ve net cevap ver; somut kanıtla ilerle çünkü hızlı çözüm bekliyor
+\- Communication: Kullanıcı bir hata mesajı paylaştığında önce kök nedeni doğrula, sonra kısa ve uygulanabilir çözüm adımları ver çünkü hızlı toparlama istiyor
 
 \### Autonomy
 

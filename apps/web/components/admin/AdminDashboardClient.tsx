@@ -117,6 +117,11 @@ const commentEditSchema = z.object({
   text: z.string().trim().min(1).max(2000),
 });
 
+const profilePicUrlSchema = z.union([
+  z.string().url(),
+  z.string().regex(/^\/profile_icon\//),
+]);
+
 const userUpdateSchema = z
   .object({
     username: z
@@ -127,7 +132,7 @@ const userUpdateSchema = z
       .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _.")
       .optional(),
     bio: z.string().trim().max(280).nullable().optional(),
-    profilePicUrl: z.string().nullable().optional(),
+    profilePicUrl: profilePicUrlSchema.nullable().optional(),
   })
   .refine(
     (value) =>
@@ -706,6 +711,8 @@ export default function AdminDashboardClient() {
   } | null>(null);
   const [userRoleEdit, setUserRoleEdit] = useState<UserRole>("user");
   const [isUserAvatarModalOpen, setIsUserAvatarModalOpen] = useState(false);
+  const [userAvatarUploading, setUserAvatarUploading] = useState(false);
+  const userAvatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryParentId, setNewCategoryParentId] = useState("");
@@ -2667,7 +2674,7 @@ export default function AdminDashboardClient() {
       console.error("Failed to update user profile", error);
       const message = extractErrorMessage(error);
       handleAccessError(message);
-      setUserDetailError("Unable to update user profile.");
+      setUserDetailError(message || "Unable to update user profile.");
     }
   };
 
@@ -2677,6 +2684,67 @@ export default function AdminDashboardClient() {
       current ? { ...current, profilePicUrl: url } : current
     );
     setIsUserAvatarModalOpen(false);
+  };
+
+  const handleUserAvatarUploadClick = () => {
+    userAvatarInputRef.current?.click();
+  };
+
+  const handleUserAvatarUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setUserDetailError("Only image files are supported.");
+      if (event.target) {
+        event.target.value = "";
+      }
+      return;
+    }
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setUserDetailError("File too large (max 5MB).");
+      if (event.target) {
+        event.target.value = "";
+      }
+      return;
+    }
+
+    setUserAvatarUploading(true);
+    setUserDetailError(null);
+    try {
+      const { uploadUrl, publicUrl } = await presignUpload({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+      });
+      const response = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Upload failed with status ${response.status}: ${response.statusText}`
+        );
+      }
+      setUserEdit((current) =>
+        current ? { ...current, profilePicUrl: publicUrl } : current
+      );
+      setUsersMessage("Avatar uploaded. Save profile changes to apply.");
+    } catch (error) {
+      console.error("Failed to upload user avatar", error);
+      setUserDetailError("Unable to upload avatar.");
+    } finally {
+      setUserAvatarUploading(false);
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
   };
 
   const handleUserRoleSave = async () => {
@@ -5815,9 +5883,25 @@ export default function AdminDashboardClient() {
                               type="button"
                               className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                               onClick={() => setIsUserAvatarModalOpen(true)}
+                              disabled={userAvatarUploading}
                             >
                               Choose avatar
                             </button>
+                            <button
+                              type="button"
+                              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-70"
+                              onClick={handleUserAvatarUploadClick}
+                              disabled={userAvatarUploading}
+                            >
+                              {userAvatarUploading ? "Uploading..." : "Upload image"}
+                            </button>
+                            <input
+                              ref={userAvatarInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleUserAvatarUpload}
+                            />
                           </div>
                           <button
                             type="button"

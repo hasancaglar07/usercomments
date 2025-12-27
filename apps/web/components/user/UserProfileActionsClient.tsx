@@ -165,27 +165,37 @@ export default function UserProfileActionsClient({
     [lang]
   );
 
-  const profileSchema = useMemo(
-    () =>
-      z.object({
-        username: z
-          .string()
-          .trim()
-          .min(3, t(lang, "profileActions.validation.usernameShort"))
-          .max(24, t(lang, "profileActions.validation.usernameLong"))
-          .regex(
-            /^[a-z0-9_-]+$/i,
-            t(lang, "profileActions.validation.usernameInvalid")
-          ),
-        bio: z
-          .string()
-          .trim()
-          .max(280, t(lang, "profileActions.validation.bioLong"))
-          .optional(),
-        profilePicUrl: z.string().url().optional().nullable(),
+  const profileSchema = useMemo(() => {
+    const profilePicUrlSchema = z.union([
+      z.string().url({
+        message: t(lang, "profileActions.validation.profileInvalid"),
       }),
-    [lang]
-  );
+      z
+        .string()
+        .regex(
+          /^\/profile_icon\//,
+          t(lang, "profileActions.validation.profileInvalid")
+        ),
+    ]);
+
+    return z.object({
+      username: z
+        .string()
+        .trim()
+        .min(3, t(lang, "profileActions.validation.usernameShort"))
+        .max(24, t(lang, "profileActions.validation.usernameLong"))
+        .regex(
+          /^[a-z0-9_-]+$/i,
+          t(lang, "profileActions.validation.usernameInvalid")
+        ),
+      bio: z
+        .string()
+        .trim()
+        .max(280, t(lang, "profileActions.validation.bioLong"))
+        .optional(),
+      profilePicUrl: profilePicUrlSchema.optional().nullable(),
+    });
+  }, [lang]);
 
   const achievements = useMemo(
     () => [
@@ -382,10 +392,7 @@ export default function UserProfileActionsClient({
   };
 
   const handleAvatarSelect = (iconName: string) => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const url = origin
-      ? new URL(`/profile_icon/${iconName}`, origin).toString()
-      : `/profile_icon/${iconName}`;
+    const url = `/profile_icon/${iconName}`;
     setEditForm((current) => ({
       ...current,
       profilePicUrl: url,

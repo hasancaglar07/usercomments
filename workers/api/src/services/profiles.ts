@@ -1,5 +1,5 @@
 import type { ParsedEnv } from "../env";
-import { getSupabaseClient } from "../supabase";
+import { getSupabaseAdminClient, getSupabaseClient } from "../supabase";
 import type { AuthUser, UserRole } from "../auth";
 import type { UserProfile } from "../types";
 import { mapProfileRow } from "./mappers";
@@ -169,9 +169,13 @@ export async function updateProfileByUserId(
     username?: string;
     bio?: string | null;
     profilePicUrl?: string | null;
-  }
+  },
+  options?: { useAdminClient?: boolean }
 ): Promise<UserProfile | null> {
-  const supabase = getSupabaseClient(env);
+  const adminClient = options?.useAdminClient
+    ? getSupabaseAdminClient(env)
+    : null;
+  const supabase = adminClient ?? getSupabaseClient(env);
   const updates: Record<string, unknown> = {};
   if (payload.username !== undefined) {
     updates.username = payload.username;
