@@ -964,11 +964,75 @@ export async function fetchProductBySlug(
     product_stats: stats ?? undefined,
   };
 
-  return mapProductRow(mergedProduct as DbProductRow, {
-    lang: translation.lang,
+  const mappedProduct = mapProductRow(mergedProduct as DbProductRow, {
+    lang: translation.lang as SupportedLanguage,
     includeTranslations: true,
     r2BaseUrl: env.R2_PUBLIC_BASE_URL,
   });
+
+  // AGGREGATE FAQ FROM REVIEWS
+  try {
+    // 1. Fetch top rated reviews for this product in current language that have FAQs
+    // We need to fetch 'faq' column from review_translations
+    // Note: 'reviews' table links to 'product_id'. 'review_translations' links to 'review_id'.
+
+    const { data: reviewsData } = await supabase
+      .from("reviews")
+      .select(`
+          id, 
+          review_translations!inner(faq, lang)
+      `)
+      .eq("product_id", productRow.id)
+      .eq("status", "published")
+      .eq("review_translations.lang", lang)
+      .order("rating_avg", { ascending: false }) // Best reviews first
+      .limit(10);
+
+    let aggregatedFaq: Array<{ question: string; answer: string }> = [];
+
+    if (reviewsData && reviewsData.length > 0) {
+      // Extract FAQs
+      const allFaqs = reviewsData.flatMap(r => {
+        const trans = r.review_translations;
+        // Supabase returns object if single or array if multiple. Here !inner implies specific lang so likely single or array.
+        // Taking safety check.
+        const transList = Array.isArray(trans) ? trans : [trans];
+        return transList.flatMap(t => {
+          const f = (t as any).faq;
+          return Array.isArray(f) ? f : [];
+        });
+      });
+
+      // Deduplicate by Question
+      const seenQuestions = new Set<string>();
+      for (const item of allFaqs) {
+        if (item && item.question && item.answer) {
+          const qNorm = String(item.question).trim().toLowerCase();
+          if (!seenQuestions.has(qNorm) && qNorm.length > 5) {
+            seenQuestions.add(qNorm);
+            aggregatedFaq.push({
+              question: item.question,
+              answer: item.answer
+            });
+          }
+        }
+        if (aggregatedFaq.length >= 20) break;
+      }
+    }
+
+    if (aggregatedFaq.length > 0) {
+      // Attach to the return object.
+      // Since Product type might not explicitly have 'faq', we cast to any or check type definition.
+      // To ensure frontend receives it, we attach it.
+      (mappedProduct as any).extendedFaq = aggregatedFaq;
+    }
+
+  } catch (err) {
+    console.warn("Failed to aggregate product FAQs from reviews:", err);
+    // Suppress error, return product without extra FAQs
+  }
+
+  return mappedProduct;
 }
 
 async function fetchProductByIdPublic(

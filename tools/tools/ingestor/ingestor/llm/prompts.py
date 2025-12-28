@@ -11,7 +11,7 @@ LANGUAGE_STYLES = {
     "tr": {
         "name": "Turkish", 
         "tone": "samimi, sıcak ve arkadaşça",
-        "style": "Sanki yakın bir arkadaşına deneyimini anlatıyormuş gibi yaz. Günlük konuşma dilini kullan, resmi olma. 'Ben şahsen', 'Vallahi', 'Bak şimdi' gibi ifadeler kullanabilirsin. Türk okuyucular samimiyete ve gerçekçiliğe değer verir. Abartılı satış diline kaçma.",
+        "style": "Sanki yakın bir arkadaşına deneyimini anlatıyormuş gibi yaz. Günlük konuşma dilini kullan, resmi olma. 'Ben şahsen', 'Vallahi', 'Bak şimdi' gibi ifadeler kullanabilirsin. Türk okuyucular samimiyete ve gerçekçiliğe değer verir. Abartılı satış diline kaçma. Uydurma kelimeler kullanma (örn: 'Oğlata' diye bir kelime yok). Bebek maması terimlerini doğru kullan (örn: 'Porridge' -> 'Kaşık Maması' veya 'Muhallebi', 'Oatmeal' -> 'Yulaf Ezmesi').",
         "example_phrases": "Açıkçası, Şunu söyleyeyim, Vallahi, Bence, Yani kısacası, Tam bir hayal kırıklığı, Kesinlikle tavsiye ederim",
     },
     "de": {
@@ -81,7 +81,8 @@ def build_translation_prompt(
         "2. SOUND HUMAN: Use natural speech patterns, contractions, and expressions native speakers actually use.\n"
         "3. KEEP THE STORY: Preserve all personal experiences, specific details, and the reviewer's genuine opinions.\n"
         "4. NO AI SMELL: Avoid robotic phrases like 'It is worth noting', 'One thing to mention', 'In conclusion'.\n"
-        "5. BE AUTHENTIC: Write as if you're sharing with a friend, not writing a formal report.\n\n"
+        "5. BE AUTHENTIC: Write as if you're sharing with a friend, not writing a formal report.\n"
+        "6. CORRECT TERMINOLOGY: Use correct local terms for products (e.g. 'Baby Porridge' -> 'Kaşık Maması' in TR, 'Brei' in DE). Do not invent words.\n\n"
         
         "📋 Content Structure:\n"
         "- content_html: The review body ONLY. Use semantic HTML (h3, h4, p, strong, ul, li).\n"
@@ -111,8 +112,8 @@ def build_translation_prompt(
         "- Brand names/models: If in English/Latin, keep as-is. If in Russian, TRANSLITERATE or TRANSLATE to Latin.\n"
         "- NO CYRILLIC in output.\n"
         "- Output ONLY raw JSON. No markdown code blocks.\n"
-        "- CRITICAL: Escape all double quotes within strings (e.g. \"value with \\\"quotes\\\"\")\n"
-        "- Ensure strictly valid JSON syntax."
+        "- CRITICAL: You MUST escape ALL double quotes inside string values with a backslash. Example: \"<div class=\\\"my-class\\\">\"\n"
+        "- Ensure strictly valid JSON syntax. Do not output invalid control characters."
     )
 
 
@@ -151,7 +152,8 @@ def build_pivot_translation_prompt(lang: str, en_data: dict) -> str:
         "3. AVOID AI PHRASES: No 'It is worth noting', 'In conclusion', 'One thing to mention'.\n"
         "4. BE AUTHENTIC: Write as if sharing with a friend, not writing a report.\n"
         "5. KEEP ALL DETAILS: Preserve personal experiences, specific facts, and opinions.\n"
-        "6. TRANSLATE ALL LISTS: You MUST translate/localize the 'summary', 'faq', 'pros', and 'cons' fields. Do not leave them in English or Russian.\n\n"
+        "6. TRANSLATE ALL LISTS: You MUST translate/localize the 'summary', 'faq', 'pros', and 'cons' fields. Do not leave them in English or Russian.\n"
+        "7. CORRECT TERMINOLOGY: Use correct local terms (e.g. 'Porridge' -> 'Kaşık Maması' in TR, 'Oatmeal' -> 'Yulaf Ezmesi'). Do not invent words.\n\n"
         
         "Output JSON schema:\n"
         "{\n"
@@ -171,7 +173,7 @@ def build_pivot_translation_prompt(lang: str, en_data: dict) -> str:
         "- Brand names/models: Keep as-is (Latin). everything else MUST be in target language.\n"
         "- NO CYRILLIC in output.\n"
         "- Output ONLY raw JSON. No markdown code blocks.\n"
-        "- CRITICAL: Escape all double quotes within strings (e.g. \"value with \\\"quotes\\\"\")\n"
+        "- CRITICAL: You MUST escape ALL double quotes inside string values with a backslash. Example: \"<div class=\\\"my-class\\\">\"\n"
         "- Ensure valid JSON syntax."
     )
 
@@ -309,6 +311,7 @@ def build_chunked_translation_prompt(lang: str, chunk: str, chunk_num: int, tota
         "- Output ONLY the JSON object, no markdown.\n"
         "- Ensure valid JSON syntax.\n"
         "- CRITICAL: ESCAPE ALL DOUBLE QUOTES inside the HTML string value. (e.g. \"<div class=\\\"classname\\\">\" NOT \"<div class=\"classname\">\" )\n"
+        "- CRITICAL: Do not output invalid control characters like unescaped newlines inside strings.\n"
         "- The content must be complete - do not truncate."
     )
 

@@ -182,7 +182,7 @@ function parseReviewContent(
     const firstLine = lines[0];
     if (firstLine.startsWith("### ")) {
       const text = firstLine.substring(4).trim();
-      const id = `heading-${headerCount++}`;
+      const id = `section-${headerCount++}`;
       blocks.push({ type: "h3", content: text, id });
       // If there are more lines in this section, they are a paragraph following the header
       if (lines.length > 1) {
@@ -195,7 +195,7 @@ function parseReviewContent(
 
     if (firstLine.startsWith("## ")) {
       const text = firstLine.substring(3).trim();
-      const id = `heading-${headerCount++}`;
+      const id = `section-${headerCount++}`;
       blocks.push({ type: "h2", content: text, id });
       if (lines.length > 1) {
         const pContent = lines.slice(1).join("\n");

@@ -40,6 +40,7 @@ class ReviewDetail(BaseModel):
     category_name: Optional[str] = None
     subcategory_name: Optional[str] = None
     product_name: Optional[str] = None
+    product_source_url: Optional[str] = None
     excerpt: str = ""
 
     product_image_url: Optional[str] = None
@@ -296,6 +297,40 @@ def parse_review_detail(html: str, source_url: str, base_url: str, logger: loggi
     parsed = urlparse(source_url)
     source_slug = parsed.path.rstrip("/").split("/")[-1]
 
+    # PRODUCT URL EXTRACTION
+    # Try to find the canonical product link.
+    # Method 1: Last breadcrumb link usually points to product if it's not a category
+    product_source_url = None
+    crumbs = []
+    for selector in BREADCRUMB_SELECTORS:
+        nodes = soup.select(selector)
+        for node in nodes:
+            href = node.get("href")
+            if href:
+                crumbs.append(href)
+        if crumbs:
+            break
+    
+    if crumbs:
+        # Filter out common non-product links
+        potential_products = [
+            c for c in crumbs 
+            if "/content/" in c 
+            and c != source_url 
+            and "reviews" not in c
+        ]
+        if potential_products:
+            # The last one is usually the most specific (the product)
+            candidate = potential_products[-1]
+            if candidate.startswith("//"):
+                candidate = f"https:{candidate}"
+            elif not candidate.startswith("http"):
+                candidate = urljoin(base_url, candidate)
+            product_source_url = candidate
+
+    # Method 2: Fallback to looking for a link wrapping the H1 or main title? 
+    # (Not strictly reliable, Method 1 is better for structured sites like IRecommend)
+
     # Basic excerpt generation
     excerpt_soup = BeautifulSoup(content_html or "", "lxml")
     excerpt = normalize_whitespace(excerpt_soup.get_text())[:300]
@@ -318,6 +353,7 @@ def parse_review_detail(html: str, source_url: str, base_url: str, logger: loggi
         category_name=cat_name,
         subcategory_name=sub_name,
         product_name=prod_name,
+        product_source_url=product_source_url,
         excerpt=excerpt,
         product_image_url=product_image_url,
         image_urls=image_urls,

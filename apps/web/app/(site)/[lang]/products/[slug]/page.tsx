@@ -169,6 +169,23 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const reviewCount = product.stats?.reviewCount ?? 0;
   const shouldIndex = reviewCount > 0;
 
+  let ogImage = product.images?.[0]?.url;
+
+  // Fallback: If no official product image, try to find a review image
+  if (!ogImage && reviewCount > 0) {
+    try {
+      const reviews = await getProductReviews(product.id, 1, 5, "popular", resolvedLang);
+      const reviewWithImage = reviews.items.find(
+        (r) => r.photoUrls && r.photoUrls.length > 0
+      );
+      if (reviewWithImage?.photoUrls?.[0]) {
+        ogImage = reviewWithImage.photoUrls[0];
+      }
+    } catch (error) {
+      console.error("Failed to fetch fallback review image for SEO:", error);
+    }
+  }
+
   return buildMetadata({
     title: t(lang, "productDetail.meta.titleTemplate", { name: product.name }),
     description:
@@ -177,7 +194,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
     path: `/products/${product.slug}`,
     lang: resolvedLang as SupportedLanguage,
     type: "website",
-    image: product.images?.[0]?.url,
+    image: ogImage,
     keywords: [product.name, "Reviews", "Ratings", "UserReview"],
     languagePaths,
     robots: shouldIndex
@@ -444,12 +461,23 @@ export default async function Page(props: PageProps) {
     .slice(0, 4);
 
   // NEW: Generate Synthetic FAQs for SEO and User Experience
-  const faqItems = [
-    {
-      question: t(lang, "productDetail.faq.whatIs", { productName: product.name }),
-      answer: product.description || t(lang, "productDetail.descriptionFallback"),
-    },
-    {
+  // PRIORITIZE AGGREGATED FAQs from reviews if available
+  const extendedFaq = (product as any).extendedFaq as Array<{ question: string, answer: string }> | undefined;
+
+  let faqItems: Array<{ question: string, answer: string }> = [];
+
+  // Always include the "What Is" question as it is good for SEO
+  faqItems.push({
+    question: t(lang, "productDetail.faq.whatIs", { productName: product.name }),
+    answer: product.description || t(lang, "productDetail.descriptionFallback"),
+  });
+
+  if (extendedFaq && extendedFaq.length > 0) {
+    // Append aggregated FAQs
+    faqItems.push(...extendedFaq);
+  } else {
+    // Fallback: Add the recommendation question only if we don't have better FAQs
+    faqItems.push({
       question: t(lang, "productDetail.faq.isRecommended", { productName: product.name }),
       answer: ratingCount > 0
         ? t(lang, "productDetail.faq.ratingAnswer", {
@@ -457,8 +485,8 @@ export default async function Page(props: PageProps) {
           count: formatNumber(ratingCount, lang)
         })
         : t(lang, "productDetail.faq.noRatingsYet"),
-    }
-  ];
+    });
+  }
 
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -483,10 +511,14 @@ export default async function Page(props: PageProps) {
           <div className="grid gap-8 md:grid-cols-[260px_1fr]">
             {/* Left Column: Image */}
             <div className="flex flex-col gap-4">
-              <div
-                className="aspect-square w-full rounded-xl bg-slate-100 dark:bg-slate-800 bg-contain bg-center bg-no-repeat border border-slate-100 dark:border-slate-800"
-                style={{ backgroundImage: `url(${productImage})` }}
-              />
+              <div className="aspect-square w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 overflow-hidden relative">
+                <img
+                  src={productImage}
+                  alt={t(lang, "productDetail.meta.titleTemplate", { name: product.name })}
+                  className="w-full h-full object-contain p-4"
+                  loading="eager"
+                />
+              </div>
               {/* Quick stats for mobile could go here if needed */}
             </div>
 

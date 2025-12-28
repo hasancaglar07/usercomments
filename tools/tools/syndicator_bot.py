@@ -27,6 +27,46 @@ def log(message):
     timestamp = datetime.now().strftime("%H:%M:%S")
     print(f"[{timestamp}] {message}")
 
+def extract_best_image(url):
+    """
+    Sayfadan en iyi görseli çeker. 
+    Özellikle 'img-029.png' gibi varsayılan placeholder görselleri atlar.
+    """
+    try:
+        import requests
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+        }
+        r = requests.get(url, headers=headers, timeout=15)
+        
+        if r.status_code != 200:
+            return None
+        
+        import re
+        
+        # 1. og:image (property="og:image" content="...")
+        matches = re.findall(r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', r.text, re.IGNORECASE)
+        
+        # 2. og:image (content="..." property="og:image") - Sıra farklı olabilir
+        matches += re.findall(r'<meta\s+content=["\']([^"\']+)["\']\s+property=["\']og:image["\']', r.text, re.IGNORECASE)
+        
+        # 3. twitter:image
+        matches += re.findall(r'<meta\s+(?:property|name)=["\']twitter:image["\']\s+content=["\']([^"\']+)["\']', r.text, re.IGNORECASE)
+        
+        # Filtreleme: Varsayılan (placeholder) görselleri atla
+        for img_url in matches:
+            if "img-029.png" not in img_url and "default" not in img_url.lower():
+                # Bazen URL relative olabilir ama Next.js genelde absolute basar.
+                if img_url.startswith("http"):
+                    return img_url
+        
+        return None
+        
+    except Exception as e:
+        log(f"Image extraction error: {e}")
+        return None
+
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return {}
@@ -359,28 +399,14 @@ class PinterestProvider:
             log(f"Pinterest Board Error: {e}")
         return None
 
-    def _extract_image(self, url):
-        try:
-            import requests
-            import re
-            r = requests.get(url, timeout=10)
-            if r.status_code == 200:
-                # Find og:image
-                m = re.search(r'<meta property="og:image" content="([^"]+)"', r.text)
-                if m:
-                    return m.group(1)
-        except:
-            pass
-        return None
-
     def post(self, title, body, tags, canonical_url):
         if not self.board_id:
             log("Pinterest Error: No Board ID found or created.")
             return False
             
-        img_url = self._extract_image(canonical_url)
+        img_url = extract_best_image(canonical_url)
         if not img_url:
-            log("Pinterest Skip: No Image found (og:image).")
+            log("Pinterest Skip: No Image found (or only default image found).")
             return False
             
         try:
@@ -491,34 +517,12 @@ class IFTTTProvider:
         self.event_name = event_name
         self.endpoint = f"https://maker.ifttt.com/trigger/{self.event_name}/with/key/{self.key}"
 
-    def _extract_image(self, url):
-        try:
-            import requests
-            import re
-            
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-            r = requests.get(url, headers=headers, timeout=10)
-            
-            # Simple regex to find og:image
-            match = re.search(r'<meta property="og:image" content="([^"]+)"', r.text)
-            if match:
-                return match.group(1)
-            
-            # Fallback 2: Twitter Image
-            match = re.search(r'<meta name="twitter:image" content="([^"]+)"', r.text)
-            if match:
-                return match.group(1)
-
-            return ""
-        except:
-            return ""
-        
     def post(self, title, body, tags, canonical_url):
         try:
             import requests
             
             # Extract Image URL for Pinterest
-            image_url = self._extract_image(canonical_url)
+            image_url = extract_best_image(canonical_url)
             
             # IFTTT Webhook accepts 3 values. We are repurposing them for maximum compatibility:
             # value1: Title + Tags (Rich Text)

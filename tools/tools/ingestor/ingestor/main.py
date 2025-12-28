@@ -229,7 +229,10 @@ async def _ensure_category_ids_async(
     # 3. Ensure Product
     prod_id = None
     if prod_name:
-        prod_url = f"{config.source_base_url}/product/{detail.source_slug}"
+        prod_url = detail.product_source_url
+        if not prod_url:
+            prod_url = f"{config.source_base_url}/product/{detail.source_slug}"
+            
         prod_payload = {
             "name": prod_name,
             "source_url": prod_url,
@@ -307,20 +310,48 @@ async def _ensure_category_ids_async(
                         # We prefer EN for the main slug/name.
                         main_lang_data = translations.get("en")
                         if main_lang_data:
-                            try:
-                                await asyncio.to_thread(
-                                    supabase.update,
-                                    "products",
-                                    {
-                                        "name": main_lang_data["name"],
-                                        "description": main_lang_data["description"],
-                                        "slug": main_lang_data["slug"],
-                                    },
-                                    [("eq", "id", prod_id)]
-                                )
-                                logger.info("Updated main product record to %s (slug: %s)", main_lang_data["lang"], main_lang_data["slug"])
-                            except Exception as update_err:
-                                logger.warning("Failed to update main product record: %s", update_err)
+                            # ROBUST SLUG UPDATE: Retry loop to ensure we kill Cyrillic slugs
+                            base_slug = main_lang_data["slug"]
+                            for attempt in range(5):
+                                target_slug = base_slug
+                                if attempt > 0:
+                                    target_slug = f"{base_slug}-{short_hash(uuid.uuid4().hex)}"
+                                
+                                try:
+                                    await asyncio.to_thread(
+                                        supabase.update,
+                                        "products",
+                                        {
+                                            "name": main_lang_data["name"],
+                                            "description": main_lang_data["description"],
+                                            "slug": target_slug,
+                                        },
+                                        [("eq", "id", prod_id)]
+                                    )
+                                    logger.info("Updated main product record to %s (slug: %s)", main_lang_data["lang"], target_slug)
+                                    break # Success
+                                except Exception as update_err:
+                                    msg = str(update_err).lower()
+                                    if "duplicate" in msg or "slug" in msg or "23505" in msg:
+                                       logger.warning("Main product slug conflict for %s. Retrying with suffix...", target_slug)
+                                       continue # Try next attempt with suffix
+                                    else:
+                                        logger.error("Critical: Failed to update main product: %s", update_err)
+                                        # Fallback: Last ditch effort - UPDATE NAME ONLY
+                                        try:
+                                            await asyncio.to_thread(
+                                                supabase.update,
+                                                "products",
+                                                {
+                                                    "name": main_lang_data["name"],
+                                                    "description": main_lang_data["description"],
+                                                },
+                                                [("eq", "id", prod_id)]
+                                            )
+                                            logger.info("Fallback: Updated main product NAME only.")
+                                        except:
+                                            pass
+                                        break
                                 
                     except Exception as e:
                         logger.warning("Product translation failed: %s", e)
@@ -764,15 +795,53 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
         logger.warning("Failed to load products for internal linking: %s", e)
         product_map = {}
 
-    new_sources = await asyncio.to_thread(
+    # DIVERSITY UPDATE: Fetch larger pool to allow for shuffling/mixing
+    # We ask for 5x the needed amount (or 100 minimum) to get a good mix of categories
+    fetch_limit = max(100, config.max_new_reviews_per_loop * 5)
+    
+    raw_sources = await asyncio.to_thread(
         fetch_new_sources,
         supabase,
-        config.max_new_reviews_per_loop,
+        fetch_limit,
         config.retry_failed_sources,
         config.max_source_retries,
     )
     
-    # Calculate how many we can still process
+    # Smart Shuffle Logic
+    # Group by 'category_signature' (derived from URL path segments)
+    # e.g. /content/food/baby-food/nestle -> category_signature: "food/baby-food"
+    grouped_sources = {}
+    for item in raw_sources:
+        url = item.get("source_url", "")
+        # Extract a simplified signature from the URL path
+        try:
+            path_parts = urlparse(url).path.strip("/").split("/")
+            # Attempt to use first 1-2 distinctive path segments as group key
+            # Standard structure often: /content/[category]/[subcategory]/[product]
+            if len(path_parts) >= 2:
+                sig = "/".join(path_parts[:2])
+            else:
+                sig = "misc"
+        except:
+            sig = "misc"
+            
+        if sig not in grouped_sources:
+            grouped_sources[sig] = []
+        grouped_sources[sig].append(item)
+    
+    # Interleave sources (Round-Robin)
+    new_sources = []
+    keys = list(grouped_sources.keys())
+    random.shuffle(keys) # Randomize starting category
+    
+    max_len = max([len(v) for v in grouped_sources.values()]) if grouped_sources else 0
+    
+    for i in range(max_len):
+        for key in keys:
+            if i < len(grouped_sources[key]):
+                new_sources.append(grouped_sources[key][i])
+                
+    # Now trim to the actual limit we want to process
     remaining_daily = config.daily_review_limit - daily_count
     if remaining_daily <= 0:
         logger.info("Daily limit reached (checked again).")
@@ -781,6 +850,12 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
     # Cap new sources
     if len(new_sources) > remaining_daily:
         new_sources = new_sources[:remaining_daily]
+    
+    # Further cap by loop limit
+    if len(new_sources) > config.max_new_reviews_per_loop:
+        new_sources = new_sources[:config.max_new_reviews_per_loop]
+    
+    logger.info("Diversity Mix: Selected %d sources from %d raw candidates across %d categories", len(new_sources), len(raw_sources), len(grouped_sources))
     
     if len(new_sources) < config.max_new_reviews_per_loop:
         logger.info("Discovering new content from detailed scan of EXISTING categories...")

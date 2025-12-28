@@ -16,7 +16,13 @@ for table in tables:
         # Get one row to see columns
         res = supabase.table(table).select("*").limit(1).execute()
         if res.data:
-            print(f"Columns: {list(res.data[0].keys())}")
+            cols = list(res.data[0].keys())
+            print(f"Columns: {cols}")
+            if "products" in table:
+                if "source_url" in cols:
+                    print(f"  [YES] 'source_url' FOUND in {table}")
+                else:
+                    print(f"  [NO] 'source_url' NOT FOUND in {table}")
         else:
             print("Table is empty, cannot infer columns from select *")
     except Exception as e:

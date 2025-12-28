@@ -167,37 +167,90 @@ def upsert_product(
     supabase: SupabaseClient,
     payload: Dict[str, Any],
 ) -> str:
-    # Check if product exists by source_url (virtual) or slug
+    # Check if product exists by source_url (stored in description) or slug
     name = payload.get("name", "Unknown Product")
     source_url = payload.get("source_url")
     base_slug = slugify(name) or f"product-{short_hash(source_url or name)}"
     
-    # Try to find existing product
-    # Try to find existing product by Slug OR Name (Case Insensitive)
-    # First by slug
+    # STRATEGY: Store source_url in description to enable strict matching
+    # Since we lack a dedicated 'source_url' column, this metadata hack ensures 
+    # we can always find the exact original product again.
+    
+    # 1. Try Strict Match via Source URL in Description
+    if source_url:
+        # We search for the specific URL signature in the description
+        # Using a reliable marker
+        start_marker = "Original URL: "
+        # Depending on Supabase text search capabilities, but 'ilike' should work for exact substring
+        # filters=[("ilike", "description", f"%{source_url}%")]
+        # To be safe and avoid partial matches of similar URLs, we can try to be specific
+        # But for now, a simple ilike is vastly better than name matching.
+        
+        try:
+             # Looking for products where description contains the source_url
+            rows = supabase.select(
+                "products", 
+                columns="id", 
+                filters=[("ilike", "description", f"%{source_url}%")], 
+                limit=1
+            )
+            if rows:
+                return rows[0]["id"]
+        except Exception as e:
+            # If ilike fails or syntax error, just fallback
+             pass
+
+    # 2. Try to find existing product by Slug
     rows = supabase.select("products", columns="id", filters=[("eq", "slug", base_slug)], limit=1)
     if rows:
         return rows[0]["id"]
 
-    # Fallback: Try match by Name (Exact Name Match but Case Insensitive if possible, usually 'eq' is strict)
-    # Ideally we'd use 'ilike' but supabase-py client might be limited. 
-    # Let's assume standard select with "eq" on name as a second check.
-    # Note: Using strict name match is safer than fuzzy for automation to avoid merging "iPhone 13" and "iPhone 13 Pro".
+    # 3. Fallback: Try match by Name (Exact Name Match)
     rows_name = supabase.select("products", columns="id", filters=[("eq", "name", name)], limit=1)
     if rows_name:
         return rows_name[0]["id"]
     
-    # Insert new product
+    # 4. Insert new product
+    # Append source_url to description if available for future matching
+    base_desc = payload.get("description") or f"Product: {name}"
+    if source_url:
+        full_desc = f"{base_desc}\n\nOriginal URL: {source_url}"
+    else:
+        full_desc = base_desc
+
     product_payload = {
         "slug": base_slug,
         "name": name,
-        "description": payload.get("description"),
+        "description": full_desc,
         "status": payload.get("status", "published"),
     }
-    supabase.upsert("products", [product_payload], on_conflict="slug")
     
-    rows = supabase.select("products", columns="id", filters=[("eq", "slug", base_slug)], limit=1)
-    return rows[0]["id"]
+    try:
+        supabase.upsert("products", [product_payload], on_conflict="slug")
+    except Exception as e:
+        # Retry with hashed slug if conflict
+        if source_url:
+             product_payload["slug"] = f"{base_slug}-{short_hash(source_url)}"
+             supabase.upsert("products", [product_payload], on_conflict="slug")
+        else:
+             raise e
+    
+    # Fetch back ID
+    # Use strict match first if we just inserted with URL
+    if source_url:
+         rows = supabase.select("products", columns="id", filters=[("ilike", "description", f"%{source_url}%")], limit=1)
+         if rows: return rows[0]["id"]
+
+    rows = supabase.select("products", columns="id", filters=[("eq", "name", name)], limit=1)
+    if rows:
+        return rows[0]["id"]
+
+    # Iterate to find what we just inserted if slug was modified
+    rows = supabase.select("products", columns="id", order=("created_at", "desc"), limit=1)
+    if rows and rows[0]["name"] == name: # Sanity check
+         return rows[0]["id"]
+
+    raise RuntimeError(f"Failed to upsert product: {name}")
 
 def upsert_product_translations(
     supabase: SupabaseClient,
