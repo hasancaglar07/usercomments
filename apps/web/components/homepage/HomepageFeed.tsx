@@ -145,36 +145,38 @@ function sortHomepageCardsByLatest(cards: ReviewCardHomepageData[]) {
   });
 }
 
+import { Skeleton } from "@/components/ui/Skeleton";
+
 function HomepageFeedSkeleton({ count }: { count: number }) {
   return (
     <>
       {Array.from({ length: count }).map((_, index) => (
         <article
           key={`homepage-skeleton-${index}`}
-          className="flex flex-col sm:flex-row bg-background-light dark:bg-surface-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden animate-pulse"
+          className="flex flex-col sm:flex-row bg-background-light dark:bg-surface-dark rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
         >
-          <div className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 bg-slate-200 dark:bg-slate-700" />
+          <Skeleton className="w-full sm:w-48 h-48 sm:h-auto flex-shrink-0 rounded-none" />
           <div className="flex-1 p-5 flex flex-col justify-between gap-4">
             <div className="space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700" />
+                  <Skeleton className="w-8 h-8 rounded-full" />
                   <div className="space-y-2">
-                    <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                    <div className="h-2 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-2 w-24" />
                   </div>
                 </div>
-                <div className="h-4 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+                <Skeleton className="h-4 w-16" />
               </div>
-              <div className="h-4 w-3/4 bg-slate-200 dark:bg-slate-700 rounded" />
-              <div className="h-3 w-1/3 bg-slate-200 dark:bg-slate-700 rounded" />
-              <div className="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/3" />
+              <Skeleton className="h-3 w-full" />
             </div>
             <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700 pt-3">
-              <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+              <Skeleton className="h-3 w-20" />
               <div className="flex items-center gap-4">
-                <div className="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded" />
-                <div className="h-3 w-10 bg-slate-200 dark:bg-slate-700 rounded" />
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-3 w-10" />
               </div>
             </div>
           </div>
@@ -684,12 +686,17 @@ export default function HomepageFeed({
       ) : (
         <div className="space-y-6 -mx-4 sm:mx-0">
           {visibleCards.map((card, index) => (
-            <ReviewCardHomepage
+            <div
               key={card.review.id || card.review.slug || `homepage-${index}`}
-              {...card}
-              lang={lang}
-              imagePriority={index === 0}
-            />
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${Math.min(index * 75, 600)}ms` }}
+            >
+              <ReviewCardHomepage
+                {...card}
+                lang={lang}
+                imagePriority={index === 0}
+              />
+            </div>
           ))}
           {isLoading ? <HomepageFeedSkeleton count={skeletonCount} /> : null}
           <div className="space-y-2">

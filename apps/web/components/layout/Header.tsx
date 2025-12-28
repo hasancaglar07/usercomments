@@ -57,7 +57,7 @@ export default function Header({ lang, categories }: HeaderProps) {
 
   return (
     <header
-      className={`glass border-b border-slate-200/60 dark:border-slate-800/60 sticky top-0 z-50 transition-transform duration-300 ease-in-out ${isVisible ? "translate-y-0" : "-translate-y-full"
+      className={`backdrop-blur-md bg-white/80 dark:bg-black/80 border-b border-gray-200/50 dark:border-gray-800 transform-gpu sticky top-0 z-50 transition-all duration-300 ease-in-out ${isVisible ? "translate-y-0" : "-translate-y-16"
         }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -12,7 +12,8 @@ type AuthCtaButtonProps = {
   authenticatedHref?: string;
   guestHref?: string;
   as?: "button" | "a";
-};
+  enableHaptic?: boolean;
+} & React.HTMLAttributes<HTMLElement>;
 
 export default function AuthCtaButton({
   className,
@@ -20,6 +21,9 @@ export default function AuthCtaButton({
   authenticatedHref = "/node/add/review",
   guestHref = "/user/login",
   as = "button",
+  onClick,
+  enableHaptic = false,
+  ...props
 }: AuthCtaButtonProps) {
   const router = useRouter();
   const params = useParams();
@@ -51,40 +55,25 @@ export default function AuthCtaButton({
   };
 
   const handleAnchorClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (enableHaptic && typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+    if (onClick) {
+      onClick(event);
+    }
     if (loading) {
       event.preventDefault();
       return;
     }
   };
 
-  if (as === "a") {
-    if (isInternal) {
-      return (
-        <Link
-          className={`${className} active-press`}
-          href={linkHref}
-          onClick={handleAnchorClick}
-          onMouseEnter={handlePrefetch}
-          onFocus={handlePrefetch}
-        >
-          {children}
-        </Link>
-      );
+  const handleButtonClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (enableHaptic && typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(15);
     }
-    return (
-      <a
-        className={`${className} active-press`}
-        href={linkHref}
-        onClick={handleAnchorClick}
-        onMouseEnter={handlePrefetch}
-        onFocus={handlePrefetch}
-      >
-        {children}
-      </a>
-    );
-  }
-
-  const handleButtonClick = () => {
+    if (onClick) {
+      onClick(event);
+    }
     if (loading) {
       return;
     }
@@ -97,6 +86,35 @@ export default function AuthCtaButton({
     }
   };
 
+  if (as === "a") {
+    if (isInternal) {
+      return (
+        <Link
+          className={`${className} active-press`}
+          href={linkHref}
+          onClick={handleAnchorClick}
+          onMouseEnter={handlePrefetch}
+          onFocus={handlePrefetch}
+          {...props}
+        >
+          {children}
+        </Link>
+      );
+    }
+    return (
+      <a
+        className={`${className} active-press`}
+        href={linkHref}
+        onClick={handleAnchorClick}
+        onMouseEnter={handlePrefetch}
+        onFocus={handlePrefetch}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  }
+
   return (
     <button
       className={`${className} active-press shine-effect`}
@@ -104,6 +122,7 @@ export default function AuthCtaButton({
       onMouseEnter={handlePrefetch}
       onFocus={handlePrefetch}
       type="button"
+      {...props}
     >
       {children}
     </button>

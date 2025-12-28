@@ -177,8 +177,8 @@ export default function TrendingSection({ lang, initialTab, initialData }: Trend
                             {currentCards.map((card, index) => (
                                 <div
                                     key={`trending-wrapper-${activeTab}-${index}`}
-                                    className="opacity-0 animate-fade-in h-full"
-                                    style={{ animationDelay: `${index * 100}ms` }}
+                                    className={`h-full ${index === 0 ? 'opacity-100' : 'opacity-0 animate-fade-in'}`}
+                                    style={index === 0 ? undefined : { animationDelay: `${index * 100}ms` }}
                                 >
                                     <ReviewCardTrending
                                         {...card}

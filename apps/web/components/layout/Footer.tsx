@@ -219,9 +219,10 @@ export default function Footer({ lang }: FooterProps) {
         {/* Mobile Floating Action Button (FAB) for Writing Reviews */}
         <AuthCtaButton
           as="a"
-          className="fixed bottom-6 right-6 md:hidden z-50 size-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center active-press animate-fade-in-up"
+          className="fixed bottom-6 right-6 md:hidden z-50 size-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center transition-all duration-200 active:scale-90 active:rotate-12 active:shadow-none animate-fade-in-up"
           authenticatedHref={addReviewHref}
           aria-label={t(resolvedLang, "footer.writeReview")}
+          enableHaptic={true}
         >
           <span className="material-symbols-outlined text-[28px]">edit</span>
         </AuthCtaButton>

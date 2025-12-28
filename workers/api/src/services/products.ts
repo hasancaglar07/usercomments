@@ -270,9 +270,18 @@ export async function fetchProducts(
   const to = from + pageSize - 1;
 
   const visibleStatuses: ProductStatus[] = ["published", "hidden", "pending"];
+
+  // Use inner join when filtering by category to ensure correct filtering logic
+  const selectStrategy = categoryId
+    ? productListSelectWithStats.replace(
+      "product_categories(category_id)",
+      "product_categories!inner(category_id)"
+    )
+    : productListSelectWithStats;
+
   let query = supabase
     .from("products")
-    .select(productListSelectWithStats)
+    .select(selectStrategy)
     .in("status", visibleStatuses);
 
   if (categoryId) {

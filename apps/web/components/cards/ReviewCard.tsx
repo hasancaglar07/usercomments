@@ -93,7 +93,7 @@ export function ReviewCardHomepage({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
-            className={`h-full w-full object-cover transition-all duration-700 ease-in-out group-hover:scale-105 ${isImageLoading
+            className={`h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${isImageLoading
               ? "scale-110 blur-xl grayscale opacity-0"
               : "scale-100 blur-0 grayscale-0 opacity-100"
               }`}
@@ -168,8 +168,8 @@ export function ReviewCardHomepage({
           )}
 
           <div className="flex items-center gap-4 pt-2">
-            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer active-press">
-              <span className="material-symbols-outlined text-[18px]">thumb_up</span>
+            <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer active-press group/like">
+              <span className="material-symbols-outlined text-[18px] group-active/like:animate-pop-like transition-transform">thumb_up</span>
               <span>{likesLabel}</span>
             </div>
             <div className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-semibold cursor-pointer active-press">
@@ -183,7 +183,7 @@ export function ReviewCardHomepage({
   }
 
   return (
-    <article className="card-hover-glow content-visibility-auto group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
+    <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
       <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
         <Link href={href} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -279,8 +279,8 @@ export function ReviewCardHomepage({
           )}
 
           <div className="flex items-center gap-6 pt-3 border-t border-gray-50 dark:border-gray-800">
-            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press">
-              <span className="material-symbols-outlined text-[18px]">thumb_up</span>
+            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press group/like">
+              <span className="material-symbols-outlined text-[18px] group-active/like:animate-pop-like transition-transform">thumb_up</span>
               <span>{likesLabel}</span>
             </button>
             <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press">
@@ -326,7 +326,7 @@ export function ReviewCardTrending({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
-            className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-in-out group-hover:scale-105 ${isImageLoading
+            className={`absolute inset-0 h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${isImageLoading
               ? "scale-110 blur-xl grayscale opacity-0"
               : "scale-100 blur-0 grayscale-0 opacity-100"
               }`}
@@ -429,15 +429,17 @@ export function ReviewCardCatalog({
     <article className="card-hover-glow bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="p-6 sm:flex gap-6">
         <div className="sm:w-48 sm:shrink-0 mb-4 sm:mb-0">
-          <div
-            className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 rounded-lg bg-cover bg-center relative overflow-hidden group"
-            data-alt={imageAlt}
-            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
-          >
-            {showImageOverlay ? (
-              <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            ) : null}
-          </div>
+          <Link href={href} className="block w-full active-press">
+            <div
+              className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 rounded-lg bg-cover bg-center relative overflow-hidden group"
+              data-alt={imageAlt}
+              style={{ backgroundImage: `url(${optimizedImageUrl})` }}
+            >
+              {showImageOverlay ? (
+                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+              ) : null}
+            </div>
+          </Link>
         </div>
         <div className="flex-1 min-w-0 flex flex-col">
           <div
@@ -536,11 +538,13 @@ export function ReviewCardCategory({
   return (
     <article className="flex flex-col md:flex-row gap-5 bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3] hover:shadow-md transition-shadow">
       <div className="w-full md:w-48 shrink-0">
-        <div
-          className="aspect-[4/3] md:aspect-square w-full rounded-lg bg-cover bg-center border border-[#e7edf3]"
-          data-alt={imageAlt}
-          style={{ backgroundImage: `url(${optimizedImageUrl})` }}
-        />
+        <Link href={href} className="block w-full active-press">
+          <div
+            className="aspect-[4/3] md:aspect-square w-full rounded-lg bg-cover bg-center border border-[#e7edf3]"
+            data-alt={imageAlt}
+            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
+          />
+        </Link>
       </div>
       <div className="flex flex-col flex-1 gap-2">
         <div className="flex justify-between items-start">
@@ -672,11 +676,13 @@ export function ReviewCardProfile({
         </button>
       </div>
       <div className="flex gap-4 sm:gap-6 flex-col sm:flex-row">
-        <div
-          className="w-full sm:w-32 h-48 sm:h-32 rounded-lg bg-cover bg-center shrink-0 border border-border-light dark:border-border-dark"
-          data-alt={imageAlt}
-          style={{ backgroundImage: `url(${optimizedImageUrl})` }}
-        />
+        <Link href={href} className="block w-full sm:w-32 shrink-0 active-press">
+          <div
+            className="w-full h-48 sm:h-32 rounded-lg bg-cover bg-center border border-border-light dark:border-border-dark"
+            data-alt={imageAlt}
+            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
+          />
+        </Link>
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2 py-0.5 rounded bg-background-light dark:bg-background-dark text-[10px] font-bold uppercase tracking-wider text-text-sub-light dark:text-text-sub-dark border border-border-light dark:border-border-dark">
