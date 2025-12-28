@@ -142,6 +142,7 @@ export const TRANSLATIONS = {
     "homepage.reviewerMetaWithCategory": "Reviewer • {category}",
     "homepage.reviewerMetaCommunity": "Community Reviewer",
     "homepage.postedRecently": "Posted recently",
+    "homepage.postedWithRelative": "Posted {relative}",
     "homepage.avatarAlt": "Profile picture of {username}",
     "homepage.trendingCategoryFallback": "Community",
     "homepage.trendingExcerptFallback":
