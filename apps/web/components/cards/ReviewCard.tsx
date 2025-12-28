@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import {
   RatingStarsCatalog,
   RatingStarsCategory,
@@ -8,6 +11,26 @@ import {
 import type { Review, StarType } from "@/src/types";
 import { t } from "@/src/lib/copy";
 import type { SupportedLanguage } from "@/src/lib/i18n";
+
+// Helper component for Blur-Up effect
+function BlurImage({ src, alt, className, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
+  const [isLoading, setIsLoading] = useState(true);
+
+  return (
+    <div className={`overflow-hidden bg-gray-200 dark:bg-gray-800 ${className}`}>
+      <img
+        alt={alt}
+        src={src}
+        className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${isLoading
+          ? "scale-110 blur-xl grayscale opacity-0"
+          : "scale-100 blur-0 grayscale-0 opacity-100"
+          }`}
+        onLoad={() => setIsLoading(false)}
+        {...props}
+      />
+    </div>
+  );
+}
 
 type HomepageBadge = "verified" | "expert" | null;
 
@@ -58,6 +81,7 @@ export function ReviewCardHomepage({
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
   const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   const galleryPhotos = review.photoUrls?.slice(1, 6) || [];
   const remainingCount = (review.photoUrls?.length || 0) - 6;
@@ -65,15 +89,19 @@ export function ReviewCardHomepage({
   if (layout === "vertical") {
     return (
       <article className="card-hover-glow group relative flex flex-col bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] border border-gray-100/50 dark:border-gray-800 h-full overflow-hidden">
-        <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-100 dark:bg-gray-800 active-press">
+        <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-200 dark:bg-gray-800 active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            className={`h-full w-full object-cover transition-all duration-700 ease-in-out group-hover:scale-105 ${isImageLoading
+              ? "scale-110 blur-xl grayscale opacity-0"
+              : "scale-100 blur-0 grayscale-0 opacity-100"
+              }`}
             decoding="async"
             fetchPriority={imagePriority ? "high" : "auto"}
             loading={imagePriority ? "eager" : "lazy"}
             src={optimizedImageUrl}
+            onLoad={() => setIsImageLoading(false)}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
 
@@ -155,7 +183,7 @@ export function ReviewCardHomepage({
   }
 
   return (
-    <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
+    <article className="card-hover-glow content-visibility-auto group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
       <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
         <Link href={href} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -289,19 +317,24 @@ export function ReviewCardTrending({
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 300);
   const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   return (
     <article className="card-hover-glow group flex flex-row sm:flex-col bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden h-full">
-      <div className="w-24 min-h-[6rem] sm:w-full sm:h-48 sm:min-h-0 shrink-0 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
+      <div className="w-24 min-h-[6rem] sm:w-full sm:h-48 sm:min-h-0 shrink-0 relative overflow-hidden bg-gray-200 dark:bg-gray-800">
         <Link href={href} className="block h-full w-full relative active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ease-in-out group-hover:scale-105 ${isImageLoading
+              ? "scale-110 blur-xl grayscale opacity-0"
+              : "scale-100 blur-0 grayscale-0 opacity-100"
+              }`}
             decoding="async"
             fetchPriority={imagePriority ? "high" : "auto"}
             loading={imagePriority ? "eager" : "lazy"}
             src={optimizedImageUrl}
+            onLoad={() => setIsImageLoading(false)}
           />
         </Link>
       </div>

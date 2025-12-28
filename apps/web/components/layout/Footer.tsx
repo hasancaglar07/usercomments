@@ -215,6 +215,16 @@ export default function Footer({ lang }: FooterProps) {
             selectClassName="bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
+
+        {/* Mobile Floating Action Button (FAB) for Writing Reviews */}
+        <AuthCtaButton
+          as="a"
+          className="fixed bottom-6 right-6 md:hidden z-50 size-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center active-press animate-fade-in-up"
+          authenticatedHref={addReviewHref}
+          aria-label={t(resolvedLang, "footer.writeReview")}
+        >
+          <span className="material-symbols-outlined text-[28px]">edit</span>
+        </AuthCtaButton>
       </div>
     </footer>
   );
