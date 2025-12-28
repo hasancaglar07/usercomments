@@ -30,7 +30,7 @@ export default function Header({ lang, categories }: HeaderProps) {
   );
 
   return (
-    <header className="bg-background-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+    <header className="glass border-b border-slate-200/60 dark:border-slate-800/60 sticky top-0 z-50 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           <Link

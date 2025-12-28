@@ -441,7 +441,8 @@ export async function searchProducts(
   q: string,
   limit = 8,
   lang: SupportedLanguage = DEFAULT_LANGUAGE,
-  includePending?: boolean
+  includePending?: boolean,
+  signal?: AbortSignal
 ): Promise<PaginatedResult<Product>> {
   const searchParams = new URLSearchParams({
     q,
@@ -455,6 +456,7 @@ export async function searchProducts(
     `/api/products/search?${searchParams}`,
     {
       next: { revalidate: 30 },
+      signal,
     }
   );
 }

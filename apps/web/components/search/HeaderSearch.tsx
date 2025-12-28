@@ -13,10 +13,10 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { searchSuggestions } from "@/src/lib/api";
+import { searchProducts } from "@/src/lib/api";
 import { t } from "@/src/lib/copy";
 import { localizePath, type SupportedLanguage } from "@/src/lib/i18n";
-import type { SearchSuggestion } from "@/src/types";
+import type { Product, SearchSuggestion } from "@/src/types";
 import { formatCompactNumber } from "@/src/lib/review-utils";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
@@ -42,6 +42,19 @@ type NavigationItem = {
   type?: "review" | "product";
   suggestion?: SearchSuggestion;
 };
+
+function mapProductToSuggestion(product: Product): SearchSuggestion {
+  return {
+    id: product.id,
+    type: "product",
+    slug: product.slug,
+    title: product.name,
+    imageUrl: product.images?.[0]?.url,
+    ratingAvg: product.stats?.ratingAvg,
+    ratingCount: product.stats?.ratingCount,
+    reviewCount: product.stats?.reviewCount,
+  };
+}
 
 function normalizeRecentQueries(values: string[]): string[] {
   const seen = new Set<string>();
@@ -149,13 +162,14 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        const result = await searchSuggestions(
+        const result = await searchProducts(
           normalizedQuery,
           SUGGESTION_LIMIT,
           lang,
+          true,
           controller.signal
         );
-        setSuggestions(result.items);
+        setSuggestions(result.items.map(mapProductToSuggestion));
         setStatus("ready");
       } catch (error) {
         if (controller.signal.aborted) {
@@ -247,7 +261,7 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
   const searchAction = localizePath("/search", lang);
   const inputPaddingClass = isMobile ? "pr-10" : "pr-3";
   const dropdownClassName = isMobile
-    ? "mt-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto"
+    ? "absolute top-full left-0 right-0 mt-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto z-50"
     : "absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50";
 
   const updateRecent = (value: string, type?: "review" | "product") => {

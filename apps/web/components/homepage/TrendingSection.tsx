@@ -129,14 +129,9 @@ export default function TrendingSection({ lang, initialTab, initialData }: Trend
     return (
         <section className="mb-4 sm:mb-10">
             <div className="flex items-center gap-2 sm:justify-between sm:gap-x-4 mb-1 sm:mb-8 overflow-hidden">
-                <h2 className="flex text-sm sm:text-3xl font-black tracking-tight text-text-main dark:text-white items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
-                    <div className="hidden sm:block p-1.5 sm:p-2 bg-gradient-to-br from-secondary/10 to-primary/10 rounded-xl">
-                        <span className="material-symbols-outlined text-secondary" style={{ fontSize: "24px", fontVariationSettings: "'FILL' 1" }}>
-                            trending_up
-                        </span>
-                    </div>
-                    {t(lang, "homepage.trendingTitle")}
-                </h2>
+                <h1 className="flex text-sm sm:text-3xl font-black tracking-tight text-text-main dark:text-white items-center gap-2 sm:gap-3 shrink-0 whitespace-nowrap">
+                    {t(lang, "homepage.heroHeading") || t(lang, "homepage.trendingTitle")}
+                </h1>
 
                 <div className="flex flex-1 sm:flex-none gap-1.5 p-1 overflow-x-auto no-scrollbar sm:flex-wrap bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm">
                     {TRENDING_TABS.map((tab) => {

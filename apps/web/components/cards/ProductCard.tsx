@@ -37,7 +37,7 @@ export default function ProductCard({
   )}`;
 
   return (
-    <article className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+    <article className="card-hover-glow bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="flex flex-col sm:flex-row">
         <Link
           className="sm:w-48 sm:shrink-0 active-press"
@@ -62,7 +62,7 @@ export default function ProductCard({
                 {t(resolvedLang, "productCard.reviewsLabel", { count: reviewCount })}
               </span>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-2">
+            <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-2">
               <Link className="hover:text-primary active-press inline-block" href={productHref} prefetch={false}>
                 {product.name}
               </Link>

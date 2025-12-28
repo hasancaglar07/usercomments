@@ -99,7 +99,7 @@ export default function AuthCtaButton({
 
   return (
     <button
-      className={`${className} active-press`}
+      className={`${className} active-press shine-effect`}
       onClick={handleButtonClick}
       onMouseEnter={handlePrefetch}
       onFocus={handlePrefetch}

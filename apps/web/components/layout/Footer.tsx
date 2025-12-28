@@ -85,22 +85,22 @@ export default function Footer({ lang }: FooterProps) {
             </h3>
             <ul className="space-y-4">
               <li>
-                <Link href={catalogHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                <Link href={catalogHref} className="link-animated text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors inline-block">
                   {t(resolvedLang, "footer.categories")}
                 </Link>
               </li>
               <li>
-                <Link href={leaderboardHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                <Link href={leaderboardHref} className="link-animated text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors inline-block">
                   {t(resolvedLang, "footer.leaderboard")}
                 </Link>
               </li>
               <li>
-                <Link href={topRatedHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                <Link href={topRatedHref} className="link-animated text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors inline-block">
                   {t(resolvedLang, "footer.topRated")}
                 </Link>
               </li>
               <li>
-                <Link href={recentHref} className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors block">
+                <Link href={recentHref} className="link-animated text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition-colors inline-block">
                   {t(resolvedLang, "footer.recentReviews")}
                 </Link>
               </li>
@@ -178,7 +178,7 @@ export default function Footer({ lang }: FooterProps) {
               <input
                 type="email"
                 placeholder={t(resolvedLang, "footer.newsletterPlaceholder")}
-                className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="input-modern flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
               <button className="bg-primary hover:bg-primary-dark text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-colors">
                 {t(resolvedLang, "footer.newsletterButton")}

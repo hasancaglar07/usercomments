@@ -9,6 +9,7 @@ import { ensureAuthLoaded, getAccessToken } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { formatNumber } from "@/src/lib/review-utils";
 import { t } from "@/src/lib/copy";
+import { useToast } from "@/components/ui/Toast";
 
 type ReviewDetailClientProps = {
   reviewId: string;
@@ -47,6 +48,7 @@ export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonPr
     typeof params?.lang === "string" ? params.lang : undefined
   );
   const [isVoting, setIsVoting] = useState(false);
+  const { showToast } = useToast();
 
   const requireAuth = useCallback(async () => {
     await ensureAuthLoaded();
@@ -70,12 +72,13 @@ export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonPr
     try {
       await voteReview(reviewId, "up");
       router.refresh();
+      showToast(t(lang, "reviewDetail.vote.success") || "Vote recorded!", "success");
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
           ? String(error.message)
           : t(lang, "reviewDetail.vote.error");
-      window.alert(message);
+      showToast(message, "error");
     } finally {
       setIsVoting(false);
     }
@@ -83,7 +86,7 @@ export function ReviewHelpfulButton({ reviewId, votesUp }: ReviewHelpfulButtonPr
 
   return (
     <button
-      className="flex items-center gap-2 px-6 py-2 rounded-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-all group shadow-sm"
+      className="flex items-center gap-2 px-6 py-2 rounded-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary transition-all group shadow-sm active-press hover:bg-slate-50 dark:hover:bg-slate-800"
       type="button"
       onClick={handleVote}
       disabled={isVoting}
@@ -116,6 +119,7 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
     .min(1, t(lang, "reviewDetail.comment.validation"));
   const [commentText, setCommentText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showToast } = useToast();
 
   const requireAuth = useCallback(async () => {
     await ensureAuthLoaded();
@@ -134,8 +138,9 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
   const handleSubmit = async () => {
     const parsed = commentSchema.safeParse(commentText);
     if (!parsed.success) {
-      window.alert(
-        parsed.error.issues[0]?.message ?? t(lang, "reviewDetail.comment.validation")
+      showToast(
+        parsed.error.issues[0]?.message ?? t(lang, "reviewDetail.comment.validation"),
+        "error"
       );
       return;
     }
@@ -149,12 +154,13 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
       await createComment(reviewId, parsed.data);
       setCommentText("");
       router.refresh();
+      showToast(t(lang, "reviewDetail.comment.success") || "Comment posted!", "success");
     } catch (error) {
       const message =
         error && typeof error === "object" && "message" in error
           ? String(error.message)
           : t(lang, "reviewDetail.comment.error");
-      window.alert(message);
+      showToast(message, "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -168,7 +174,7 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
       />
       <div className="flex-1">
         <textarea
-          className="w-full p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:outline-none min-h-[100px] text-slate-900 dark:text-white placeholder:text-slate-400"
+          className="input-modern w-full p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:outline-none min-h-[100px] text-slate-900 dark:text-white placeholder:text-slate-400"
           placeholder={t(lang, "reviewDetail.comment.placeholder")}
           value={commentText}
           onChange={(event) => setCommentText(event.target.value)}
@@ -176,7 +182,7 @@ export function ReviewCommentForm({ reviewId, avatarUrl }: ReviewCommentFormProp
         ></textarea>
         <div className="flex justify-end mt-2">
           <button
-            className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-60 disabled:cursor-not-allowed active-press"
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}

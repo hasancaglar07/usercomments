@@ -5,7 +5,7 @@ import Script from "next/script";
 import { Inter } from "next/font/google"; // Import Font
 import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
-import { AuthProvider } from "../../components/auth/AuthProvider";
+import { Providers } from "../../components/Providers";
 import { isRtlLanguage, localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { getCategories } from "@/src/lib/api";
 import { toAbsoluteUrl } from "@/src/lib/seo";
@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   title: "UserReview | Real User Reviews & Honest Product Insights",
   description:
     "Read what real people say before you buy. Thousands of user reviews and honest experiences on the latest products.",
+  manifest: "/manifest.json",
+  themeColor: "#137fec",
   icons: {
     icon: "/favicon.png",
   },
@@ -35,7 +37,7 @@ export default async function SiteLayout({
   params: Promise<{ lang?: string }>;
 }>) {
   const resolvedParams = await params;
-  const requestHeaders = headers();
+  const requestHeaders = await headers();
   const headerLang = requestHeaders.get("x-lang");
   const lang = normalizeLanguage(resolvedParams?.lang ?? headerLang);
   const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
@@ -112,7 +114,7 @@ export default async function SiteLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap&text=account_circle,add_circle,analytics,chat_bubble,check,chevron_left,chevron_right,close,cloud_upload,cookie,dataset,delete,diamond,do_not_disturb_on,error,expand_more,flag,forum,gavel,group,history_edu,info,link,lock,mail,military_tech,person,rate_review,remove_circle,sentiment_dissatisfied,share,star,thumb_up,verified,visibility"
         />
-        <AuthProvider>
+        <Providers>
           <Script
             async
             src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8614212887540857"
@@ -128,12 +130,11 @@ export default async function SiteLayout({
             strategy="afterInteractive"
             dangerouslySetInnerHTML={{
               __html: `
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-
-                gtag('config', 'G-829FXRQW1V');
-              `,
+                 window.dataLayer = window.dataLayer || [];
+                 function gtag(){dataLayer.push(arguments);}
+                 gtag('js', new Date());
+                 gtag('config', 'G-829FXRQW1V');
+               `,
             }}
           />
           <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
@@ -143,7 +144,7 @@ export default async function SiteLayout({
           <Header lang={lang} categories={categories} />
           {children}
           <Footer lang={lang} />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

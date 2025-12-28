@@ -64,7 +64,7 @@ export function ReviewCardHomepage({
 
   if (layout === "vertical") {
     return (
-      <article className="group relative flex flex-col bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.12)] border border-gray-100/50 dark:border-gray-800 transition-all duration-300 hover:-translate-y-1 h-full overflow-hidden">
+      <article className="card-hover-glow group relative flex flex-col bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] border border-gray-100/50 dark:border-gray-800 h-full overflow-hidden">
         <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-100 dark:bg-gray-800 active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -155,7 +155,7 @@ export function ReviewCardHomepage({
   }
 
   return (
-    <article className="group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] sm:hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden transition-all duration-300 hover:-translate-y-0.5">
+    <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
       <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
         <Link href={href} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -291,7 +291,7 @@ export function ReviewCardTrending({
   const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
 
   return (
-    <article className="group flex flex-row sm:flex-col bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 hover:-translate-y-0.5 h-full">
+    <article className="card-hover-glow group flex flex-row sm:flex-col bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden h-full">
       <div className="w-24 min-h-[6rem] sm:w-full sm:h-48 sm:min-h-0 shrink-0 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
         <Link href={href} className="block h-full w-full relative active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -320,7 +320,7 @@ export function ReviewCardTrending({
         </div>
 
         <Link href={href} className="group-hover:text-primary transition-colors mb-1 block active-press">
-          <h3 className="text-[13px] sm:text-lg font-bold text-text-main dark:text-white leading-4 sm:leading-tight line-clamp-2">
+          <h3 className="text-[13px] sm:text-xl font-bold text-text-main dark:text-white leading-4 sm:leading-tight line-clamp-2">
             {review.title}
           </h3>
         </Link>
@@ -393,7 +393,7 @@ export function ReviewCardCatalog({
   const optimizedAvatarUrl = getOptimizedImageUrl(authorAvatarUrl, 100);
 
   return (
-    <article className="bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden hover:shadow-md transition-shadow">
+    <article className="card-hover-glow bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="p-6 sm:flex gap-6">
         <div className="sm:w-48 sm:shrink-0 mb-4 sm:mb-0">
           <div
