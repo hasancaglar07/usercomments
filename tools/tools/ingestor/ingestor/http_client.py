@@ -1,6 +1,7 @@
 import logging
 import time
 import random
+import threading
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -15,6 +16,7 @@ class HttpClient:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.logger = logger
+        self._lock = threading.Lock()
         self.session = cloudscraper.create_scraper(
             browser={
                 'browser': 'chrome',
@@ -58,22 +60,23 @@ class HttpClient:
             try:
                 # Rotate User-Agent from a very modern list
                 ua = random.choice(self.USER_AGENTS)
-                self.session.headers.update({
-                    "User-Agent": ua,
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                    "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-User": "?1",
-                    "Upgrade-Insecure-Requests": "1"
-                })
-                
-                response = self.session.get(
-                    url,
-                    timeout=self.timeout_seconds,
-                    allow_redirects=allow_redirects,
-                )
+                with self._lock:
+                    self.session.headers.update({
+                        "User-Agent": ua,
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+                        "Sec-Fetch-Dest": "document",
+                        "Sec-Fetch-Mode": "navigate",
+                        "Sec-Fetch-Site": "none",
+                        "Sec-Fetch-User": "?1",
+                        "Upgrade-Insecure-Requests": "1"
+                    })
+                    
+                    response = self.session.get(
+                        url,
+                        timeout=self.timeout_seconds,
+                        allow_redirects=allow_redirects,
+                    )
             except Exception as exc:
                 last_exc = exc
                 if attempt >= self.max_retries:
@@ -83,7 +86,8 @@ class HttpClient:
                 # Check for Proxy Failure
                 if self.session.proxies and ("ProxyError" in str(exc) or "407" in str(exc) or "Tunnel connection failed" in str(exc)):
                     self.logger.warning("Proxy failed (%s). Switching to DIRECT connection for fallback.", exc)
-                    self.session.proxies = {} # Disable proxy for this session
+                    with self._lock:
+                        self.session.proxies = {} # Disable proxy for this session
                     time.sleep(1)
                     continue
 
@@ -106,7 +110,8 @@ class HttpClient:
                     response.status_code, wait_time
                 )
                 # Hard reset session to drop any bot-flags
-                self.session.cookies.clear()
+                with self._lock:
+                    self.session.cookies.clear()
                 time.sleep(wait_time)
                 continue
 

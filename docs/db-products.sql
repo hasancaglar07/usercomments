@@ -30,6 +30,7 @@ create table if not exists products (
   slug text not null unique,
   name text not null,
   description text,
+  source_url text,
   status text not null default 'pending',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -37,6 +38,8 @@ create table if not exists products (
 
 alter table products
   add column if not exists brand_id uuid references brands(id) on delete set null;
+alter table products
+  add column if not exists source_url text;
 
 create table if not exists product_translations (
   id uuid primary key default gen_random_uuid(),
@@ -93,6 +96,7 @@ alter table reviews
 
 create index if not exists idx_reviews_product_id on reviews (product_id);
 create index if not exists idx_products_status on products (status);
+create index if not exists idx_products_source_url on products (source_url);
 create index if not exists idx_product_translations_lang on product_translations (lang);
 create index if not exists idx_brand_translations_lang on brand_translations (lang);
 create index if not exists idx_product_categories_category_id on product_categories (category_id);

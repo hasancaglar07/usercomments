@@ -139,6 +139,27 @@ export default async function SiteLayout({
                `,
             }}
           />
+          <Script
+            src="https://news.google.com/swg/js/v1/swg-basic.js"
+            strategy="afterInteractive"
+            type="application/javascript"
+          />
+          <Script
+            id="google-publisher-center"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                (self.SWG_BASIC = self.SWG_BASIC || []).push( basicSubscriptions => {
+                  basicSubscriptions.init({
+                    type: "NewsArticle",
+                    isPartOfType: ["Product"],
+                    isPartOfProductId: "CAowsOzEDA:openaccess",
+                    clientOptions: { theme: "light", lang: "${lang}" },
+                  });
+                });
+              `,
+            }}
+          />
           <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
           <script type="application/ld+json">
             {JSON.stringify(organizationJsonLd)}

@@ -39,7 +39,7 @@ from .media.r2_upload import R2Uploader
 from .media.image_fetch import fetch_image
 from .media.image_process import process_image
 from .utils.backoff import sleep_with_backoff
-from .utils.hashing import sha1_bytes, sha1_text
+from .utils.hashing import sha1_bytes, sha1_text, short_hash
 from .utils.slugify import slugify
 from .utils.text_clean import clean_html, normalize_whitespace
 from .utils.timing import sleep_jitter
@@ -77,6 +77,20 @@ def _infer_product_name(title: Optional[str]) -> Optional[str]:
     return name or None
 
 
+def _preserve_original_url(existing_desc: Optional[str], new_desc: Optional[str]) -> Optional[str]:
+    if not new_desc:
+        return existing_desc
+    if not existing_desc:
+        return new_desc
+    marker = "Original URL:"
+    if marker in existing_desc and marker not in new_desc:
+        suffix = existing_desc.split(marker, 1)[1].strip()
+        if suffix:
+            return f"{new_desc}\n\n{marker} {suffix}"
+        return f"{new_desc}\n\n{marker}"
+    return new_desc
+
+
 def _purge_worker_cache(config: Config, review_id: Optional[str], logger: logging.Logger) -> None:
     if not review_id:
         return
@@ -110,35 +124,37 @@ async def _process_images_async(
     prefix: str = "reviews"
 ) -> List[str]:
     photo_urls: List[str] = []
+    semaphore = asyncio.Semaphore(max(1, config.max_concurrent_tasks))
     
     async def _process_one(img_url):
-        raw = await asyncio.to_thread(fetch_image, http, img_url, logger)
-        if not raw:
-            return None
-        processed = await asyncio.to_thread(
-            process_image, 
-            raw, 
-            config.image_crop_right_pct, 
-            config.image_max_width, 
-            config.image_webp_quality,
-            "UserReview.net"
-        )
-        if not processed:
-            return None
-        
-        filename = f"{sha1_bytes(processed)}.webp"
-        base = review_id or source_slug
-        key = f"public/{prefix}/{base}/{filename}"
-        
-        if dry_run:
-            if uploader:
-                return f"{uploader.public_base_url}/{key}"
-            return None
-        
-        if not uploader:
-            raise RuntimeError("Uploader not configured")
-        
-        return await asyncio.to_thread(uploader.upload_bytes, key, processed)
+        async with semaphore:
+            raw = await asyncio.to_thread(fetch_image, http, img_url, logger)
+            if not raw:
+                return None
+            processed = await asyncio.to_thread(
+                process_image, 
+                raw, 
+                config.image_crop_right_pct, 
+                config.image_max_width, 
+                config.image_webp_quality,
+                "UserReview.net"
+            )
+            if not processed:
+                return None
+            
+            filename = f"{sha1_bytes(processed)}.webp"
+            base = review_id or source_slug
+            key = f"public/{prefix}/{base}/{filename}"
+            
+            if dry_run:
+                if uploader:
+                    return f"{uploader.public_base_url}/{key}"
+                return None
+            
+            if not uploader:
+                raise RuntimeError("Uploader not configured")
+            
+            return await asyncio.to_thread(uploader.upload_bytes, key, processed)
 
     results = await asyncio.gather(*[_process_one(u) for u in image_urls])
     return [r for r in results if r]
@@ -310,6 +326,21 @@ async def _ensure_category_ids_async(
                         # We prefer EN for the main slug/name.
                         main_lang_data = translations.get("en")
                         if main_lang_data:
+                            existing_desc = None
+                            try:
+                                rows = await asyncio.to_thread(
+                                    supabase.select,
+                                    "products",
+                                    "description",
+                                    [("eq", "id", prod_id)],
+                                    None,
+                                    1,
+                                )
+                                if rows:
+                                    existing_desc = rows[0].get("description") or ""
+                            except Exception as exc:
+                                logger.warning("Failed to fetch product description for %s: %s", prod_id, exc)
+                            updated_desc = _preserve_original_url(existing_desc, main_lang_data.get("description"))
                             # ROBUST SLUG UPDATE: Retry loop to ensure we kill Cyrillic slugs
                             base_slug = main_lang_data["slug"]
                             for attempt in range(5):
@@ -323,7 +354,7 @@ async def _ensure_category_ids_async(
                                         "products",
                                         {
                                             "name": main_lang_data["name"],
-                                            "description": main_lang_data["description"],
+                                            "description": updated_desc,
                                             "slug": target_slug,
                                         },
                                         [("eq", "id", prod_id)]
@@ -398,6 +429,10 @@ async def _process_review_item_async(
         logger.info("Starting processing: %s", source_url)
         await asyncio.to_thread(mark_processing, supabase, source_url)
         try:
+            async def _mark_failed(reason: str) -> None:
+                retries = int(item.get("retries") or 0) + 1
+                await asyncio.to_thread(mark_failed, supabase, source_url, retries, reason)
+
             html = await _fetch_html_async(http, source_url, logger)
             detail = parse_review_detail(html, source_url, config.source_base_url, logger)
             
@@ -493,6 +528,7 @@ async def _process_review_item_async(
             content_len = len(detail.content_html or "")
             if content_len < 500:
                 logger.warning("Quality Gate Failed: Content too short (%d chars). Skipping %s", content_len, source_url)
+                await _mark_failed(f"Quality gate failed: content too short ({content_len} chars)")
                 return False
 
             # 2. Image Check
@@ -500,6 +536,7 @@ async def _process_review_item_async(
                  # Try fallback from config if needed, but if strictly no images found:
                  if not config.fallback_review_image_url:
                      logger.warning("Quality Gate Failed: No images found. Skipping %s", source_url)
+                     await _mark_failed("Quality gate failed: no images found")
                      return False
             
             logger.info(
@@ -544,6 +581,7 @@ async def _process_review_item_async(
                     "  Total DB Categories Loaded: %d",
                     source_url, cat_url_debug, sub_url_debug, detail.category_name, detail.subcategory_name, len(category_map)
                 )
+                await _mark_failed("Category mismatch: missing or unmatched category")
                 return False
 
             try:
@@ -789,7 +827,11 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
             order=("created_at", "desc"), 
             limit=2000
         )
-        product_map = {row["name"]: row["slug"] for row in product_rows if row.get("name") and row.get("slug")}
+        product_map = {
+            row["name"].strip().lower(): row["slug"]
+            for row in product_rows
+            if row.get("name") and row.get("slug")
+        }
         logger.info("Loaded %d products for internal linking", len(product_map))
     except Exception as e:
         logger.warning("Failed to load products for internal linking: %s", e)

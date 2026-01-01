@@ -167,38 +167,50 @@ def upsert_product(
     supabase: SupabaseClient,
     payload: Dict[str, Any],
 ) -> str:
-    # Check if product exists by source_url (stored in description) or slug
+    # Check if product exists by source_url (column or legacy description marker) or slug
     name = payload.get("name", "Unknown Product")
     source_url = payload.get("source_url")
     base_slug = slugify(name) or f"product-{short_hash(source_url or name)}"
-    
-    # STRATEGY: Store source_url in description to enable strict matching
-    # Since we lack a dedicated 'source_url' column, this metadata hack ensures 
-    # we can always find the exact original product again.
-    
-    # 1. Try Strict Match via Source URL in Description
+
+    def _is_missing_column(exc: Exception, column: str) -> bool:
+        message = str(exc).lower()
+        return column.lower() in message and "does not exist" in message
+
+    use_source_url_column = True
     if source_url:
-        # We search for the specific URL signature in the description
-        # Using a reliable marker
-        start_marker = "Original URL: "
-        # Depending on Supabase text search capabilities, but 'ilike' should work for exact substring
-        # filters=[("ilike", "description", f"%{source_url}%")]
-        # To be safe and avoid partial matches of similar URLs, we can try to be specific
-        # But for now, a simple ilike is vastly better than name matching.
-        
         try:
-             # Looking for products where description contains the source_url
             rows = supabase.select(
-                "products", 
-                columns="id", 
-                filters=[("ilike", "description", f"%{source_url}%")], 
-                limit=1
+                "products",
+                columns="id",
+                filters=[("eq", "source_url", source_url)],
+                limit=1,
             )
             if rows:
                 return rows[0]["id"]
-        except Exception as e:
-            # If ilike fails or syntax error, just fallback
-             pass
+        except Exception as exc:
+            if _is_missing_column(exc, "source_url"):
+                use_source_url_column = False
+
+        try:
+            rows = supabase.select(
+                "products",
+                columns="id",
+                filters=[("ilike", "description", f"%{source_url}%")],
+                limit=1,
+            )
+            if rows:
+                if use_source_url_column:
+                    try:
+                        supabase.update(
+                            "products",
+                            {"source_url": source_url},
+                            filters=[("eq", "id", rows[0]["id"])],
+                        )
+                    except Exception:
+                        pass
+                return rows[0]["id"]
+        except Exception:
+            pass
 
     # 2. Try to find existing product by Slug
     rows = supabase.select("products", columns="id", filters=[("eq", "slug", base_slug)], limit=1)
@@ -211,9 +223,8 @@ def upsert_product(
         return rows_name[0]["id"]
     
     # 4. Insert new product
-    # Append source_url to description if available for future matching
     base_desc = payload.get("description") or f"Product: {name}"
-    if source_url:
+    if source_url and not use_source_url_column:
         full_desc = f"{base_desc}\n\nOriginal URL: {source_url}"
     else:
         full_desc = base_desc
@@ -224,22 +235,44 @@ def upsert_product(
         "description": full_desc,
         "status": payload.get("status", "published"),
     }
+    if source_url and use_source_url_column:
+        product_payload["source_url"] = source_url
     
     try:
         supabase.upsert("products", [product_payload], on_conflict="slug")
     except Exception as e:
-        # Retry with hashed slug if conflict
-        if source_url:
-             product_payload["slug"] = f"{base_slug}-{short_hash(source_url)}"
-             supabase.upsert("products", [product_payload], on_conflict="slug")
-        else:
-             raise e
+        handled = False
+        if source_url and use_source_url_column and _is_missing_column(e, "source_url"):
+            product_payload.pop("source_url", None)
+            supabase.upsert("products", [product_payload], on_conflict="slug")
+            use_source_url_column = False
+            handled = True
+        if not handled:
+            # Retry with hashed slug if conflict
+            if source_url:
+                product_payload["slug"] = f"{base_slug}-{short_hash(source_url)}"
+                supabase.upsert("products", [product_payload], on_conflict="slug")
+            else:
+                raise e
     
     # Fetch back ID
     # Use strict match first if we just inserted with URL
-    if source_url:
-         rows = supabase.select("products", columns="id", filters=[("ilike", "description", f"%{source_url}%")], limit=1)
-         if rows: return rows[0]["id"]
+    if source_url and use_source_url_column:
+        try:
+            rows = supabase.select(
+                "products",
+                columns="id",
+                filters=[("eq", "source_url", source_url)],
+                limit=1,
+            )
+            if rows:
+                return rows[0]["id"]
+        except Exception:
+            pass
+    if source_url and not use_source_url_column:
+        rows = supabase.select("products", columns="id", filters=[("ilike", "description", f"%{source_url}%")], limit=1)
+        if rows:
+            return rows[0]["id"]
 
     rows = supabase.select("products", columns="id", filters=[("eq", "name", name)], limit=1)
     if rows:

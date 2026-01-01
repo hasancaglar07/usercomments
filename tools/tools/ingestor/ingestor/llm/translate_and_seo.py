@@ -16,6 +16,7 @@ from .prompts import (
     build_sentiment_enrichment_prompt,
     build_product_translation_prompt,
     build_pivot_translation_prompt,
+    build_extraction_prompt,
 )
 
 
@@ -33,6 +34,33 @@ _REQUIRED_KEYS = {
     "cons",
     "specs",
 }
+
+LANGUAGE_SUFFIXES = {
+    "tr": "-yorumlari",
+    "en": "-reviews",
+    "de": "-test",
+    "es": "-opiniones",
+    "fr": "-avis",
+    "it": "-opinioni",
+    "ru": "-otzyvy",
+    "pt": "-avaliacao",
+    "nl": "-review",
+}
+
+def create_localized_slug(text: str, lang: str, max_length: int = 80, fallback: str = None) -> str:
+    slug = slugify(text, max_length=max_length, fallback=fallback)
+    if not slug:
+        return ""
+    
+    suffix = LANGUAGE_SUFFIXES.get(lang)
+    if suffix and not slug.endswith(suffix):
+        # Truncate to make room for suffix if needed
+        allowed_len = max_length - len(suffix)
+        if len(slug) > allowed_len:
+            slug = slug[:allowed_len].rstrip("-")
+        slug = f"{slug}{suffix}"
+        
+    return slug
 
 
 def _normalize_payload(payload: dict, lang: str, fallback_title: str) -> dict:
@@ -52,7 +80,7 @@ def _normalize_payload(payload: dict, lang: str, fallback_title: str) -> dict:
     data["og_description"] = normalize_whitespace(str(data["og_description"])) or data["meta_description"]
 
     slug_source = data["slug"] or data["title"]
-    data["slug"] = slugify(slug_source, max_length=80, fallback=fallback_title)
+    data["slug"] = create_localized_slug(slug_source, lang, max_length=80, fallback=fallback_title)
 
     if len(data["meta_description"]) > 170:
         data["meta_description"] = data["meta_description"][:160].rstrip()
@@ -380,7 +408,7 @@ async def translate_product(
             description = normalize_whitespace(str(parsed.get("description") or ""))
             meta_title = normalize_whitespace(str(parsed.get("meta_title") or name))
             meta_description = normalize_whitespace(str(parsed.get("meta_description") or ""))
-            slug = slugify(str(parsed.get("slug") or name), max_length=80, fallback=name_ru)
+            slug = create_localized_slug(str(parsed.get("slug") or name), lang, max_length=80, fallback=name_ru)
 
             if len(meta_description) > 170:
                 meta_description = meta_description[:160].rstrip()
@@ -404,6 +432,8 @@ async def translate_product(
         if res:
             results[lang] = res
     return results
+
+
 async def extract_review_details_ai(
     client: GroqClient,
     html_text: str,

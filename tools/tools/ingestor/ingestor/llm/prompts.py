@@ -244,6 +244,7 @@ def build_product_translation_prompt(
         "- IF a Brand Name is in Russian, TRANSLITERATE it to Latin (e.g. 'Макфа' -> 'Makfa') or Translate it.\n"
         "- Translate descriptive words (e.g. 'Консервы' -> 'Canned Goods').\n"
         "- Example: 'Консервы овощные Bonduelle' -> 'Bonduelle Canned Vegetables'.\n"
+        "- CHECK YOUR OUTPUT: If you see any Cyrillic letter, REWRITE IT in Latin.\n"
         "- Description should be short and neutral; do not invent specs.\n"
         "- meta_description should be about 150-160 characters.\n"
         "- slug must be lowercase, hyphenated, LATIN characters only, max 80 chars.\n"
@@ -274,6 +275,10 @@ def build_extraction_prompt(text: str) -> str:
         "Rules:\n"
         "- If a specific piece of info is missing, use your best inference from the context.\n"
         "- Ensure the content_html is clean but comprehensive.\n"
+        "- CRITICAL FOR PRODUCT_NAME: You MUST output the product name in LATIN (English) characters.\n"
+        "  - IF the original name is Russian/Cyrillic, you MUST TRANSLATE generic words (e.g. 'Таблетки' -> 'Tablets') and TRANSLITERATE brand names (e.g. 'Макфа' -> 'Makfa').\n"
+        "  - EXAMPLE: 'Таблетки для посудомоечной машины Axl' -> 'Axl Dishwasher Tablets'\n"
+        "  - ABSOLUTELY NO CYRILLIC characters in product_name.\n"
         "- Output ONLY JSON."
     )
 

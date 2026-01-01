@@ -19,6 +19,13 @@ if not exist ".env" (
   goto :end
 )
 
+:: Proxy Configuration
+:: Provider: Livaproxy
+:: Host: rotating.livaproxy.com, Port: 1080
+set HTTP_PROXY=http://uyDM6Wxe-country-mix-city-mix-residential:YVmInyco@rotating.livaproxy.com:1080
+set HTTPS_PROXY=http://uyDM6Wxe-country-mix-city-mix-residential:YVmInyco@rotating.livaproxy.com:1080
+echo Proxy set to rotating.livaproxy.com:1080
+
 set MODE=loop
 set DRYRUN=0
 

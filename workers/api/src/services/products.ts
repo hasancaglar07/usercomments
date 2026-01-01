@@ -10,7 +10,7 @@ import type {
 } from "../types";
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type SupportedLanguage } from "../utils/i18n";
 import { buildPaginationInfo } from "../utils/pagination";
-import { slugify } from "../utils/slug";
+import { createLocalizedSlug, slugify } from "../utils/slug";
 import { mapProductRow } from "./mappers";
 
 export type ProductSort = "latest" | "rating" | "popular";
@@ -527,7 +527,7 @@ export async function createAdminProduct(
   lang: SupportedLanguage
 ): Promise<AdminProduct> {
   const supabase = getSupabaseClient(env);
-  const baseSlug = slugify(payload.name) || `product-${Date.now()}`;
+  const baseSlug = createLocalizedSlug(payload.name, lang) || `product-${Date.now()}`;
   const slug = await ensureUniqueProductSlug(env, baseSlug);
 
   const { data, error } = await supabase
@@ -670,7 +670,7 @@ export async function updateAdminProduct(
       }
     } else if (translationUpdates.name !== undefined) {
       const baseSlug =
-        slugify(translationUpdates.name as string) || `product-${Date.now()}`;
+        createLocalizedSlug(translationUpdates.name as string, lang) || `product-${Date.now()}`;
       const slug = await ensureUniqueProductSlug(env, baseSlug);
       const { error: insertError } = await supabase
         .from("product_translations")

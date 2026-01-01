@@ -5,6 +5,7 @@ Python crawler/ingestor for iRecommend.ru that discovers categories, finds new r
 ## Requirements
 - Python 3.10+
 - Supabase project with tables from `ingestor/db/schema.sql`
+- `products.source_url` column enabled (see `docs/db-products.sql`)
 - Groq API key
 - Cloudflare R2 bucket with S3-compatible credentials
 

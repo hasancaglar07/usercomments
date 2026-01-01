@@ -49,3 +49,34 @@ export function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+const LANGUAGE_SUFFIXES: Record<string, string> = {
+  tr: "-yorumlari",
+  en: "-reviews",
+  de: "-test",
+  es: "-opiniones",
+  fr: "-avis",
+  it: "-opinioni",
+  ru: "-otzyvy",
+  pt: "-avaliacao",
+  nl: "-review",
+};
+
+export function createLocalizedSlug(name: string, lang: string): string {
+  const slug = slugify(name);
+
+  // If slug became empty (e.g. unsupported charset), fallback to generic timestamp
+  if (!slug) return "";
+
+  const suffix = LANGUAGE_SUFFIXES[lang];
+
+  if (!suffix) {
+    return slug;
+  }
+
+  if (slug.endsWith(suffix)) {
+    return slug;
+  }
+
+  return `${slug}${suffix}`;
+}
