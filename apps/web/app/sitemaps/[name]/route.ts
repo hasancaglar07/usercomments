@@ -4,6 +4,7 @@ import { isSupportedLanguage, localizePath, type SupportedLanguage } from "@/src
 import { getSiteUrl } from "@/src/lib/seo";
 
 export const dynamic = "force-dynamic";
+export const runtime = 'edge';
 export const revalidate = 1800;
 
 export async function GET(

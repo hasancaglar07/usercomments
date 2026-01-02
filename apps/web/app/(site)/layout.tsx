@@ -12,6 +12,7 @@ import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
 
 // Initialize Font
+export const runtime = 'edge';
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 const SITE_NAME = "UserReview";
