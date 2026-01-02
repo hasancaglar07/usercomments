@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ReviewListCategory } from "@/components/lists/ReviewList";
 import type { Metadata } from "next";
 import { SidebarCategory } from "@/components/layout/Sidebar";
@@ -58,11 +59,31 @@ export async function generateMetadata(
   const subCategoryId = parseOptionalNumber(searchParams?.subCategoryId);
   const categoryId = Number(params.id);
   let categoryLabel: string | undefined;
+  let categoryMissing = false;
+  const isValidCategoryId = Number.isFinite(categoryId) && categoryId > 0;
+
+  if (!isValidCategoryId) {
+    const metadata = buildMetadata({
+      title: t(lang, "category.meta.titleDefault"),
+      description: t(lang, "category.meta.descriptionDefault"),
+      path: `/catalog/reviews/${params.id}`,
+      lang,
+      type: "website",
+    });
+    return {
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL && Number.isFinite(categoryId)) {
     try {
       const categories = await getCategories(lang);
       categoryLabel = getCategoryLabel(categories, categoryId);
+      categoryMissing = categories.length > 0 && !categoryLabel;
     } catch {
       categoryLabel = undefined;
     }
@@ -87,7 +108,7 @@ export async function generateMetadata(
     sort === "latest" &&
     !subCategoryId;
 
-  if (!isIndexable) {
+  if (!isIndexable || categoryMissing) {
     return {
       ...metadata,
       robots: {
@@ -233,6 +254,11 @@ export default async function Page(props: CategoryPageProps) {
   const sort = parseSort(searchParams?.sort);
   const subCategoryId = parseOptionalNumber(searchParams?.subCategoryId);
   const categoryId = Number(params.id);
+  const isValidCategoryId = Number.isFinite(categoryId) && categoryId > 0;
+
+  if (!isValidCategoryId) {
+    notFound();
+  }
 
   const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
   const fallbackCategoryLabel = allowMockFallback
@@ -252,7 +278,6 @@ export default async function Page(props: CategoryPageProps) {
   let topAuthors = allowMockFallback ? categoryTopAuthors : [];
   let popularTags = allowMockFallback ? categoryPopularTags : [];
   let subcategoryTags = allowMockFallback ? categoryPopularTags : [];
-  let errorMessage: string | null = null;
 
   if (apiConfigured && Number.isFinite(categoryId)) {
     try {
@@ -284,6 +309,9 @@ export default async function Page(props: CategoryPageProps) {
         lang
       );
       const label = getCategoryLabel(categories, categoryId);
+      if (!label && categories.length > 0) {
+        notFound();
+      }
       if (label) {
         categoryLabel = label;
         categoryDescription = t(lang, "category.description.withLabel", { label });
@@ -303,12 +331,7 @@ export default async function Page(props: CategoryPageProps) {
       );
     } catch (error) {
       console.error("Failed to load category API data", error);
-      if (!allowMockFallback) {
-        errorMessage = t(lang, "category.error.loadFailed");
-      }
     }
-  } else if (!allowMockFallback) {
-    errorMessage = t(lang, "category.error.apiNotConfigured");
   }
 
   const baseParams = new URLSearchParams();

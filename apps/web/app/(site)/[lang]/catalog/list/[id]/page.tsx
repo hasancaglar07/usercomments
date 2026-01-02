@@ -1,11 +1,11 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import ProductCard from "@/components/cards/ProductCard";
 import ProductSortSelect from "@/components/catalog/ProductSortSelect";
 import EmptyState from "@/components/ui/EmptyState";
 import { PaginationCatalog } from "@/components/ui/Pagination";
-import type { Category } from "@/src/types";
 import { getCategories, getProducts } from "@/src/lib/api";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { formatNumber, getCategoryLabel } from "@/src/lib/review-utils";
@@ -54,11 +54,31 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const sort = parseSort(searchParams?.sort);
   const categoryId = Number(params.id);
   let categoryLabel: string | undefined;
+  let categoryMissing = false;
+  const isValidCategoryId = Number.isFinite(categoryId) && categoryId > 0;
+
+  if (!isValidCategoryId) {
+    const metadata = buildMetadata({
+      title: t(lang, "productList.meta.titleDefault"),
+      description: t(lang, "productList.meta.descriptionDefault"),
+      path: `/catalog/list/${params.id}`,
+      lang,
+      type: "website",
+    });
+    return {
+      ...metadata,
+      robots: {
+        index: false,
+        follow: true,
+      },
+    };
+  }
 
   if (Number.isFinite(categoryId)) {
     try {
       const categories = await getCategories(lang);
       categoryLabel = getCategoryLabel(categories, categoryId);
+      categoryMissing = categories.length > 0 && !categoryLabel;
     } catch {
       categoryLabel = undefined;
     }
@@ -80,7 +100,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const isIndexable =
     page === 1 && pageSize === DEFAULT_PAGE_SIZE && sort === "latest";
 
-  if (!isIndexable) {
+  if (!isIndexable || categoryMissing) {
     return {
       ...metadata,
       robots: {
@@ -101,6 +121,11 @@ export default async function Page(props: PageProps) {
   const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
   const sort = parseSort(searchParams?.sort);
   const categoryId = Number(params.id);
+  const isValidCategoryId = Number.isFinite(categoryId) && categoryId > 0;
+
+  if (!isValidCategoryId) {
+    notFound();
+  }
 
   const [categories, productsResult] = await Promise.all([
     getCategories(lang),
@@ -113,9 +138,13 @@ export default async function Page(props: PageProps) {
           () => null
         ))?.items ?? [];
 
-  const categoryLabel =
-    getCategoryLabel(categories, categoryId) ?? t(lang, "category.fallback.label");
-  const popularCategoryLabel = categoryLabel ?? t(lang, "common.general");
+  const categoryLabel = getCategoryLabel(categories, categoryId);
+  if (!categoryLabel && categories.length > 0) {
+    notFound();
+  }
+  const resolvedCategoryLabel =
+    categoryLabel ?? t(lang, "category.fallback.label");
+  const popularCategoryLabel = resolvedCategoryLabel ?? t(lang, "common.general");
   const popularProductsHref = localizePath(`/catalog/list/${categoryId}`, lang);
   const basePath = localizePath(`/catalog/list/${categoryId}`, lang);
   const buildHref = (nextPage: number) => {
@@ -136,7 +165,7 @@ export default async function Page(props: PageProps) {
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    name: t(lang, "productList.meta.titleWithLabel", { label: categoryLabel }),
+    name: t(lang, "productList.meta.titleWithLabel", { label: resolvedCategoryLabel }),
     itemListOrder: "https://schema.org/ItemListOrderDescending",
     numberOfItems: productsResult.items.length,
     itemListElement: productsResult.items.map((product, index) => ({
@@ -164,7 +193,7 @@ export default async function Page(props: PageProps) {
       {
         "@type": "ListItem",
         position: 3,
-        name: categoryLabel,
+        name: resolvedCategoryLabel,
         item: toAbsoluteUrl(localizePath(`/catalog/list/${categoryId}`, lang)),
       },
     ],
@@ -193,14 +222,14 @@ export default async function Page(props: PageProps) {
           </Link>
           <span className="text-[#4c739a] text-sm font-medium">/</span>
           <span className="text-[#0d141b] text-sm font-medium">
-            {categoryLabel}
+            {resolvedCategoryLabel}
           </span>
         </div>
 
         <div className="flex flex-col gap-3 pb-6 border-b border-[#e7edf3]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-[#0d141b] text-4xl font-black leading-tight tracking-[-0.033em]">
-              {t(lang, "productList.headingWithLabel", { label: categoryLabel })}
+              {t(lang, "productList.headingWithLabel", { label: resolvedCategoryLabel })}
             </h1>
             <div className="flex items-center gap-2">
               <Link
@@ -218,7 +247,7 @@ export default async function Page(props: PageProps) {
             </div>
           </div>
           <p className="text-[#4c739a] text-lg font-normal max-w-3xl">
-            {t(lang, "productList.subtitle", { label: categoryLabel })}
+            {t(lang, "productList.subtitle", { label: resolvedCategoryLabel })}
           </p>
         </div>
 
@@ -246,7 +275,7 @@ export default async function Page(props: PageProps) {
                 key={product.id}
                 product={product}
                 lang={lang}
-                categoryLabel={categoryLabel}
+                categoryLabel={resolvedCategoryLabel}
               />
             ))}
             <PaginationCatalog
@@ -289,7 +318,7 @@ export default async function Page(props: PageProps) {
                   key={product.id}
                   product={product}
                   lang={lang}
-                  categoryLabel={categoryLabel}
+                  categoryLabel={resolvedCategoryLabel}
                 />
               ))}
             </div>

@@ -1,4 +1,4 @@
-export const SUPPORTED_LANGUAGES = ["tr", "en", "es", "de", "ar"] as const;
+export const SUPPORTED_LANGUAGES = ["tr", "en", "es", "de"] as const;
 
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
@@ -64,7 +64,6 @@ const LOCALE_MAP: Record<SupportedLanguage, string> = {
   en: "en-US",
   es: "es-ES",
   de: "de-DE",
-  ar: "ar",
 };
 
 export function getLocale(lang: SupportedLanguage): string {

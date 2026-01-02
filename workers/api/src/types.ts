@@ -106,6 +106,7 @@ export type AdminUser = {
   username: string;
   role: UserRole;
   createdAt?: string;
+  isVerified?: boolean;
 };
 
 export type AdminUserDetail = {
@@ -115,14 +116,21 @@ export type AdminUserDetail = {
   createdAt?: string;
   bio?: string;
   profilePicUrl?: string;
+  isVerified?: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
 };
 
 export type UserProfile = {
+  userId?: string;
   username: string;
   displayName?: string;
   bio?: string;
   profilePicUrl?: string;
   createdAt?: string;
+  isVerified?: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
   stats?: {
     reviewCount?: number;
     totalViews?: number;
@@ -132,6 +140,32 @@ export type UserProfile = {
     rank?: number;
     location?: string;
   };
+};
+
+export type DirectMessagePreview = {
+  id: string;
+  senderUserId: string;
+  subject?: string | null;
+  body: string;
+  createdAt: string;
+};
+
+export type DirectMessage = {
+  id: string;
+  conversationId: string;
+  senderUserId: string;
+  recipientUserId: string;
+  subject?: string | null;
+  body: string;
+  createdAt: string;
+};
+
+export type DirectMessageThread = {
+  id: string;
+  participant: UserProfile;
+  lastMessage?: DirectMessagePreview;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type LeaderboardMetric = "active" | "helpful" | "trending";

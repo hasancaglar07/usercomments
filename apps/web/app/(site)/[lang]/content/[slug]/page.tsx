@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import ReviewDetailClient, {
   ReviewCommentForm,
   ReviewHelpfulButton,
@@ -70,6 +70,10 @@ export async function generateMetadata(
       description: t(lang, "reviewDetail.meta.notFoundDescription"),
       path: `/content/${params.slug}`,
       lang,
+      robots: {
+        index: false,
+        follow: true,
+      },
     });
   }
 
@@ -302,22 +306,7 @@ export default async function Page(props: PageProps) {
   }
 
   if (!review) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] px-4 text-center">
-        <h1 className="text-2xl font-bold mb-4">
-          {t(lang, "reviewDetail.notFound.title")}
-        </h1>
-        <p className="text-slate-600 mb-6">
-          {t(lang, "reviewDetail.notFound.description")}
-        </p>
-        <Link
-          href={localizePath("/catalog", lang)}
-          className="bg-primary text-white px-6 py-2 rounded-lg font-bold"
-        >
-          {t(lang, "reviewDetail.notFound.cta")}
-        </Link>
-      </div>
-    );
+    notFound();
   }
 
   const extracted = parseReviewContent(review.contentHtml, review.excerpt);
@@ -543,7 +532,7 @@ export default async function Page(props: PageProps) {
       answer: review.pros.join(". ") + ".",
     });
     // Individual pros as separate FAQ items (max 2)
-    review.pros.slice(0, 2).forEach((pro, idx) => {
+    review.pros.slice(0, 2).forEach((pro) => {
       faqItems.push({
         question: t(lang, "faq.whyGood", { feature: pro.split(" ").slice(0, 5).join(" ") }),
         answer: pro,
@@ -558,7 +547,7 @@ export default async function Page(props: PageProps) {
       answer: review.cons.join(". ") + ".",
     });
     // Individual cons as separate FAQ items (max 2)
-    review.cons.slice(0, 2).forEach((con, idx) => {
+    review.cons.slice(0, 2).forEach((con) => {
       faqItems.push({
         question: t(lang, "faq.anyIssues", { feature: con.split(" ").slice(0, 5).join(" ") }),
         answer: con,
@@ -623,7 +612,7 @@ export default async function Page(props: PageProps) {
               <>
                 <span className="text-slate-300">/</span>
                 <Link
-                  href={localizePath(`/catalog?categoryId=${review.categoryId}`, lang)}
+                  href={localizePath(`/catalog/reviews/${review.categoryId}`, lang)}
                   className="hover:text-primary transition-colors"
                 >
                   {categoryLabel}
@@ -635,7 +624,7 @@ export default async function Page(props: PageProps) {
                 <span className="text-slate-300">/</span>
                 <Link
                   href={localizePath(
-                    `/catalog?categoryId=${review.categoryId}&subCategoryId=${review.subCategoryId}`,
+                    `/catalog/reviews/${review.categoryId}?subCategoryId=${review.subCategoryId}`,
                     lang
                   )}
                   className="hover:text-primary transition-colors"
@@ -654,6 +643,7 @@ export default async function Page(props: PageProps) {
               {productName ? (
                 <section className="bg-white dark:bg-slate-800 rounded-none md:rounded-xl shadow-sm border-y md:border border-slate-200 dark:border-slate-700 p-6 md:p-8 flex flex-col gap-4">
                   <div className="flex flex-col md:flex-row gap-5 items-start">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={productImage}
                       alt={productName}
@@ -848,6 +838,7 @@ export default async function Page(props: PageProps) {
                           key={idx}
                           className="aspect-square bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 hover:scale-[1.02] transition-transform cursor-zoom-in overflow-hidden"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={url}
                             alt={t(lang, "reviewDetail.gallery")}
@@ -1083,6 +1074,7 @@ export default async function Page(props: PageProps) {
                   {t(lang, "reviewDetail.productContext")}
                 </h4>
                 <div className="flex flex-col items-center py-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={productImage}
                     alt={productName}
@@ -1112,7 +1104,7 @@ export default async function Page(props: PageProps) {
                     </Link>
                   ) : (
                     <Link
-                      href={localizePath(`/catalog?categoryId=${review.categoryId}`, lang)}
+                      href={localizePath(`/catalog/reviews/${review.categoryId}`, lang)}
                       className="mt-4 w-full py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-bold text-center hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                     >
                       {t(lang, "reviewDetail.viewCategoryItems")}

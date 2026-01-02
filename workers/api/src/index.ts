@@ -51,10 +51,23 @@ import { createPresignedUploadUrl } from "./services/uploads";
 import { fetchLeaderboard, refreshLeaderboardStats } from "./services/leaderboard";
 import { fetchFollowingUsers, followUser, unfollowUser } from "./services/follows";
 import {
+  blockUser as blockUserRelation,
+  fetchBlockedUsers,
+  isBlockedBetween,
+  unblockUser as unblockUserRelation,
+} from "./services/blocks";
+import {
   createReport,
   fetchReports,
   updateReportStatus,
 } from "./services/reports";
+import {
+  createDirectMessage,
+  fetchConversationById,
+  fetchMessageThreads,
+  fetchThreadMessages,
+  getOrCreateConversation,
+} from "./services/messages";
 import {
   fetchAdminComments,
   fetchAdminReviewDetail,
@@ -516,6 +529,42 @@ const followListQuerySchema = z.object({
     ),
 });
 
+const blockListQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(MAX_PAGE_SIZE),
+  usernames: z
+    .string()
+    .optional()
+    .transform((value) =>
+      value ? value.split(",").map((item) => item.trim()).filter(Boolean) : []
+    ),
+});
+
+const messageThreadQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(DEFAULT_PAGE_SIZE),
+});
+
+const messageCreateSchema = z.object({
+  username: z.string().trim().min(1),
+  subject: z.string().trim().min(3).max(120),
+  body: z.string().trim().min(10).max(1000),
+});
+
+const conversationIdParamSchema = z.object({
+  id: z.string().uuid(),
+});
+
 const adminCategoryCreateSchema = z.object({
   name: z.string().trim().min(2).max(60),
   parentId: z.number().int().positive().nullable().optional(),
@@ -536,23 +585,36 @@ const profilePicUrlSchema = z.union([
   z.string().regex(/^\/profile_icon\//),
 ]);
 
-const profileUpdateSchema = z
-  .object({
-    username: z
-      .string()
-      .trim()
-      .min(3)
-      .max(24)
-      .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _.")
-      .optional(),
-    bio: z.string().trim().max(280).optional().nullable(),
-    profilePicUrl: profilePicUrlSchema.optional().nullable(),
+const profileUpdateSchemaBase = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3)
+    .max(24)
+    .regex(/^[a-z0-9_-]+$/i, "username must be alphanumeric with - or _.")
+    .optional(),
+  bio: z.string().trim().max(280).optional().nullable(),
+  profilePicUrl: profilePicUrlSchema.optional().nullable(),
+});
+
+const profileUpdateSchema = profileUpdateSchemaBase.refine(
+  (value) =>
+    value.username !== undefined ||
+    value.bio !== undefined ||
+    value.profilePicUrl !== undefined,
+  "At least one field is required."
+);
+
+const adminProfileUpdateSchema = profileUpdateSchemaBase
+  .extend({
+    isVerified: z.boolean().optional(),
   })
   .refine(
     (value) =>
       value.username !== undefined ||
       value.bio !== undefined ||
-      value.profilePicUrl !== undefined,
+      value.profilePicUrl !== undefined ||
+      value.isVerified !== undefined,
     "At least one field is required."
   );
 
@@ -1452,6 +1514,99 @@ async function handleUnfollowUser({ env, request, params }: HandlerContext): Pro
   return jsonResponse({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }
 
+async function handleMyBlocks({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  const { page, pageSize, usernames } = blockListQuerySchema.parse(
+    getQueryObject(url)
+  );
+  const result = await fetchBlockedUsers(env, user.id, {
+    page,
+    pageSize,
+    usernames,
+  });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleBlockUser({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  enforceRateLimit(request, env, user.id);
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+  if (record.userId === user.id) {
+    return errorResponse(400, "Cannot block yourself");
+  }
+  await blockUserRelation(env, user.id, record.userId);
+  return jsonResponse({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleUnblockUser({ env, request, params }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  enforceRateLimit(request, env, user.id);
+  const { username } = z.object({ username: z.string().min(1) }).parse(params);
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+  if (record.userId === user.id) {
+    return errorResponse(400, "Cannot unblock yourself");
+  }
+  await unblockUserRelation(env, user.id, record.userId);
+  return jsonResponse({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleSendMessage({ env, request }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  enforceRateLimit(request, env, user.id);
+  const { username, subject, body } = messageCreateSchema.parse(
+    await readJson(request)
+  );
+  const record = await fetchUserProfileRecord(env, username);
+  if (!record) {
+    return errorResponse(404, "User not found");
+  }
+  if (record.userId === user.id) {
+    return errorResponse(400, "Cannot message yourself");
+  }
+  const blocked = await isBlockedBetween(env, user.id, record.userId);
+  if (blocked) {
+    return errorResponse(403, "Messaging is blocked");
+  }
+  const conversation = await getOrCreateConversation(env, user.id, record.userId);
+  const message = await createDirectMessage(env, {
+    conversationId: conversation.id,
+    senderUserId: user.id,
+    recipientUserId: record.userId,
+    subject,
+    body,
+  });
+  return jsonResponse(message, { status: 201, headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleMessageThreads({ env, request, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  const { page, pageSize } = messageThreadQuerySchema.parse(getQueryObject(url));
+  const result = await fetchMessageThreads(env, user.id, { page, pageSize });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
+async function handleMessageThread({ env, request, params, url }: HandlerContext): Promise<Response> {
+  const user = await requireAuth(request, env);
+  const { id } = conversationIdParamSchema.parse(params);
+  const { page, pageSize } = messageThreadQuerySchema.parse(getQueryObject(url));
+  const conversation = await fetchConversationById(env, id);
+  if (!conversation) {
+    return errorResponse(404, "Conversation not found");
+  }
+  if (conversation.userAId !== user.id && conversation.userBId !== user.id) {
+    return errorResponse(403, "Not authorized");
+  }
+  const result = await fetchThreadMessages(env, id, { page, pageSize });
+  return jsonResponse(result, { headers: { "Cache-Control": "no-store" } });
+}
+
 async function handleUserProfile({ env, params }: HandlerContext): Promise<Response> {
   const { username } = z.object({ username: z.string().min(1) }).parse(params);
   const record = await fetchUserProfileRecord(env, username);
@@ -2326,11 +2481,13 @@ async function handleAdminUserUpdate({ env, request, params }: HandlerContext): 
   requireRole(user, "admin");
   enforceRateLimit(request, env, user.id);
   const { userId } = userIdParamSchema.parse(params);
-  const payload = profileUpdateSchema.parse(await readJson(request));
+  const payload = adminProfileUpdateSchema.parse(await readJson(request));
   const updatePayload: {
     username?: string;
     bio?: string | null;
     profilePicUrl?: string | null;
+    isVerified?: boolean;
+    verifiedBy?: string | null;
   } = {};
   if (payload.username !== undefined) {
     updatePayload.username = payload.username;
@@ -2340,6 +2497,10 @@ async function handleAdminUserUpdate({ env, request, params }: HandlerContext): 
   }
   if (payload.profilePicUrl !== undefined) {
     updatePayload.profilePicUrl = payload.profilePicUrl;
+  }
+  if (payload.isVerified !== undefined) {
+    updatePayload.isVerified = payload.isVerified;
+    updatePayload.verifiedBy = payload.isVerified ? user.id : null;
   }
   const updated = await updateProfileByUserId(env, userId, updatePayload, {
     useAdminClient: true,
@@ -2494,6 +2655,12 @@ const routes: Route[] = [
     noStore: true,
   },
   {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/users/me/blocks" }),
+    handler: handleMyBlocks,
+    noStore: true,
+  },
+  {
     method: "POST",
     pattern: new URLPattern({ pathname: "/api/users/:username/follow" }),
     handler: handleFollowUser,
@@ -2503,6 +2670,36 @@ const routes: Route[] = [
     method: "POST",
     pattern: new URLPattern({ pathname: "/api/users/:username/unfollow" }),
     handler: handleUnfollowUser,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/users/:username/block" }),
+    handler: handleBlockUser,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/users/:username/unblock" }),
+    handler: handleUnblockUser,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/messages/threads" }),
+    handler: handleMessageThreads,
+    noStore: true,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/messages/threads/:id" }),
+    handler: handleMessageThread,
+    noStore: true,
+  },
+  {
+    method: "POST",
+    pattern: new URLPattern({ pathname: "/api/messages" }),
+    handler: handleSendMessage,
     noStore: true,
   },
   {

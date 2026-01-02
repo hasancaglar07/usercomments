@@ -1,12 +1,20 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { FlatCompat } from "@eslint/eslintrc";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const compat = new FlatCompat({
+  baseDirectory: dirname(fileURLToPath(import.meta.url)),
+});
 
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    "node_modules/**",
+    "node_modules_trash/**",
+    ".open-next/**",
+    ".vercel/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

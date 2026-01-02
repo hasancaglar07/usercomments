@@ -15,7 +15,9 @@ export async function fetchUserProfileRecord(
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, username, bio, profile_pic_url, created_at")
+    .select(
+      "user_id, username, bio, profile_pic_url, created_at, is_verified, verified_at, verified_by"
+    )
     .ilike("username", username)
     .maybeSingle();
 
@@ -45,6 +47,9 @@ export async function fetchUserProfileRecord(
       bio: string | null;
       profile_pic_url: string | null;
       created_at: string | null;
+      is_verified?: boolean | null;
+      verified_at?: string | null;
+      verified_by?: string | null;
     },
     { r2BaseUrl: env.R2_PUBLIC_BASE_URL }
   );

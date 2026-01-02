@@ -1,13 +1,15 @@
 import { getSiteUrl } from "@/src/lib/seo";
-import { SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
+import { DEFAULT_LANGUAGE, getLocale, localizePath } from "@/src/lib/i18n";
 
-export const runtime = "edge";
 export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 export async function GET() {
     const siteUrl = getSiteUrl();
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const lang = DEFAULT_LANGUAGE;
+    const languageTag = getLocale(lang);
+    const pageSize = 20;
 
     // RSS Header
     let rss = `<?xml version="1.0" encoding="UTF-8"?>
@@ -16,7 +18,7 @@ export async function GET() {
     <title>UserReview.net - Latest Reviews</title>
     <link>${siteUrl}</link>
     <description>Latest user reviews and product ratings.</description>
-    <language>en</language>
+    <language>${languageTag}</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     <atom:link href="${siteUrl}/feed.xml" rel="self" type="application/rss+xml" />`;
 
@@ -29,8 +31,14 @@ export async function GET() {
             // However, for simplicity and performance in edge, let's reuse sitemap logic or just fetch a public API endpoint.
             // We will try to fetch the 'latest' reviews from the public API.
 
+            const searchParams = new URLSearchParams({
+                sort: "latest",
+                page: "1",
+                pageSize: String(pageSize),
+                lang,
+            });
             const response = await fetch(
-                `${apiBaseUrl.replace(/\/$/, "")}/api/reviews?sort=latest&limit=20`,
+                `${apiBaseUrl.replace(/\/$/, "")}/api/reviews?${searchParams}`,
                 { next: { revalidate: 3600 } }
             );
 
@@ -39,7 +47,7 @@ export async function GET() {
                 const items = data.items || [];
 
                 for (const item of items) {
-                    const link = `${siteUrl}/en/content/${item.slug}`;
+                    const link = `${siteUrl}${localizePath(`/content/${item.slug}`, lang)}`;
                     const title = item.title || "No Title";
                     const desc = item.excerpt || item.title;
                     const pubDate = item.createdAt ? new Date(item.createdAt).toUTCString() : new Date().toUTCString();

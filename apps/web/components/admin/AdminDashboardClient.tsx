@@ -133,12 +133,14 @@ const userUpdateSchema = z
       .optional(),
     bio: z.string().trim().max(280).nullable().optional(),
     profilePicUrl: profilePicUrlSchema.nullable().optional(),
+    isVerified: z.boolean().optional(),
   })
   .refine(
     (value) =>
       value.username !== undefined ||
       value.bio !== undefined ||
-      value.profilePicUrl !== undefined,
+      value.profilePicUrl !== undefined ||
+      value.isVerified !== undefined,
     "At least one field is required."
   );
 
@@ -708,6 +710,7 @@ export default function AdminDashboardClient() {
     username: string;
     bio: string;
     profilePicUrl: string;
+    isVerified: boolean;
   } | null>(null);
   const [userRoleEdit, setUserRoleEdit] = useState<UserRole>("user");
   const [isUserAvatarModalOpen, setIsUserAvatarModalOpen] = useState(false);
@@ -1611,6 +1614,7 @@ export default function AdminDashboardClient() {
           username: detail.username,
           bio: detail.bio ?? "",
           profilePicUrl: detail.profilePicUrl ?? "",
+          isVerified: detail.isVerified ?? false,
         });
       } catch (error) {
         console.error("Failed to load user detail", error);
@@ -2653,6 +2657,7 @@ export default function AdminDashboardClient() {
       username: userEdit.username,
       bio: userEdit.bio ? userEdit.bio : null,
       profilePicUrl: userEdit.profilePicUrl ? userEdit.profilePicUrl : null,
+      isVerified: userEdit.isVerified,
     });
 
     if (!parsed.success) {
@@ -2664,6 +2669,12 @@ export default function AdminDashboardClient() {
     try {
       const updated = await updateAdminUserProfile(userDetail.userId, parsed.data);
       setUserDetail(updated);
+      setUserEdit({
+        username: updated.username,
+        bio: updated.bio ?? "",
+        profilePicUrl: updated.profilePicUrl ?? "",
+        isVerified: updated.isVerified ?? false,
+      });
       setUsers((current) =>
         current.map((item) =>
           item.userId === updated.userId ? { ...item, username: updated.username } : item
@@ -5877,6 +5888,32 @@ export default function AdminDashboardClient() {
                           </div>
                           <div className="grid gap-2">
                             <label className="text-xs text-slate-500 dark:text-slate-400">
+                              Verified badge
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300"
+                                checked={userEdit.isVerified}
+                                onChange={(event) =>
+                                  setUserEdit({
+                                    ...userEdit,
+                                    isVerified: event.target.checked,
+                                  })
+                                }
+                              />
+                              <span>
+                                {userEdit.isVerified ? "Verified" : "Not verified"}
+                              </span>
+                            </label>
+                            {userDetail.verifiedAt ? (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                Verified {formatRelativeTime(userDetail.verifiedAt) || "recent"}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="grid gap-2">
+                            <label className="text-xs text-slate-500 dark:text-slate-400">
                               Profile picture
                             </label>
                             <button
@@ -6171,6 +6208,7 @@ export default function AdminDashboardClient() {
                     className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:ring-4 hover:ring-primary/50 transition-all"
                     onClick={() => handleUserAvatarSelect(icon)}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/profile_icon/${icon}`}
                       alt="Avatar option"

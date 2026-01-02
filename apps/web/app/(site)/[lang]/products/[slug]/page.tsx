@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import ProductCard from "@/components/cards/ProductCard";
@@ -151,6 +151,10 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
       description: t(lang, "productDetail.meta.notFoundDescription"),
       path: `/products/${params.slug}`,
       lang,
+      robots: {
+        index: false,
+        follow: true,
+      },
     });
   }
 
@@ -203,7 +207,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
         index: false,
         follow: true,
       },
-  } as any);
+  });
 }
 
 export default async function Page(props: PageProps) {
@@ -216,22 +220,7 @@ export default async function Page(props: PageProps) {
 
   const product = await getProductBySlug(params.slug, lang).catch(() => null);
   if (!product) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] px-4 text-center">
-        <h1 className="text-2xl font-bold mb-4">
-          {t(lang, "productDetail.notFound.title")}
-        </h1>
-        <p className="text-slate-600 mb-6">
-          {t(lang, "productDetail.notFound.description")}
-        </p>
-        <Link
-          href={localizePath("/products", lang)}
-          className="bg-primary text-white px-6 py-2 rounded-lg font-bold"
-        >
-          {t(lang, "productDetail.notFound.back")}
-        </Link>
-      </div>
-    );
+    notFound();
   }
 
   if (lang !== DEFAULT_LANGUAGE && product.translationLang && product.translationLang !== lang) {
@@ -462,9 +451,10 @@ export default async function Page(props: PageProps) {
 
   // NEW: Generate Synthetic FAQs for SEO and User Experience
   // PRIORITIZE AGGREGATED FAQs from reviews if available
-  const extendedFaq = (product as any).extendedFaq as Array<{ question: string, answer: string }> | undefined;
+  const extendedFaq = (product as { extendedFaq?: Array<{ question: string; answer: string }> })
+    .extendedFaq;
 
-  let faqItems: Array<{ question: string, answer: string }> = [];
+  const faqItems: Array<{ question: string; answer: string }> = [];
 
   // Always include the "What Is" question as it is good for SEO
   faqItems.push({
@@ -512,6 +502,7 @@ export default async function Page(props: PageProps) {
             {/* Left Column: Image */}
             <div className="flex flex-col gap-4">
               <div className="aspect-square w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 overflow-hidden relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={productImage}
                   alt={t(lang, "productDetail.meta.titleTemplate", { name: product.name })}
@@ -566,7 +557,7 @@ export default async function Page(props: PageProps) {
                 </div>
 
                 <div className="flex-1">
-                  <RatingHistogram ratingAvg={ratingAvg} ratingCount={ratingCount} lang={lang} />
+                  <RatingHistogram ratingAvg={ratingAvg} ratingCount={ratingCount} />
                 </div>
 
                 <div className="hidden sm:flex flex-col justify-center pl-4 border-l border-slate-100 dark:border-slate-800">

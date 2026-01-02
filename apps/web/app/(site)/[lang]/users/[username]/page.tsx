@@ -1,8 +1,7 @@
 import ReviewListProfileClient from "@/components/lists/ReviewListProfileClient";
-import UserProfileActionsClient, {
-  UserProfileHeaderActions,
-} from "@/components/user/UserProfileActionsClient";
+import UserProfileActionsClient from "@/components/user/UserProfileActionsClient";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { SidebarProfile } from "@/components/layout/Sidebar";
 import type { ReviewCardProfileData } from "@/components/cards/ReviewCard";
 import type { ProfilePopularReview } from "@/components/layout/Sidebar";
@@ -24,7 +23,7 @@ import {
   getUserProfile,
   getUserReviews,
 } from "@/src/lib/api";
-import { buildMetadata } from "@/src/lib/seo";
+import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import {
   profileReviewCards,
   profilePagination,
@@ -53,6 +52,7 @@ export async function generateMetadata(
   let title = t(lang, "profile.meta.title", { name: username });
   let description = t(lang, "profile.meta.description", { name: username });
   let shouldIndex = true;
+  let isMissing = false;
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
@@ -63,8 +63,11 @@ export async function generateMetadata(
       const reviewCount = profile.stats?.reviewCount ?? 0;
       const hasBio = Boolean(profile.bio && profile.bio.trim().length > 0);
       shouldIndex = reviewCount > 0 || hasBio;
-    } catch {
-      // keep defaults
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        isMissing = true;
+        shouldIndex = false;
+      }
     }
   }
 
@@ -75,7 +78,7 @@ export async function generateMetadata(
     lang,
     type: "website",
   });
-  return shouldIndex
+  return shouldIndex && !isMissing
     ? metadata
     : {
       ...metadata,
@@ -104,6 +107,14 @@ function parseNumber(value: string | undefined, fallback: number) {
     return fallback;
   }
   return Math.floor(parsed);
+}
+
+function isNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return false;
+  }
+  const message = String((error as { message?: string }).message ?? "");
+  return message.includes("(404") || message.includes(" 404 ");
 }
 
 type ProfileTab = "reviews" | "drafts" | "comments" | "saved";
@@ -325,6 +336,9 @@ export default async function Page(props: UserProfilePageProps) {
         commentPagination = commentResult.pageInfo;
       }
     } catch (error) {
+      if (isNotFoundError(error)) {
+        notFound();
+      }
       console.error("Failed to load profile API data", error);
       if (!allowMockFallback) {
         errorMessage = t(lang, "profile.error.loadFailed");
@@ -387,16 +401,17 @@ export default async function Page(props: UserProfilePageProps) {
     return `?${params.toString()}`;
   };
 
+  const profileUrl = toAbsoluteUrl(localizePath(`/users/${profile.username}`, lang));
   const profileJsonLd = {
     "@context": "https://schema.org",
     "@type": "ProfilePage",
-    "@id": `${localizePath(`/users/${profile.username}`, lang)}#profile`,
+    "@id": `${profileUrl}#profile`,
     mainEntity: {
       "@type": "Person",
       name: profile.displayName ?? profile.username,
       identifier: profile.username,
       description: profile.bio || undefined,
-      image: profileAvatarUrl,
+      image: profileAvatarUrl ? toAbsoluteUrl(profileAvatarUrl) : undefined,
       interactionStatistic: [
         {
           "@type": "InteractionCounter",
@@ -410,6 +425,7 @@ export default async function Page(props: UserProfilePageProps) {
   return (
     <UserProfileActionsClient
       username={profile.username}
+      userId={profile.userId}
       displayName={profile.displayName ?? profile.username}
     >
       <script type="application/ld+json">
@@ -439,12 +455,14 @@ export default async function Page(props: UserProfilePageProps) {
                   <h1 className="text-text-main-light dark:text-text-main-dark text-2xl font-bold leading-tight">
                     {profile.displayName ?? profile.username}
                   </h1>
-                  <span
-                    className="material-symbols-outlined text-primary text-[20px]"
-                    title={t(lang, "profile.verifiedUser")}
-                  >
-                    verified
-                  </span>
+                  {profile.isVerified ? (
+                    <span
+                      className="material-symbols-outlined text-primary text-[20px]"
+                      title={t(lang, "profile.verifiedUser")}
+                    >
+                      verified
+                    </span>
+                  ) : null}
                 </div>
                 <p className="text-text-sub-light dark:text-text-sub-dark text-sm">
                   {memberSinceLabel}
@@ -461,7 +479,7 @@ export default async function Page(props: UserProfilePageProps) {
               </div>
             </div>
             <div className="flex gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
-              <UserProfileHeaderActions />
+              <div data-profile-header-actions className="contents" />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-border-light dark:border-border-dark">

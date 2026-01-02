@@ -3,8 +3,8 @@ import { getSupabaseAdminClient, getSupabaseClient } from "../supabase";
 import { buildPaginationInfo } from "../utils/pagination";
 import type { PaginationInfo } from "../types";
 
-type FollowRow = {
-  following_user_id: string;
+type BlockRow = {
+  blocked_user_id: string;
 };
 
 type ProfileRow = {
@@ -12,9 +12,9 @@ type ProfileRow = {
   username: string;
 };
 
-export async function fetchFollowingUsers(
+export async function fetchBlockedUsers(
   env: ParsedEnv,
-  followerUserId: string,
+  blockerUserId: string,
   options: {
     page: number;
     pageSize: number;
@@ -52,24 +52,24 @@ export async function fetchFollowingUsers(
     );
     const profileIds = profiles.map((profile) => profile.user_id);
 
-    const { data: followData, error: followError } = await supabase
-      .from("user_follows")
-      .select("following_user_id")
-      .eq("follower_user_id", followerUserId)
-      .in("following_user_id", profileIds);
+    const { data: blockData, error: blockError } = await supabase
+      .from("user_blocks")
+      .select("blocked_user_id")
+      .eq("blocker_user_id", blockerUserId)
+      .in("blocked_user_id", profileIds);
 
-    if (followError) {
-      throw followError;
+    if (blockError) {
+      throw blockError;
     }
 
-    const followedIds = new Set(
-      ((followData ?? []) as FollowRow[]).map((row) => row.following_user_id)
+    const blockedIds = new Set(
+      ((blockData ?? []) as BlockRow[]).map((row) => row.blocked_user_id)
     );
 
     const items = normalizedUsernames
       .map((name) => profileMap.get(name.toLowerCase()))
       .filter((profile): profile is ProfileRow => Boolean(profile))
-      .filter((profile) => followedIds.has(profile.user_id))
+      .filter((profile) => blockedIds.has(profile.user_id))
       .map((profile) => ({ username: profile.username }));
 
     return {
@@ -82,9 +82,9 @@ export async function fetchFollowingUsers(
   const end = start + pageSize - 1;
 
   const { data, error, count } = await supabase
-    .from("user_follows")
-    .select("following_user_id", { count: "exact" })
-    .eq("follower_user_id", followerUserId)
+    .from("user_blocks")
+    .select("blocked_user_id", { count: "exact" })
+    .eq("blocker_user_id", blockerUserId)
     .order("created_at", { ascending: false })
     .range(start, end);
 
@@ -92,12 +92,12 @@ export async function fetchFollowingUsers(
     throw error;
   }
 
-  const followRows = (data ?? []) as FollowRow[];
-  const followIds = followRows
-    .map((row) => row.following_user_id)
+  const blockRows = (data ?? []) as BlockRow[];
+  const blockedIds = blockRows
+    .map((row) => row.blocked_user_id)
     .filter((id): id is string => Boolean(id));
 
-  if (followIds.length === 0) {
+  if (blockedIds.length === 0) {
     return {
       items: [],
       pageInfo: buildPaginationInfo(page, pageSize, count ?? 0),
@@ -107,7 +107,7 @@ export async function fetchFollowingUsers(
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select("user_id, username")
-    .in("user_id", followIds);
+    .in("user_id", blockedIds);
 
   if (profileError) {
     throw profileError;
@@ -117,7 +117,7 @@ export async function fetchFollowingUsers(
   const profileMap = new Map(
     profiles.map((profile) => [profile.user_id, profile.username])
   );
-  const items = followIds
+  const items = blockedIds
     .map((id) => profileMap.get(id))
     .filter((username): username is string => Boolean(username))
     .map((username) => ({ username }));
@@ -128,15 +128,15 @@ export async function fetchFollowingUsers(
   };
 }
 
-export async function followUser(
+export async function blockUser(
   env: ParsedEnv,
-  followerUserId: string,
-  followingUserId: string
+  blockerUserId: string,
+  blockedUserId: string
 ): Promise<void> {
   const supabase = getSupabaseAdminClient(env) ?? getSupabaseClient(env);
-  const { error } = await supabase.from("user_follows").insert({
-    follower_user_id: followerUserId,
-    following_user_id: followingUserId,
+  const { error } = await supabase.from("user_blocks").insert({
+    blocker_user_id: blockerUserId,
+    blocked_user_id: blockedUserId,
   });
 
   if (error && String(error.code) !== "23505") {
@@ -144,19 +144,42 @@ export async function followUser(
   }
 }
 
-export async function unfollowUser(
+export async function unblockUser(
   env: ParsedEnv,
-  followerUserId: string,
-  followingUserId: string
+  blockerUserId: string,
+  blockedUserId: string
 ): Promise<void> {
   const supabase = getSupabaseAdminClient(env) ?? getSupabaseClient(env);
   const { error } = await supabase
-    .from("user_follows")
+    .from("user_blocks")
     .delete()
-    .eq("follower_user_id", followerUserId)
-    .eq("following_user_id", followingUserId);
+    .eq("blocker_user_id", blockerUserId)
+    .eq("blocked_user_id", blockedUserId);
 
   if (error) {
     throw error;
   }
+}
+
+export async function isBlockedBetween(
+  env: ParsedEnv,
+  userId: string,
+  otherUserId: string
+): Promise<boolean> {
+  if (userId === otherUserId) {
+    return false;
+  }
+  const supabase = getSupabaseAdminClient(env) ?? getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("user_blocks")
+    .select("blocked_user_id")
+    .in("blocker_user_id", [userId, otherUserId])
+    .in("blocked_user_id", [userId, otherUserId])
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).length > 0;
 }

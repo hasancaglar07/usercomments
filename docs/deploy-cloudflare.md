@@ -100,6 +100,8 @@ Set these in Cloudflare Pages:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_ALLOW_MOCK_FALLBACK=false`
+- `NEXT_PUBLIC_IMAGE_CDN_BASE_URL` (optional; enables Cloudflare Image Resizing when set)
+- `NEXT_PUBLIC_IMAGE_OPTIMIZER` (optional; `cloudflare` | `wsrv` | `none`)
 
 ### Recommended routing
 - Prefer a single hostname (e.g. `example.com`) and route `/api/*` to the Worker.

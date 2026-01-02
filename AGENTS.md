@@ -80,8 +80,12 @@ If no new rule is detected → do not update the file.
 \- Süreç: Önce eksikleri tespit edip planla, ardından uygula; böylece ilerleme net takip edilir
 \- Süreç: En hızlı, en stabil ve en düzgün sonuç için önce düşün, araştır, planla; ardından uygula
 \- Localization: Çeviri işlerinde tüm siteyi eksiksiz, sayfa sayfa sırayla çevir; parçalı bırakma, çünkü kullanıcı tam kapsam bekliyor
+\- Localization: Çevirilerde içerik uzunluğu ve detay kapsamı korunmalı; kısaltma yapılmamalı, çünkü kullanıcı özgün uzunluğu bekliyor
+\- Localization: Arapça (`ar`) içerik/çeviri üretilmeyecek; ingestorda `ar` dili tamamen kapalı olmalı çünkü kullanıcı artık istemiyor
+\- Ingestor: Post aralığı toplamda 5-15 dakika hedeflenmeli (işleme + uyku), çünkü kullanıcı akışın daha sık olmasını istiyor
 \- Quality: iRecommend ile 1:1 fonksiyonel/UX parite hedefle, çünkü kullanıcı profesyonel birebir klon istiyor
 \- Reliability: İnjestor/bot akışında fail/skip olmasın; mümkün olan her durumda fallback uygula, çünkü kullanıcı sorunsuz çalışmasını istiyor
+\- Indexer bot: Bu botta resmi index kaynaklarını (Google/Bing sitemap ping, IndexNow, webmaster tools) ekleme; çünkü kullanıcı bunları ayrı botta yönetiyor
 \- Performance: prioritize speed and perceived performance; add skeleton loading for async content lists so pages feel fast (especially homepage and subpages)
 \- Pagination: never leave users stuck on a "loading" state; load more items or end gracefully when there is no more data
 \- Troubleshooting: Anasayfa/akışta görünmeme şikayetlerinde status/photoUrls/translation/lang/cache kontrollerini DB/API üzerinden önce doğrula, çünkü kullanıcı varsayım değil net tespit istiyor
@@ -147,6 +151,7 @@ If no new rule is detected → do not update the file.
 \- Use `'use client'` only when interactivity is required to avoid unnecessary client components
 \- Localization: Default language should follow user browser/region detection (do not force `/en` in navigation); only missing translations redirect to `/en` for SEO consistency
 \- i18n SEO: each locale must serve locale-specific content and sitemaps so search engines index the correct language
+\- LLM: Ingestor translations should use Groq model `openai/gpt-oss-120b` for highest localization quality, because the user wants the best possible output
 
 \### Critical (NEVER violate)
 
@@ -188,6 +193,7 @@ If no new rule is detected → do not update the file.
 \- UX: Kullanıcı odaklı, çok kolay ve akıcı akışlar tasarla; admin akışıyla tam uyumlu olsun, çünkü bu sayfa kritik.
 \- Admin UI: Ferah, geniş ve rahat kullanılan ekranlar tasarla; arama ve bulma akışları sayfalara sıkışmamalı.
 \- Product direction: En profesyonel ve üretim kalitesinde çözümü tercih et, çünkü kullanıcı bunu talep ediyor.
+\- Localization: Çeviriler hedef dilde yerli/native gibi okunmalı; çeviri kokusu vermemeli, çünkü kullanıcı gerçekçi ve doğal içerik bekliyor.
 
 \### Dislikes
 

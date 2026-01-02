@@ -1,16 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useState } from "react";
 import {
-    ReviewCardHomepage,
     ReviewCardTrending,
     type ReviewCardHomepageData,
 } from "@/components/cards/ReviewCard";
 import { getPopularReviews } from "@/src/lib/api";
 import { t } from "@/src/lib/copy";
 import { FALLBACK_AVATARS, FALLBACK_REVIEW_IMAGES, buildRatingStars, formatCompactNumber, formatRelativeTime, pickFrom } from "@/src/lib/review-utils";
-import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { localizePath } from "@/src/lib/i18n";
 import type { Review } from "@/src/types";
 import type { SupportedLanguage } from "@/src/lib/i18n";
@@ -32,11 +29,6 @@ const TRENDING_TABS = [
     // { key: "latest", labelKey: "homepage.trendingTabs.latest" },
     // { key: "rating", labelKey: "homepage.trendingTabs.rating" },
 ] as const;
-
-const ACTIVE_TRENDING_TAB_CLASS =
-    "px-4 py-2 text-xs font-bold rounded-full bg-primary text-white shadow-md shadow-primary/25 transition-all transform scale-105";
-const INACTIVE_TRENDING_TAB_CLASS =
-    "px-4 py-2 text-xs font-bold rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-all hover:border-gray-300 dark:hover:border-gray-600";
 
 // Helper to map tab key to API param
 function mapTabToTimeWindow(tab: TrendingTab): "6h" | "24h" | "week" | undefined {
@@ -108,7 +100,7 @@ export default function TrendingSection({ lang, initialTab, initialData }: Trend
         setIsLoading(true);
         try {
             const timeWindow = mapTabToTimeWindow(tab);
-            const reviews = await getPopularReviews(3, lang as any, timeWindow); // hardcoded limit 3 matching page.tsx
+            const reviews = await getPopularReviews(3, lang, timeWindow); // hardcoded limit 3 matching page.tsx
 
             const cards = reviews.map((r, i) => mapReviewToCard(r, lang, i));
 

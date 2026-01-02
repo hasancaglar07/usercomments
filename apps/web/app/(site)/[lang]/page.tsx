@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import TrendingSection from "@/components/homepage/TrendingSection";
 import type { Metadata } from "next";
 import HomepageFeed from "@/components/homepage/HomepageFeed";
 import { SidebarHomepage } from "@/components/layout/Sidebar";
-import { ReviewCardHomepage, type ReviewCardHomepageData } from "@/components/cards/ReviewCard";
+import type { ReviewCardHomepageData } from "@/components/cards/ReviewCard";
 import type { HomepageTopReviewer } from "@/components/layout/Sidebar";
 import type { Category, Review } from "@/src/types";
 import {
@@ -30,17 +29,12 @@ import { homepageTopReviewers } from "@/data/mock/users";
 import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
 
-export const runtime = "edge";
 export const revalidate = 60;
 
 const HOMEPAGE_LIMIT = 9;
 const POPULAR_LIMIT = 9;
 const TRENDING_LIMIT = 3;
 
-const ACTIVE_TRENDING_TAB_CLASS =
-  "px-3 py-1.5 text-xs font-bold rounded-full bg-primary text-white shadow-sm transition-all";
-const INACTIVE_TRENDING_TAB_CLASS =
-  "px-3 py-1.5 text-xs font-semibold rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-all";
 const TRENDING_TABS = [
   { key: "popular6h", labelKey: "homepage.trendingTabs.popular6h" },
   { key: "popular24h", labelKey: "homepage.trendingTabs.popular24h" },
@@ -186,8 +180,6 @@ export default async function Page(props: HomePageProps) {
   const trendingTab = parseTrendingTab(
     typeof searchParams?.trending === "string" ? searchParams.trending : undefined
   );
-  const filterParam =
-    typeof searchParams?.filter === "string" ? searchParams.filter : undefined;
   const apiConfigured = true;
   let recentCards = allowMockFallback ? homepageReviewCards : [];
   let popularFeedCards = allowMockFallback ? homepageReviewCards : [];
@@ -197,18 +189,6 @@ export default async function Page(props: HomePageProps) {
   let trendingCards: ReviewCardHomepageData[] = [];
   let nextCursor: string | null = null;
   let errorMessage: string | null = null;
-
-  const buildTrendingHref = (tab: TrendingTab) => {
-    const params = new URLSearchParams();
-    if (filterParam) {
-      params.set("filter", filterParam);
-    }
-    if (tab !== DEFAULT_TRENDING_TAB) {
-      params.set("trending", tab);
-    }
-    const query = params.toString();
-    return localizePath(query ? `/?${query}` : "/", lang);
-  };
 
   if (apiConfigured) {
     try {

@@ -15,15 +15,26 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   getProfile,
   presignUpload,
   reportReview,
+  reportUser,
+  sendDirectMessage,
   updateProfile,
   voteReview,
 } from "@/src/lib/api-client";
+import {
+  blockUser as blockUserApi,
+  followUser as followUserApi,
+  getMyBlockedUsers,
+  getMyFollowing,
+  unblockUser as unblockUserApi,
+  unfollowUser as unfollowUserApi,
+} from "@/src/lib/api";
 import {
   ensureAuthLoaded,
   getAccessToken,
@@ -37,6 +48,7 @@ import { t } from "@/src/lib/copy";
 
 type UserProfileActionsClientProps = {
   username: string;
+  userId?: string;
   displayName: string;
   children: ReactNode;
 };
@@ -48,11 +60,19 @@ type ToastState = {
   variant: ToastVariant;
 } | null;
 
-type ReportTarget = {
-  reviewId: string;
-  reviewSlug: string;
-  reviewTitle: string;
-};
+type ReportTarget =
+  | {
+      kind: "review";
+      reviewId: string;
+      reviewSlug: string;
+      reviewTitle: string;
+    }
+  | {
+      kind: "user";
+      userId: string;
+      username: string;
+      displayName: string;
+    };
 
 type UserProfileActionsContextValue = {
   isSelf: boolean;
@@ -86,10 +106,9 @@ export function useUserProfileActions() {
   return context;
 }
 
-const SUPPORT_EMAIL = "support@irecommend.clone";
-
 export default function UserProfileActionsClient({
   username,
+  userId,
   displayName,
   children,
 }: UserProfileActionsClientProps) {
@@ -100,6 +119,10 @@ export default function UserProfileActionsClient({
   );
   const [toast, setToast] = useState<ToastState>(null);
   const toastTimerRef = useRef<number | null>(null);
+  const [headerActionsContainer, setHeaderActionsContainer] =
+    useState<HTMLElement | null>(null);
+  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
   const [messageForm, setMessageForm] = useState({ subject: "", body: "" });
   const [messageError, setMessageError] = useState<string | null>(null);
@@ -128,6 +151,8 @@ export default function UserProfileActionsClient({
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isSelf, setIsSelf] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const reportSchema = useMemo(
@@ -238,6 +263,23 @@ export default function UserProfileActionsClient({
         window.clearTimeout(toastTimerRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const container = document.querySelector(
+      "[data-profile-header-actions]"
+    ) as HTMLElement | null;
+    setHeaderActionsContainer(container);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    setModalRoot(document.body);
   }, []);
 
   const requireAuth = useCallback(async () => {
@@ -419,21 +461,25 @@ export default function UserProfileActionsClient({
         setIsFollowing(false);
         return;
       }
-      const user = getCurrentUser();
-      if (!user) {
+      const token = getAccessToken();
+      if (!token) {
         setIsFollowing(false);
         return;
       }
-      const viewerKey = user.id || user.email || "viewer";
-      const key = `follow:${viewerKey}:${username.toLowerCase()}`;
-      let stored = false;
+
       try {
-        stored = window.localStorage.getItem(key) === "1";
+        const following = await getMyFollowing(token, [username]);
+        if (!isMounted) {
+          return;
+        }
+        const normalizedUsername = username.toLowerCase();
+        setIsFollowing(
+          following.some((name) => name.toLowerCase() === normalizedUsername)
+        );
       } catch {
-        stored = false;
-      }
-      if (isMounted) {
-        setIsFollowing(stored);
+        if (isMounted) {
+          setIsFollowing(false);
+        }
       }
     };
 
@@ -444,39 +490,100 @@ export default function UserProfileActionsClient({
     };
   }, [isSelf, username]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncBlockState = async () => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      try {
+        await ensureAuthLoaded();
+      } catch {
+        // ignore auth init errors
+      }
+      if (!isMounted) {
+        return;
+      }
+      if (isSelf) {
+        setIsBlocked(false);
+        return;
+      }
+      const token = getAccessToken();
+      if (!token) {
+        setIsBlocked(false);
+        return;
+      }
+
+      try {
+        const blocked = await getMyBlockedUsers(token, [username]);
+        if (!isMounted) {
+          return;
+        }
+        const normalizedUsername = username.toLowerCase();
+        setIsBlocked(
+          blocked.some((name) => name.toLowerCase() === normalizedUsername)
+        );
+      } catch {
+        if (isMounted) {
+          setIsBlocked(false);
+        }
+      }
+    };
+
+    syncBlockState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isSelf, username]);
+
   const handleFollowClick = useCallback(async () => {
     const allowed = await requireAuth();
-    if (!allowed || typeof window === "undefined") {
+    if (!allowed) {
       return;
     }
     if (isSelf) {
       openEditModal();
       return;
     }
-    const user = getCurrentUser();
-    if (!user) {
+    if (isBlocked) {
+      showToast(t(lang, "profileActions.toast.blockedAction"), "error");
       return;
     }
-    const viewerKey = user.id || user.email || "viewer";
-    const key = `follow:${viewerKey}:${username.toLowerCase()}`;
+    const token = getAccessToken();
+    if (!token) {
+      return;
+    }
     const nextState = !isFollowing;
+    setIsFollowing(nextState);
     try {
       if (nextState) {
-        window.localStorage.setItem(key, "1");
+        await followUserApi(username, token);
       } else {
-        window.localStorage.removeItem(key);
+        await unfollowUserApi(username, token);
       }
-    } catch {
-      // ignore storage errors
+      showToast(
+        nextState
+          ? t(lang, "profileActions.toast.followed")
+          : t(lang, "profileActions.toast.unfollowed"),
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed to update follow state", error);
+      setIsFollowing(!nextState);
+      showToast(t(lang, "common.retry"), "error");
     }
-    setIsFollowing(nextState);
-    showToast(
-      nextState
-        ? t(lang, "profileActions.toast.followed")
-        : t(lang, "profileActions.toast.unfollowed"),
-      "success"
-    );
-  }, [isFollowing, isSelf, lang, openEditModal, requireAuth, showToast, username]);
+  }, [
+    isBlocked,
+    isFollowing,
+    isSelf,
+    lang,
+    openEditModal,
+    requireAuth,
+    showToast,
+    username,
+  ]);
 
   const handleMessageClick = useCallback(async () => {
     if (isSelf) {
@@ -484,6 +591,10 @@ export default function UserProfileActionsClient({
         t(lang, "profileActions.toast.selfProfileInfo"),
         "info"
       );
+      return;
+    }
+    if (isBlocked) {
+      showToast(t(lang, "profileActions.toast.blockedAction"), "error");
       return;
     }
     const allowed = await requireAuth();
@@ -498,7 +609,7 @@ export default function UserProfileActionsClient({
       body: "",
     });
     setMessageOpen(true);
-  }, [displayName, isSelf, lang, requireAuth, showToast]);
+  }, [displayName, isBlocked, isSelf, lang, requireAuth, showToast]);
 
   const handleProfileShare = useCallback(async () => {
     const url = buildProfileUrl();
@@ -507,6 +618,63 @@ export default function UserProfileActionsClient({
       t(lang, "profileActions.share.profileTitle", { name: displayName })
     );
   }, [buildProfileUrl, displayName, lang, shareLink]);
+
+  const handleMoreClick = useCallback(() => {
+    setMoreOpen(true);
+  }, []);
+
+  const handleShareFromMore = useCallback(async () => {
+    await handleProfileShare();
+    setMoreOpen(false);
+  }, [handleProfileShare]);
+
+  const handleBlockToggle = useCallback(async () => {
+    if (isSelf) {
+      return;
+    }
+    const allowed = await requireAuth();
+    if (!allowed) {
+      return;
+    }
+    const token = getAccessToken();
+    if (!token) {
+      return;
+    }
+    setBlockLoading(true);
+    try {
+      if (isBlocked) {
+        await unblockUserApi(username, token);
+        setIsBlocked(false);
+        showToast(t(lang, "profileActions.toast.unblocked"), "success");
+      } else {
+        await blockUserApi(username, token);
+        setIsBlocked(true);
+        setIsFollowing(false);
+        showToast(t(lang, "profileActions.toast.blocked"), "success");
+      }
+      setMoreOpen(false);
+    } catch (error) {
+      console.error("Failed to update block status", error);
+      showToast(t(lang, "common.retry"), "error");
+    } finally {
+      setBlockLoading(false);
+    }
+  }, [isBlocked, isSelf, lang, requireAuth, showToast, username]);
+
+  const handleUserReport = useCallback(() => {
+    if (!userId) {
+      return;
+    }
+    setReportError(null);
+    setReportForm({ reason: "", details: "" });
+    setReportTarget({
+      kind: "user",
+      userId,
+      username,
+      displayName,
+    });
+    setMoreOpen(false);
+  }, [displayName, userId, username]);
 
   const handleReviewShare = useCallback(
     async (reviewSlug: string, reviewTitle: string) => {
@@ -544,7 +712,7 @@ export default function UserProfileActionsClient({
         await voteReview(reviewId, "up");
         showToast(t(lang, "profileActions.toast.voteRecorded"), "success");
         router.refresh();
-      } catch (error) {
+      } catch {
         showToast(t(lang, "profileActions.toast.voteFailed"), "error");
       }
     },
@@ -560,6 +728,7 @@ export default function UserProfileActionsClient({
       await signOut();
       setIsSelf(false);
       setIsFollowing(false);
+      setIsBlocked(false);
       setSelfProfile(null);
       showToast(t(lang, "profileActions.toast.signedOut"), "success");
       router.refresh();
@@ -625,7 +794,11 @@ export default function UserProfileActionsClient({
 
   useEffect(() => {
     const modalOpen =
-      messageOpen || Boolean(reportTarget) || achievementsOpen || editOpen;
+      messageOpen ||
+      Boolean(reportTarget) ||
+      achievementsOpen ||
+      editOpen ||
+      moreOpen;
     if (!modalOpen || typeof document === "undefined") {
       return;
     }
@@ -634,11 +807,15 @@ export default function UserProfileActionsClient({
     return () => {
       document.body.style.overflow = original;
     };
-  }, [achievementsOpen, editOpen, messageOpen, reportTarget]);
+  }, [achievementsOpen, editOpen, messageOpen, moreOpen, reportTarget]);
 
   useEffect(() => {
     const modalOpen =
-      messageOpen || Boolean(reportTarget) || achievementsOpen || editOpen;
+      messageOpen ||
+      Boolean(reportTarget) ||
+      achievementsOpen ||
+      editOpen ||
+      moreOpen;
     if (!modalOpen || typeof window === "undefined") {
       return;
     }
@@ -660,13 +837,24 @@ export default function UserProfileActionsClient({
       }
       if (achievementsOpen) {
         setAchievementsOpen(false);
+        return;
+      }
+      if (moreOpen) {
+        setMoreOpen(false);
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => {
       window.removeEventListener("keydown", handleKey);
     };
-  }, [achievementsOpen, closeEditModal, editOpen, messageOpen, reportTarget]);
+  }, [
+    achievementsOpen,
+    closeEditModal,
+    editOpen,
+    messageOpen,
+    moreOpen,
+    reportTarget,
+  ]);
 
   const handleMessageSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -679,30 +867,28 @@ export default function UserProfileActionsClient({
       );
       return;
     }
+    const allowed = await requireAuth();
+    if (!allowed) {
+      return;
+    }
     setMessageSubmitting(true);
     try {
-      const profileUrl = buildProfileUrl();
-      const subject = t(lang, "profileActions.message.subjectTemplate", {
-        subject: parsed.data.subject,
-        name: displayName,
-      });
-      const body = t(lang, "profileActions.message.bodyTemplate", {
-        name: displayName,
+      await sendDirectMessage({
         username,
+        subject: parsed.data.subject,
         body: parsed.data.body,
-        profileUrl,
       });
-      if (typeof window !== "undefined") {
-        const mailto = new URL(`mailto:${SUPPORT_EMAIL}`);
-        mailto.searchParams.set("subject", subject);
-        mailto.searchParams.set("body", body);
-        window.location.href = mailto.toString();
-      }
-      showToast(t(lang, "profileActions.toast.mailOpened"), "success");
+      showToast(t(lang, "profileActions.toast.messageSent"), "success");
       setMessageOpen(false);
     } catch (error) {
-      console.error("Failed to open mail client", error);
-      setMessageError(t(lang, "profileActions.toast.messageSendFailed"));
+      const message =
+        error instanceof Error ? error.message.toLowerCase() : "";
+      console.error("Failed to send message", error);
+      if (message.includes("blocked")) {
+        setMessageError(t(lang, "profileActions.toast.messageBlocked"));
+      } else {
+        setMessageError(t(lang, "profileActions.toast.messageSendFailed"));
+      }
     } finally {
       setMessageSubmitting(false);
     }
@@ -732,11 +918,15 @@ export default function UserProfileActionsClient({
         reason: parsed.data.reason,
         details: parsed.data.details?.trim() || undefined,
       };
-      await reportReview(reportTarget.reviewId, payload);
+      if (reportTarget.kind === "review") {
+        await reportReview(reportTarget.reviewId, payload);
+      } else {
+        await reportUser(reportTarget.userId, payload);
+      }
       showToast(t(lang, "profileActions.toast.reportSubmitted"), "success");
       setReportTarget(null);
     } catch (error) {
-      console.error("Failed to report review", error);
+      console.error("Failed to report content", error);
       setReportError(t(lang, "profileActions.toast.reportFailed"));
     } finally {
       setReportSubmitting(false);
@@ -812,7 +1002,7 @@ export default function UserProfileActionsClient({
       followIcon,
       onFollowClick: handleFollowClick,
       onMessageClick: handleMessageClick,
-      onMoreClick: handleProfileShare,
+      onMoreClick: handleMoreClick,
       onSignOut: handleSignOut,
       onShareProfileClick: handleProfileShare,
       onOpenAchievements: () => setAchievementsOpen(true),
@@ -826,6 +1016,7 @@ export default function UserProfileActionsClient({
       followLabel,
       handleFollowClick,
       handleMessageClick,
+      handleMoreClick,
       handleProfileShare,
       handleSignOut,
       handleReviewComment,
@@ -843,6 +1034,555 @@ export default function UserProfileActionsClient({
     selfProfile?.profilePicUrl ||
     FALLBACK_PROFILE_IMAGES[0] ||
     "";
+
+  const modalLayer = (
+    <>
+      {moreOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-sm rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                {t(lang, "profileActions.more.title")}
+              </h3>
+              <button
+                className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                type="button"
+                onClick={() => setMoreOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+            <div className="grid gap-2">
+              <button
+                className="flex items-center justify-between rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                type="button"
+                onClick={handleShareFromMore}
+              >
+                <span>{t(lang, "profileActions.more.shareProfile")}</span>
+                <span className="material-symbols-outlined text-[18px] text-text-sub-light dark:text-text-sub-dark">
+                  share
+                </span>
+              </button>
+              {!isSelf ? (
+                <button
+                  className="flex items-center justify-between rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-70"
+                  type="button"
+                  onClick={handleBlockToggle}
+                  disabled={blockLoading}
+                >
+                  <span>
+                    {blockLoading
+                      ? t(
+                          lang,
+                          isBlocked
+                            ? "profileActions.more.unblocking"
+                            : "profileActions.more.blocking"
+                        )
+                      : t(
+                          lang,
+                          isBlocked
+                            ? "profileActions.more.unblock"
+                            : "profileActions.more.block"
+                        )}
+                  </span>
+                  <span className="material-symbols-outlined text-[18px] text-text-sub-light dark:text-text-sub-dark">
+                    block
+                  </span>
+                </button>
+              ) : null}
+              {!isSelf && userId ? (
+                <button
+                  className="flex items-center justify-between rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                  type="button"
+                  onClick={handleUserReport}
+                >
+                  <span>{t(lang, "profileActions.more.reportUser")}</span>
+                  <span className="material-symbols-outlined text-[18px] text-text-sub-light dark:text-text-sub-dark">
+                    flag
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {messageOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMessageOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                {t(lang, "profileActions.message.title")}
+              </h3>
+              <button
+                className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                type="button"
+                onClick={() => setMessageOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+            <form className="flex flex-col gap-4" onSubmit={handleMessageSubmit}>
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="text-text-sub-light dark:text-text-sub-dark">
+                  {t(lang, "profileActions.message.subjectLabel")}
+                </span>
+                <input
+                  className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                  value={messageForm.subject}
+                  onChange={(event) =>
+                    setMessageForm((current) => ({
+                      ...current,
+                      subject: event.target.value,
+                    }))
+                  }
+                  placeholder={t(lang, "profileActions.message.subjectPlaceholder", {
+                    name: displayName,
+                  })}
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="text-text-sub-light dark:text-text-sub-dark">
+                  {t(lang, "profileActions.message.bodyLabel")}
+                </span>
+                <textarea
+                  className="w-full min-h-[140px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                  value={messageForm.body}
+                  onChange={(event) =>
+                    setMessageForm((current) => ({
+                      ...current,
+                      body: event.target.value,
+                    }))
+                  }
+                  placeholder={t(lang, "profileActions.message.bodyPlaceholder")}
+                />
+              </label>
+              {messageError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                  {messageError}
+                </div>
+              ) : null}
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                  type="button"
+                  onClick={() => setMessageOpen(false)}
+                >
+                  {t(lang, "common.cancel")}
+                </button>
+                <button
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
+                  type="submit"
+                  disabled={messageSubmitting}
+                >
+                  {messageSubmitting
+                    ? t(lang, "profileActions.message.sending")
+                    : t(lang, "profileActions.message.send")}
+                </button>
+              </div>
+              <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
+                {t(lang, "profileActions.message.helper")}
+              </p>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {editOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={closeEditModal}
+          />
+          <div
+            className="relative w-full max-w-xl rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                  {t(lang, "profileActions.edit.title")}
+                </h3>
+                <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
+                  {t(lang, "profileActions.edit.subtitle")}
+                </p>
+              </div>
+              <button
+                className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                type="button"
+                onClick={closeEditModal}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+
+            {editLoading ? (
+              <div className="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark p-4 text-sm text-text-sub-light dark:text-text-sub-dark">
+                {t(lang, "profileActions.edit.loading")}
+              </div>
+            ) : (
+              <form className="flex flex-col gap-4" onSubmit={handleEditSubmit}>
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-16 h-16 rounded-full bg-cover bg-center ring-2 ring-background-light dark:ring-background-dark"
+                    style={{ backgroundImage: `url(${avatarPreview})` }}
+                  />
+                  <div className="flex flex-col gap-2">
+                    <button
+                      className="rounded-lg border border-border-light dark:border-border-dark px-3 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-70"
+                      type="button"
+                      onClick={handleAvatarClick}
+                      disabled={editUploading}
+                    >
+                      {editUploading
+                        ? t(lang, "profileActions.edit.uploading")
+                        : t(lang, "profileActions.edit.uploadPhoto")}
+                    </button>
+                    <button
+                      className="rounded-lg border border-border-light dark:border-border-dark px-3 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-70"
+                      type="button"
+                      onClick={() => setIsAvatarModalOpen(true)}
+                      disabled={editUploading}
+                    >
+                      {t(lang, "settings.chooseAvatar")}
+                    </button>
+                    <button
+                      className="text-xs font-semibold text-text-sub-light dark:text-text-sub-dark hover:text-primary"
+                      type="button"
+                      onClick={() =>
+                        setEditForm((current) => ({
+                          ...current,
+                          profilePicUrl: "",
+                        }))
+                      }
+                    >
+                      {t(lang, "profileActions.edit.removePhoto")}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleAvatarChange}
+                    />
+                  </div>
+                </div>
+
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="text-text-sub-light dark:text-text-sub-dark">
+                    {t(lang, "profileActions.edit.usernameLabel")}
+                  </span>
+                  <input
+                    className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                    value={editForm.username}
+                    onChange={(event) =>
+                      setEditForm((current) => ({
+                        ...current,
+                        username: event.target.value,
+                      }))
+                    }
+                    placeholder={t(lang, "profileActions.edit.usernamePlaceholder")}
+                  />
+                </label>
+
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="text-text-sub-light dark:text-text-sub-dark">
+                    {t(lang, "profileActions.edit.bioLabel")}
+                  </span>
+                  <textarea
+                    className="w-full min-h-[120px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                    value={editForm.bio}
+                    onChange={(event) =>
+                      setEditForm((current) => ({
+                        ...current,
+                        bio: event.target.value,
+                      }))
+                    }
+                    placeholder={t(lang, "profileActions.edit.bioPlaceholder")}
+                  />
+                  <div className="text-xs text-text-sub-light dark:text-text-sub-dark text-right">
+                    {editForm.bio.length}/280
+                  </div>
+                </label>
+
+                <label className="flex flex-col gap-2 text-sm">
+                  <span className="text-text-sub-light dark:text-text-sub-dark">
+                    {t(lang, "profileActions.edit.photoUrlLabel")}
+                  </span>
+                  <input
+                    className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                    value={editForm.profilePicUrl}
+                    onChange={(event) =>
+                      setEditForm((current) => ({
+                        ...current,
+                        profilePicUrl: event.target.value,
+                      }))
+                    }
+                    placeholder={t(lang, "profileActions.edit.photoUrlPlaceholder")}
+                  />
+                </label>
+
+                {editError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                    {editError}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between pt-2">
+                  <Link
+                    className="text-xs font-semibold text-primary hover:underline"
+                    href={localizePath("/user/settings", lang)}
+                  >
+                    {t(lang, "profileActions.edit.openSettings")}
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    <button
+                      className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                      type="button"
+                      onClick={closeEditModal}
+                    >
+                      {t(lang, "common.cancel")}
+                    </button>
+                    <button
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
+                      type="submit"
+                      disabled={editSaving}
+                    >
+                      {editSaving
+                        ? t(lang, "profileActions.edit.saving")
+                        : t(lang, "common.saveChanges")}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {isAvatarModalOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsAvatarModalOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-4xl rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                {t(lang, "settings.avatarModalTitle")}
+              </h3>
+              <button
+                className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                type="button"
+                onClick={() => setIsAvatarModalOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                {PROFILE_ICONS.map((icon) => (
+                  <button
+                    key={icon}
+                    type="button"
+                    className="group relative aspect-square rounded-xl overflow-hidden border border-border-light dark:border-border-dark hover:ring-4 hover:ring-primary/50 transition-all"
+                    onClick={() => handleAvatarSelect(icon)}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/profile_icon/${icon}`}
+                      alt={t(lang, "settings.avatarOptionAlt")}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end pt-4">
+              <button
+                className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                type="button"
+                onClick={() => setIsAvatarModalOpen(false)}
+              >
+                {t(lang, "common.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {reportTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setReportTarget(null)}
+          />
+          <div
+            className="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                  {t(
+                    lang,
+                    reportTarget.kind === "user"
+                      ? "profileActions.reportUser.title"
+                      : "profileActions.report.title"
+                  )}
+                </h3>
+                <p className="text-xs text-text-sub-light dark:text-text-sub-dark mt-1">
+                  {reportTarget.kind === "user"
+                    ? `@${reportTarget.username}`
+                    : reportTarget.reviewTitle}
+                </p>
+              </div>
+              <button
+                className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                type="button"
+                onClick={() => setReportTarget(null)}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+            <form className="flex flex-col gap-4" onSubmit={handleReportSubmit}>
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="text-text-sub-light dark:text-text-sub-dark">
+                  {t(lang, "profileActions.report.reasonLabel")}
+                </span>
+                <input
+                  className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                  value={reportForm.reason}
+                  onChange={(event) =>
+                    setReportForm((current) => ({
+                      ...current,
+                      reason: event.target.value,
+                    }))
+                  }
+                  placeholder={t(
+                    lang,
+                    reportTarget.kind === "user"
+                      ? "profileActions.reportUser.reasonPlaceholder"
+                      : "profileActions.report.reasonPlaceholder"
+                  )}
+                />
+              </label>
+              <label className="flex flex-col gap-2 text-sm">
+                <span className="text-text-sub-light dark:text-text-sub-dark">
+                  {t(lang, "profileActions.report.detailsLabel")}
+                </span>
+                <textarea
+                  className="w-full min-h-[120px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
+                  value={reportForm.details}
+                  onChange={(event) =>
+                    setReportForm((current) => ({
+                      ...current,
+                      details: event.target.value,
+                    }))
+                  }
+                  placeholder={t(lang, "profileActions.report.detailsPlaceholder")}
+                />
+              </label>
+              {reportError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
+                  {reportError}
+                </div>
+              ) : null}
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
+                  type="button"
+                  onClick={() => setReportTarget(null)}
+                >
+                  {t(lang, "common.cancel")}
+                </button>
+                <button
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
+                  type="submit"
+                  disabled={reportSubmitting}
+                >
+                  {reportSubmitting
+                    ? t(lang, "profileActions.report.sending")
+                    : t(lang, "profileActions.report.submit")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {achievementsOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setAchievementsOpen(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
+                {t(lang, "profileActions.achievements.title")}
+              </h3>
+              <button
+                className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
+                type="button"
+                onClick={() => setAchievementsOpen(false)}
+              >
+                <span className="material-symbols-outlined text-[20px]">
+                  close
+                </span>
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {achievements.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-text-main-light dark:text-text-main-dark">
+                    {item.title}
+                  </p>
+                  <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
     <UserProfileActionsContext.Provider value={contextValue}>
@@ -864,458 +1604,11 @@ export default function UserProfileActionsClient({
           </div>
         ) : null}
 
-        {messageOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setMessageOpen(false)}
-            />
-            <div
-              className="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                  {t(lang, "profileActions.message.title")}
-                </h3>
-                <button
-                  className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
-                  type="button"
-                  onClick={() => setMessageOpen(false)}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    close
-                  </span>
-                </button>
-              </div>
-              <form className="flex flex-col gap-4" onSubmit={handleMessageSubmit}>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="text-text-sub-light dark:text-text-sub-dark">
-                    {t(lang, "profileActions.message.subjectLabel")}
-                  </span>
-                  <input
-                    className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                    value={messageForm.subject}
-                    onChange={(event) =>
-                      setMessageForm((current) => ({
-                        ...current,
-                        subject: event.target.value,
-                      }))
-                    }
-                    placeholder={t(lang, "profileActions.message.subjectPlaceholder", {
-                      name: displayName,
-                    })}
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="text-text-sub-light dark:text-text-sub-dark">
-                    {t(lang, "profileActions.message.bodyLabel")}
-                  </span>
-                  <textarea
-                    className="w-full min-h-[140px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                    value={messageForm.body}
-                    onChange={(event) =>
-                      setMessageForm((current) => ({
-                        ...current,
-                        body: event.target.value,
-                      }))
-                    }
-                    placeholder={t(lang, "profileActions.message.bodyPlaceholder")}
-                  />
-                </label>
-                {messageError ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
-                    {messageError}
-                  </div>
-                ) : null}
-                <div className="flex items-center justify-end gap-3 pt-1">
-                  <button
-                    className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
-                    type="button"
-                    onClick={() => setMessageOpen(false)}
-                  >
-                    {t(lang, "common.cancel")}
-                  </button>
-                  <button
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
-                    type="submit"
-                    disabled={messageSubmitting}
-                  >
-                    {messageSubmitting
-                      ? t(lang, "profileActions.message.sending")
-                      : t(lang, "profileActions.message.send")}
-                  </button>
-                </div>
-                <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
-                  {t(lang, "profileActions.message.helper")}
-                </p>
-              </form>
-            </div>
-          </div>
-        ) : null}
+        {headerActionsContainer
+          ? createPortal(<UserProfileHeaderActions />, headerActionsContainer)
+          : null}
 
-        {editOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={closeEditModal}
-            />
-            <div
-              className="relative w-full max-w-xl rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                    {t(lang, "profileActions.edit.title")}
-                  </h3>
-                  <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
-                    {t(lang, "profileActions.edit.subtitle")}
-                  </p>
-                </div>
-                <button
-                  className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
-                  type="button"
-                  onClick={closeEditModal}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    close
-                  </span>
-                </button>
-              </div>
-
-              {editLoading ? (
-                <div className="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark p-4 text-sm text-text-sub-light dark:text-text-sub-dark">
-                  {t(lang, "profileActions.edit.loading")}
-                </div>
-              ) : (
-                <form className="flex flex-col gap-4" onSubmit={handleEditSubmit}>
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-16 h-16 rounded-full bg-cover bg-center ring-2 ring-background-light dark:ring-background-dark"
-                      style={{ backgroundImage: `url(${avatarPreview})` }}
-                    />
-                    <div className="flex flex-col gap-2">
-                      <button
-                        className="rounded-lg border border-border-light dark:border-border-dark px-3 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-70"
-                        type="button"
-                        onClick={handleAvatarClick}
-                        disabled={editUploading}
-                      >
-                        {editUploading
-                          ? t(lang, "profileActions.edit.uploading")
-                          : t(lang, "profileActions.edit.uploadPhoto")}
-                      </button>
-                      <button
-                        className="rounded-lg border border-border-light dark:border-border-dark px-3 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-70"
-                        type="button"
-                        onClick={() => setIsAvatarModalOpen(true)}
-                        disabled={editUploading}
-                      >
-                        {t(lang, "settings.chooseAvatar")}
-                      </button>
-                      <button
-                        className="text-xs font-semibold text-text-sub-light dark:text-text-sub-dark hover:text-primary"
-                        type="button"
-                        onClick={() =>
-                          setEditForm((current) => ({
-                            ...current,
-                            profilePicUrl: "",
-                          }))
-                        }
-                      >
-                        {t(lang, "profileActions.edit.removePhoto")}
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleAvatarChange}
-                      />
-                    </div>
-                  </div>
-
-                  <label className="flex flex-col gap-2 text-sm">
-                    <span className="text-text-sub-light dark:text-text-sub-dark">
-                      {t(lang, "profileActions.edit.usernameLabel")}
-                    </span>
-                    <input
-                      className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                      value={editForm.username}
-                      onChange={(event) =>
-                        setEditForm((current) => ({
-                          ...current,
-                          username: event.target.value,
-                        }))
-                      }
-                      placeholder={t(lang, "profileActions.edit.usernamePlaceholder")}
-                    />
-                  </label>
-
-                  <label className="flex flex-col gap-2 text-sm">
-                    <span className="text-text-sub-light dark:text-text-sub-dark">
-                      {t(lang, "profileActions.edit.bioLabel")}
-                    </span>
-                    <textarea
-                      className="w-full min-h-[120px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                      value={editForm.bio}
-                      onChange={(event) =>
-                        setEditForm((current) => ({
-                          ...current,
-                          bio: event.target.value,
-                        }))
-                      }
-                      placeholder={t(lang, "profileActions.edit.bioPlaceholder")}
-                    />
-                    <div className="text-xs text-text-sub-light dark:text-text-sub-dark text-right">
-                      {editForm.bio.length}/280
-                    </div>
-                  </label>
-
-                  <label className="flex flex-col gap-2 text-sm">
-                    <span className="text-text-sub-light dark:text-text-sub-dark">
-                      {t(lang, "profileActions.edit.photoUrlLabel")}
-                    </span>
-                    <input
-                      className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                      value={editForm.profilePicUrl}
-                      onChange={(event) =>
-                        setEditForm((current) => ({
-                          ...current,
-                          profilePicUrl: event.target.value,
-                        }))
-                      }
-                      placeholder={t(lang, "profileActions.edit.photoUrlPlaceholder")}
-                    />
-                  </label>
-
-                  {editError ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
-                      {editError}
-                    </div>
-                  ) : null}
-
-                  <div className="flex items-center justify-between pt-2">
-                    <Link
-                      className="text-xs font-semibold text-primary hover:underline"
-                      href={localizePath("/user/settings", lang)}
-                    >
-                      {t(lang, "profileActions.edit.openSettings")}
-                    </Link>
-                    <div className="flex items-center gap-3">
-                      <button
-                        className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
-                        type="button"
-                        onClick={closeEditModal}
-                      >
-                        {t(lang, "common.cancel")}
-                      </button>
-                      <button
-                        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
-                        type="submit"
-                        disabled={editSaving}
-                      >
-                        {editSaving
-                          ? t(lang, "profileActions.edit.saving")
-                          : t(lang, "common.saveChanges")}
-                      </button>
-                    </div>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        ) : null}
-
-        {isAvatarModalOpen ? (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-            <div
-              className="absolute inset-0 bg-black/50"
-              onClick={() => setIsAvatarModalOpen(false)}
-            />
-            <div
-              className="relative w-full max-w-4xl rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                  {t(lang, "settings.avatarModalTitle")}
-                </h3>
-                <button
-                  className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
-                  type="button"
-                  onClick={() => setIsAvatarModalOpen(false)}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    close
-                  </span>
-                </button>
-              </div>
-              <div className="max-h-[60vh] overflow-y-auto">
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-                  {PROFILE_ICONS.map((icon) => (
-                    <button
-                      key={icon}
-                      type="button"
-                      className="group relative aspect-square rounded-xl overflow-hidden border border-border-light dark:border-border-dark hover:ring-4 hover:ring-primary/50 transition-all"
-                      onClick={() => handleAvatarSelect(icon)}
-                    >
-                      <img
-                        src={`/profile_icon/${icon}`}
-                        alt={t(lang, "settings.avatarOptionAlt")}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end pt-4">
-                <button
-                  className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
-                  type="button"
-                  onClick={() => setIsAvatarModalOpen(false)}
-                >
-                  {t(lang, "common.cancel")}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {reportTarget ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setReportTarget(null)}
-            />
-            <div
-              className="relative w-full max-w-lg rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                    {t(lang, "profileActions.report.title")}
-                  </h3>
-                  <p className="text-xs text-text-sub-light dark:text-text-sub-dark mt-1">
-                    {reportTarget.reviewTitle}
-                  </p>
-                </div>
-                <button
-                  className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
-                  type="button"
-                  onClick={() => setReportTarget(null)}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    close
-                  </span>
-                </button>
-              </div>
-              <form className="flex flex-col gap-4" onSubmit={handleReportSubmit}>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="text-text-sub-light dark:text-text-sub-dark">
-                    {t(lang, "profileActions.report.reasonLabel")}
-                  </span>
-                  <input
-                    className="w-full rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                    value={reportForm.reason}
-                    onChange={(event) =>
-                      setReportForm((current) => ({
-                        ...current,
-                        reason: event.target.value,
-                      }))
-                    }
-                    placeholder={t(lang, "profileActions.report.reasonPlaceholder")}
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  <span className="text-text-sub-light dark:text-text-sub-dark">
-                    {t(lang, "profileActions.report.detailsLabel")}
-                  </span>
-                  <textarea
-                    className="w-full min-h-[120px] rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-3 py-2 text-sm text-text-main-light dark:text-text-main-dark"
-                    value={reportForm.details}
-                    onChange={(event) =>
-                      setReportForm((current) => ({
-                        ...current,
-                        details: event.target.value,
-                      }))
-                    }
-                    placeholder={t(lang, "profileActions.report.detailsPlaceholder")}
-                  />
-                </label>
-                {reportError ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs px-3 py-2">
-                    {reportError}
-                  </div>
-                ) : null}
-                <div className="flex items-center justify-end gap-3 pt-1">
-                  <button
-                    className="rounded-lg border border-border-light dark:border-border-dark px-4 py-2 text-sm font-semibold text-text-main-light dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark"
-                    type="button"
-                    onClick={() => setReportTarget(null)}
-                  >
-                    {t(lang, "common.cancel")}
-                  </button>
-                  <button
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
-                    type="submit"
-                    disabled={reportSubmitting}
-                  >
-                    {reportSubmitting
-                      ? t(lang, "profileActions.report.sending")
-                      : t(lang, "profileActions.report.submit")}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        ) : null}
-
-        {achievementsOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setAchievementsOpen(false)}
-            />
-            <div
-              className="relative w-full max-w-md rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark shadow-xl p-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-text-main-light dark:text-text-main-dark">
-                  {t(lang, "profileActions.achievements.title")}
-                </h3>
-                <button
-                  className="text-text-sub-light dark:text-text-sub-dark hover:text-text-main-light dark:hover:text-text-main-dark"
-                  type="button"
-                  onClick={() => setAchievementsOpen(false)}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    close
-                  </span>
-                </button>
-              </div>
-              <div className="flex flex-col gap-3">
-                {achievements.map((item) => (
-                  <div
-                    key={item.title}
-                    className="rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark px-4 py-3"
-                  >
-                    <p className="text-sm font-semibold text-text-main-light dark:text-text-main-dark">
-                      {item.title}
-                    </p>
-                    <p className="text-xs text-text-sub-light dark:text-text-sub-dark">
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
+        {modalRoot ? createPortal(modalLayer, modalRoot) : modalLayer}
 
         {children}
       </div>

@@ -78,6 +78,7 @@ class Config:
             langs.insert(0, "en")
         seen = set()
         langs = [lang for lang in langs if not (lang in seen or seen.add(lang))]
+        langs = [lang for lang in langs if lang != "ar"]
 
         source_base_url = os.getenv("SOURCE_BASE_URL", "https://irecommend.ru").rstrip("/")
         return Config(
@@ -93,7 +94,7 @@ class Config:
             image_max_width=env_int("IMAGE_MAX_WIDTH", 1600),
             image_webp_quality=env_int("IMAGE_WEBP_QUALITY", 82),
             groq_api_key=os.getenv("GROQ_API_KEY", ""),
-            groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            groq_model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
             groq_vision_model=os.getenv("GROQ_VISION_MODEL", "llama-3.2-11b-vision-preview"),
             supabase_url=os.getenv("SUPABASE_URL", ""),
             supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),

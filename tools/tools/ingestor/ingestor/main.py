@@ -1055,7 +1055,9 @@ async def main_async() -> None:
             except Exception as e:
                 logger.error("Loop error: %s", e)
             elapsed = (datetime.now(timezone.utc) - start).total_seconds()
-            wait_for = sleep_jitter(config.loop_min_seconds, config.loop_max_seconds)
+            min_wait = max(0.0, config.loop_min_seconds - elapsed)
+            max_wait = max(0.0, config.loop_max_seconds - elapsed)
+            wait_for = sleep_jitter(min_wait, max_wait)
             logger.info("Cycle finished in %.1fs, sleeping for %.1fs", elapsed, wait_for)
             await asyncio.sleep(wait_for)
 

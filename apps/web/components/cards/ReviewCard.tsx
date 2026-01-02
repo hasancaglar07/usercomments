@@ -12,26 +12,6 @@ import type { Review, StarType } from "@/src/types";
 import { t } from "@/src/lib/copy";
 import type { SupportedLanguage } from "@/src/lib/i18n";
 
-// Helper component for Blur-Up effect
-function BlurImage({ src, alt, className, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
-  const [isLoading, setIsLoading] = useState(true);
-
-  return (
-    <div className={`overflow-hidden bg-gray-200 dark:bg-gray-800 ${className}`}>
-      <img
-        alt={alt}
-        src={src}
-        className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${isLoading
-          ? "scale-110 blur-xl grayscale opacity-0"
-          : "scale-100 blur-0 grayscale-0 opacity-100"
-          }`}
-        onLoad={() => setIsLoading(false)}
-        {...props}
-      />
-    </div>
-  );
-}
-
 type HomepageBadge = "verified" | "expert" | null;
 
 export type ReviewCardHomepageData = {
@@ -73,7 +53,6 @@ export function ReviewCardHomepage({
   badge,
   likesLabel,
   commentsLabel,
-  photoCountLabel,
   lang,
   imagePriority = false,
   layout = "horizontal",
@@ -117,6 +96,7 @@ export function ReviewCardHomepage({
           <div className="absolute bottom-3 left-4 right-4 text-white">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-6 h-6 rounded-full border border-white/30 overflow-hidden shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img alt={avatarAlt} className="w-full h-full object-cover" src={optimizedAvatarUrl} />
               </div>
               <span className="text-xs font-medium text-white/90 truncate drop-shadow-sm">{authorName}</span>
@@ -143,6 +123,7 @@ export function ReviewCardHomepage({
                   key={index}
                   className={`relative w-10 h-10 rounded-md overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 ${index >= 3 ? 'hidden sm:block' : ''}`}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getOptimizedImageUrl(photo, 100)}
                     alt={`Thumb ${index}`}
@@ -218,6 +199,7 @@ export function ReviewCardHomepage({
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img alt={avatarAlt} className="h-full w-full object-cover" src={optimizedAvatarUrl} />
             </div>
             <div className="flex flex-col">
@@ -253,6 +235,7 @@ export function ReviewCardHomepage({
                   key={index}
                   className={`relative w-full aspect-[4/3] sm:w-24 sm:h-24 sm:aspect-square rounded-lg overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:ring-2 ring-primary/20 transition-all ${index >= 3 ? 'hidden sm:block' : ''}`}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getOptimizedImageUrl(photo, 300)}
                     alt={`Gallery ${index}`}
@@ -300,7 +283,6 @@ export function ReviewCardHomepage({
 export function ReviewCardTrending({
   review,
   href,
-  authorMeta,
   postedLabel,
   ratingStars,
   ratingValue,
@@ -308,10 +290,8 @@ export function ReviewCardTrending({
   imageAlt,
   avatarUrl,
   avatarAlt,
-  badge,
   likesLabel,
   commentsLabel,
-  lang,
   imagePriority = false,
 }: ReviewCardHomepageProps) {
   const authorName = review.author.displayName ?? review.author.username;
@@ -343,6 +323,7 @@ export function ReviewCardTrending({
         <div className="flex justify-between items-start mb-1">
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img alt={avatarAlt} className="h-full w-full object-cover" src={optimizedAvatarUrl} />
             </div>
             <span className="text-[11px] sm:text-sm font-bold text-text-main dark:text-white truncate max-w-[70px] sm:max-w-none">{authorName}</span>
@@ -611,6 +592,7 @@ export type ReviewCardProfileData = {
 
 export type ReviewCardProfileActions = {
   onReport?: (target: {
+    kind: "review";
     reviewId: string;
     reviewSlug: string;
     reviewTitle: string;
@@ -663,11 +645,12 @@ export function ReviewCardProfile({
           type="button"
           data-review-report
           onClick={() =>
-            onReport?.({
-              reviewId: review.id,
-              reviewSlug: review.slug,
-              reviewTitle: review.title,
-            })
+          onReport?.({
+            kind: "review",
+            reviewId: review.id,
+            reviewSlug: review.slug,
+            reviewTitle: review.title,
+          })
           }
         >
           <span className="material-symbols-outlined text-[20px]">

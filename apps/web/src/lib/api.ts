@@ -49,7 +49,7 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
   const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
   const method = init?.method ?? "GET";
   let response: Response;
-  const { timeoutMs, signal, ...fetchInit } = init ?? {};
+  const { timeoutMs, signal, cache, ...fetchInit } = init ?? {};
   const controller = new AbortController();
   if (signal) {
     if (signal.aborted) {
@@ -66,14 +66,17 @@ async function fetchJson<T>(path: string, init?: FetchOptions): Promise<T> {
       : null;
 
   try {
-    response = await fetch(url, {
+    const resolvedInit: RequestInit = {
       ...fetchInit,
-      cache: init?.cache ?? "no-store",
       signal: controller.signal,
       headers: {
         ...(init?.headers ?? {}),
       },
-    });
+    };
+    if (cache !== undefined) {
+      resolvedInit.cache = cache;
+    }
+    response = await fetch(url, resolvedInit);
   } catch (error) {
     const message =
       error && typeof error === "object" && "message" in error
@@ -261,6 +264,14 @@ type FollowingListResponse = {
 };
 
 type FollowActionResponse = {
+  ok: boolean;
+};
+
+type BlockListResponse = {
+  items: Array<{ username?: string } | string>;
+};
+
+type BlockActionResponse = {
   ok: boolean;
 };
 
@@ -457,6 +468,70 @@ export async function searchProducts(
     {
       next: { revalidate: 30 },
       signal,
+    }
+  );
+}
+
+export async function getMyBlockedUsers(
+  accessToken: string,
+  usernames?: string[]
+): Promise<string[]> {
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+  const searchParams = new URLSearchParams();
+  if (usernames && usernames.length > 0) {
+    searchParams.set("usernames", usernames.join(","));
+  }
+  const query = searchParams.toString();
+  const result = await fetchJson<BlockListResponse>(
+    query ? `/api/users/me/blocks?${query}` : "/api/users/me/blocks",
+    {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  return result.items
+    .map((item) => (typeof item === "string" ? item : item.username))
+    .filter((username): username is string => Boolean(username));
+}
+
+export async function blockUser(
+  username: string,
+  accessToken: string
+): Promise<BlockActionResponse> {
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+  return fetchJson<BlockActionResponse>(
+    `/api/users/${encodeURIComponent(username)}/block`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+}
+
+export async function unblockUser(
+  username: string,
+  accessToken: string
+): Promise<BlockActionResponse> {
+  if (!accessToken) {
+    throw new Error("Not authenticated");
+  }
+  return fetchJson<BlockActionResponse>(
+    `/api/users/${encodeURIComponent(username)}/unblock`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     }
   );
 }

@@ -69,9 +69,9 @@ export default function Header({ lang, categories }: HeaderProps) {
             <span className="material-symbols-outlined text-primary text-3xl">
               forum
             </span>
-            <h1 className="text-2xl font-bold tracking-tight text-primary">
+            <span className="text-2xl font-bold tracking-tight text-primary">
               UserReview
-            </h1>
+            </span>
           </Link>
           <HeaderSearch lang={resolvedLang} />
           <div className="flex items-center gap-3">

@@ -42,7 +42,7 @@ export default async function RecentComments({ lang }: { lang: SupportedLanguage
                                 </span>
                             </div>
                             <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed italic border-l-2 border-slate-100 dark:border-slate-800 pl-2">
-                                "{comment.text}"
+                                &quot;{comment.text}&quot;
                             </p>
                             {comment.review && (
                                 <div className="mt-1 pt-2 border-t border-slate-50 dark:border-slate-800/50">

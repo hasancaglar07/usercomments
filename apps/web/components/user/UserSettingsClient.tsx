@@ -357,6 +357,7 @@ export default function UserSettingsClient() {
                     onClick={() => handleSelectIcon(icon)}
                     className="group relative aspect-square rounded-xl overflow-hidden hover:ring-4 hover:ring-primary/50 transition-all"
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/profile_icon/${icon}`}
                       alt={t(lang, "settings.avatarOptionAlt")}

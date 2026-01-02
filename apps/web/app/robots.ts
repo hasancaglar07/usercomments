@@ -2,8 +2,6 @@ import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/src/lib/seo";
 import { SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
 
-export const runtime = "edge";
-
 export default function robots(): MetadataRoute.Robots {
     const siteUrl = getSiteUrl();
     const disallowPaths = [
@@ -13,7 +11,6 @@ export default function robots(): MetadataRoute.Robots {
         "/user/settings",
         "/node/add/review",
         "/forgot-password",
-        "/search",
         "/health",
     ];
 

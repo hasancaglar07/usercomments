@@ -282,7 +282,7 @@ export default function HomepageFeed({
       return sortedLatestCards.filter((card) => hasPhotos(card.review));
     }
     return sortedLatestCards;
-  }, [pageSize, popularCards, sortedLatestCards, tab]);
+  }, [popularCards, sortedLatestCards, tab]);
 
   useEffect(() => {
     if (latestCards.length === 0 && !latestNextCursor) {

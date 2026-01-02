@@ -10,7 +10,6 @@ import {
   useRef,
   useState,
   type FocusEvent,
-  type FormEvent,
   type KeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -265,7 +264,6 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
 
   const navigableItems = normalizedQuery ? suggestionItems : recentItems;
   const searchAction = localizePath("/search", lang);
-  const inputPaddingClass = isMobile ? "pr-10" : "pr-3";
   const dropdownClassName = isMobile
     ? "absolute top-full left-0 right-0 mt-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-[60vh] overflow-y-auto z-50"
     : "absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden z-50";
@@ -283,7 +281,7 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
     writeSearchCookie(nextState);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = () => {
     if (!parsedQuery.success) {
       return;
     }
@@ -337,7 +335,6 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
     setActiveIndex(-1);
   };
 
-  /* eslint-disable-next-line react-hooks/exhaustive-deps */
   const suggestionContent = (
     <div className={isMobile ? "pb-20" : ""}>
       {showRecent ? (
@@ -578,7 +575,6 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
     </div>
   );
 
-  /* eslint-disable-next-line react-hooks/exhaustive-deps */
   const dropdown =
     open && (showRecent || normalizedQuery.length > 0) ? (
       <div id={listId} className={dropdownClassName}>
@@ -671,6 +667,7 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <span className="material-symbols-outlined text-gray-400">search</span>
         </div>
+        {/* eslint-disable-next-line jsx-a11y/role-supports-aria-props */}
         <input
           ref={inputRef}
           className={`block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg leading-5 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent sm:text-sm transition duration-150 ease-in-out`}

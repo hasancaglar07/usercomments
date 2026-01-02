@@ -1,7 +1,9 @@
 
-const IMAGE_OPTIMIZER = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "wsrv";
 const IMAGE_CDN_BASE_URL =
   process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL?.replace(/\/$/, "") ?? "";
+const DEFAULT_IMAGE_OPTIMIZER = IMAGE_CDN_BASE_URL ? "cloudflare" : "wsrv";
+const IMAGE_OPTIMIZER =
+  process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? DEFAULT_IMAGE_OPTIMIZER;
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
   process.env.SITE_URL ||
@@ -58,6 +60,10 @@ export function getOptimizedImageUrl(
     targetUrl = `${SITE_URL}${url}`;
   }
 
+  if (IMAGE_OPTIMIZER === "none") {
+    return url;
+  }
+
   if (!isOptimizableUrl(targetUrl)) {
     return url;
   }
@@ -66,7 +72,7 @@ export function getOptimizedImageUrl(
     // For Cloudflare, we usually need the original path or full URL depending on setup.
     // Assuming Cloudflare setup handles full URLs or relative paths if strictly configured.
     // For now, passing original `url` works if it matches pattern.
-    return buildCloudflareImageUrl(url, width, quality);
+    return buildCloudflareImageUrl(targetUrl, width, quality);
   }
 
   // wsrv.nl provides free resizing + compression (WebP/AVIF) for remote images.

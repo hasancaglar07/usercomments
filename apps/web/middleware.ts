@@ -8,7 +8,7 @@ import {
 } from "@/src/lib/i18n";
 
 const PUBLIC_FILE = /\.(.*)$/;
-const GLOBAL_PATHS = new Set(["/robots.txt", "/sitemap.xml"]);
+const GLOBAL_PATHS = new Set(["/robots.txt", "/sitemap.xml", "/feed.xml"]);
 
 const COUNTRY_LANGUAGE_MAP: Record<string, SupportedLanguage> = {
   TR: "tr",
@@ -39,28 +39,6 @@ const COUNTRY_LANGUAGE_MAP: Record<string, SupportedLanguage> = {
   UY: "es",
   PR: "es",
   GQ: "es",
-  AE: "ar",
-  SA: "ar",
-  EG: "ar",
-  MA: "ar",
-  DZ: "ar",
-  TN: "ar",
-  LY: "ar",
-  JO: "ar",
-  LB: "ar",
-  SY: "ar",
-  IQ: "ar",
-  KW: "ar",
-  BH: "ar",
-  QA: "ar",
-  OM: "ar",
-  YE: "ar",
-  PS: "ar",
-  SD: "ar",
-  SO: "ar",
-  MR: "ar",
-  DJ: "ar",
-  KM: "ar",
 };
 
 function isPublicAsset(pathname: string): boolean {

@@ -1,16 +1,11 @@
-import { t } from "@/src/lib/copy";
-import { formatCompactNumber } from "@/src/lib/review-utils";
-
 type RatingHistogramProps = {
     ratingAvg: number;
     ratingCount: number;
-    lang: string;
 };
 
 export default function RatingHistogram({
     ratingAvg,
     ratingCount,
-    lang,
 }: RatingHistogramProps) {
     // Synthesize a distribution that matches the average
     // This is a visual approximation since we don't have the raw buckets from DB yet

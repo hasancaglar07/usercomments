@@ -141,7 +141,9 @@ export async function fetchProfileDetailsByUserId(
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, username, bio, profile_pic_url, created_at")
+    .select(
+      "user_id, username, bio, profile_pic_url, created_at, is_verified, verified_at, verified_by"
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -159,6 +161,9 @@ export async function fetchProfileDetailsByUserId(
     bio: string | null;
     profile_pic_url: string | null;
     created_at: string | null;
+    is_verified?: boolean | null;
+    verified_at?: string | null;
+    verified_by?: string | null;
   }, { r2BaseUrl: env.R2_PUBLIC_BASE_URL });
 }
 
@@ -169,6 +174,8 @@ export async function updateProfileByUserId(
     username?: string;
     bio?: string | null;
     profilePicUrl?: string | null;
+    isVerified?: boolean;
+    verifiedBy?: string | null;
   },
   options?: { useAdminClient?: boolean }
 ): Promise<UserProfile | null> {
@@ -186,12 +193,19 @@ export async function updateProfileByUserId(
   if (payload.profilePicUrl !== undefined) {
     updates.profile_pic_url = payload.profilePicUrl;
   }
+  if (payload.isVerified !== undefined) {
+    updates.is_verified = payload.isVerified;
+    updates.verified_at = payload.isVerified ? new Date().toISOString() : null;
+    updates.verified_by = payload.isVerified ? payload.verifiedBy ?? null : null;
+  }
 
   const { data, error } = await supabase
     .from("profiles")
     .update(updates)
     .eq("user_id", userId)
-    .select("user_id, username, bio, profile_pic_url, created_at")
+    .select(
+      "user_id, username, bio, profile_pic_url, created_at, is_verified, verified_at, verified_by"
+    )
     .maybeSingle();
 
   if (error) {
@@ -208,5 +222,8 @@ export async function updateProfileByUserId(
     bio: string | null;
     profile_pic_url: string | null;
     created_at: string | null;
+    is_verified?: boolean | null;
+    verified_at?: string | null;
+    verified_by?: string | null;
   }, { r2BaseUrl: env.R2_PUBLIC_BASE_URL });
 }

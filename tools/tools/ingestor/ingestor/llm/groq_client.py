@@ -58,9 +58,9 @@ class GroqClient:
                 time.sleep(wait_time)
         raise RuntimeError("Max retries exceeded")
 
-    def chat_json(self, system_prompt: str, user_prompt: str) -> str:
+    def chat_json(self, system_prompt: str, user_prompt: str, temperature: float = 0.2, max_tokens: int = 8192) -> str:
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        return self.chat(messages=messages)
+        return self.chat(messages=messages, temperature=temperature, max_tokens=max_tokens)

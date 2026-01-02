@@ -8,6 +8,8 @@ import type {
   Category,
   CategoryTranslation,
   CommentStatus,
+  DirectMessage,
+  DirectMessageThread,
   PaginationInfo,
   ProductTranslation,
   ProductStatus,
@@ -183,6 +185,63 @@ export async function reportReview(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function reportUser(
+  userId: string,
+  payload: { reason: string; details?: string }
+): Promise<Report> {
+  return authFetch<Report>(`/api/users/${encodeURIComponent(userId)}/report`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function sendDirectMessage(payload: {
+  username: string;
+  subject: string;
+  body: string;
+}): Promise<DirectMessage> {
+  return authFetch<DirectMessage>("/api/messages", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getMessageThreads(options?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<PaginatedResult<DirectMessageThread>> {
+  const params = new URLSearchParams();
+  if (options?.page) {
+    params.set("page", String(options.page));
+  }
+  if (options?.pageSize) {
+    params.set("pageSize", String(options.pageSize));
+  }
+  const query = params.toString();
+  return authFetch<PaginatedResult<DirectMessageThread>>(
+    `/api/messages/threads${query ? `?${query}` : ""}`
+  );
+}
+
+export async function getMessageThreadMessages(
+  conversationId: string,
+  options?: { page?: number; pageSize?: number }
+): Promise<PaginatedResult<DirectMessage>> {
+  const params = new URLSearchParams();
+  if (options?.page) {
+    params.set("page", String(options.page));
+  }
+  if (options?.pageSize) {
+    params.set("pageSize", String(options.pageSize));
+  }
+  const query = params.toString();
+  return authFetch<PaginatedResult<DirectMessage>>(
+    `/api/messages/threads/${encodeURIComponent(conversationId)}${
+      query ? `?${query}` : ""
+    }`
+  );
 }
 
 export async function presignUpload(payload: {
@@ -588,7 +647,12 @@ export async function getAdminUserDetail(
 
 export async function updateAdminUserProfile(
   userId: string,
-  payload: { username?: string; bio?: string | null; profilePicUrl?: string | null }
+  payload: {
+    username?: string;
+    bio?: string | null;
+    profilePicUrl?: string | null;
+    isVerified?: boolean;
+  }
 ): Promise<AdminUserDetail> {
   return authFetch<AdminUserDetail>(`/api/admin/users/${userId}`, {
     method: "PATCH",

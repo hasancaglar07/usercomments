@@ -122,6 +122,9 @@ type DbAdminUser = {
   username: string;
   role: string | null;
   created_at: string | null;
+  is_verified?: boolean | null;
+  verified_at?: string | null;
+  verified_by?: string | null;
 };
 
 type DbAdminUserDetail = DbAdminUser & {
@@ -362,6 +365,7 @@ function mapAdminUserRow(row: DbAdminUser): AdminUser {
     username: row.username,
     role: normalizeUserRole(row.role),
     createdAt: row.created_at ?? undefined,
+    isVerified: row.is_verified ?? undefined,
   };
 }
 
@@ -373,6 +377,9 @@ function mapAdminUserDetailRow(row: DbAdminUserDetail): AdminUserDetail {
     createdAt: row.created_at ?? undefined,
     bio: row.bio ?? undefined,
     profilePicUrl: row.profile_pic_url ?? undefined,
+    isVerified: row.is_verified ?? undefined,
+    verifiedAt: row.verified_at ?? undefined,
+    verifiedBy: row.verified_by ?? undefined,
   };
 }
 
@@ -738,7 +745,9 @@ export async function fetchAdminUsers(
 
   let query = supabase
     .from("profiles")
-    .select("user_id, username, role, created_at", { count: "exact" })
+    .select("user_id, username, role, created_at, is_verified", {
+      count: "exact",
+    })
     .order("created_at", { ascending: false });
 
   if (pattern) {
@@ -764,7 +773,9 @@ export async function fetchAdminUserDetail(
   const supabase = getSupabaseClient(env);
   const { data, error } = await supabase
     .from("profiles")
-    .select("user_id, username, role, bio, profile_pic_url, created_at")
+    .select(
+      "user_id, username, role, bio, profile_pic_url, created_at, is_verified, verified_at, verified_by"
+    )
     .eq("user_id", userId)
     .maybeSingle();
 

@@ -16,6 +16,9 @@ type DbProfile = {
   bio: string | null;
   profile_pic_url: string | null;
   created_at?: string | null;
+  is_verified?: boolean | null;
+  verified_at?: string | null;
+  verified_by?: string | null;
 };
 
 type DbCategory = {
@@ -186,11 +189,15 @@ export function mapProfileRow(
   options?: { r2BaseUrl?: string }
 ): UserProfile {
   return {
+    userId: row.user_id,
     username: row.username,
     displayName: row.username,
     bio: row.bio ?? undefined,
     profilePicUrl: fixUrl(row.profile_pic_url, options?.r2BaseUrl),
     createdAt: row.created_at ?? undefined,
+    isVerified: row.is_verified ?? undefined,
+    verifiedAt: row.verified_at ?? undefined,
+    verifiedBy: row.verified_by ?? undefined,
   };
 }
 

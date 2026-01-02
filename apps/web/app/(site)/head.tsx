@@ -25,7 +25,8 @@ export default function Head() {
   googleFontsOrigins.forEach(origin => origins.add(origin));
   const apiOrigin = getOrigin(process.env.NEXT_PUBLIC_API_BASE_URL);
   const imageCdnOrigin = getOrigin(process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL);
-  const optimizer = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? "none";
+  const defaultOptimizer = imageCdnOrigin ? "cloudflare" : "wsrv";
+  const optimizer = process.env.NEXT_PUBLIC_IMAGE_OPTIMIZER ?? defaultOptimizer;
   const wsrvOrigin =
     optimizer !== "none" && optimizer !== "cloudflare" ? "https://wsrv.nl" : null;
 
