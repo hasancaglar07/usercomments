@@ -28,7 +28,13 @@ export default async function RecentComments({ lang }: { lang: SupportedLanguage
                                     <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center text-slate-400 shrink-0">
                                         {avatarUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={avatarUrl} alt={comment.author.username} className="w-full h-full object-cover" />
+                                            <img
+                                                src={avatarUrl}
+                                                alt={comment.author.username}
+                                                className="w-full h-full object-cover"
+                                                decoding="async"
+                                                loading="lazy"
+                                            />
                                         ) : (
                                             <span className="material-symbols-outlined text-[14px]">person</span>
                                         )}

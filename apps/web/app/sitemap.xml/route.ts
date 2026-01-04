@@ -3,7 +3,6 @@ import { SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
 import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 
 export const dynamic = "force-dynamic";
-export const runtime = 'edge';
 export const revalidate = 1800;
 
 function buildSitemapIndex(urls: string[]): string {

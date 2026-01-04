@@ -59,8 +59,8 @@ export function ReviewCardHomepage({
 }: ReviewCardHomepageProps) {
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
-  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
-  const [isImageLoading, setIsImageLoading] = useState(true);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 64);
+  const [isImageLoading, setIsImageLoading] = useState(!imagePriority);
 
   const galleryPhotos = review.photoUrls?.slice(1, 6) || [];
   const remainingCount = (review.photoUrls?.length || 0) - 6;
@@ -68,7 +68,7 @@ export function ReviewCardHomepage({
   if (layout === "vertical") {
     return (
       <article className="card-hover-glow group relative flex flex-col bg-white dark:bg-surface-dark rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] border border-gray-100/50 dark:border-gray-800 h-full overflow-hidden">
-        <Link href={href} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-200 dark:bg-gray-800 active-press">
+        <Link href={href} prefetch={false} className="relative aspect-[4/3] w-full overflow-hidden block bg-gray-200 dark:bg-gray-800 active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
@@ -97,7 +97,13 @@ export function ReviewCardHomepage({
             <div className="flex items-center gap-2 mb-2">
               <div className="w-6 h-6 rounded-full border border-white/30 overflow-hidden shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt={avatarAlt} className="w-full h-full object-cover" src={optimizedAvatarUrl} />
+                <img
+                  alt={avatarAlt}
+                  className="w-full h-full object-cover"
+                  src={optimizedAvatarUrl}
+                  decoding="async"
+                  loading="lazy"
+                />
               </div>
               <span className="text-xs font-medium text-white/90 truncate drop-shadow-sm">{authorName}</span>
             </div>
@@ -128,6 +134,8 @@ export function ReviewCardHomepage({
                     src={getOptimizedImageUrl(photo, 100)}
                     alt={`Thumb ${index}`}
                     className="w-full h-full object-cover"
+                    decoding="async"
+                    loading="lazy"
                   />
 
                   {/* Mobile Overlay (on 3rd item) */}
@@ -166,7 +174,7 @@ export function ReviewCardHomepage({
   return (
     <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
       <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
-        <Link href={href} className="block h-full w-full active-press">
+        <Link href={href} prefetch={false} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={imageAlt}
@@ -200,7 +208,13 @@ export function ReviewCardHomepage({
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt={avatarAlt} className="h-full w-full object-cover" src={optimizedAvatarUrl} />
+              <img
+                alt={avatarAlt}
+                className="h-full w-full object-cover"
+                src={optimizedAvatarUrl}
+                decoding="async"
+                loading="lazy"
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold text-text-main dark:text-white leading-none">{authorName}</span>
@@ -214,7 +228,11 @@ export function ReviewCardHomepage({
 
         {/* Content: Title & Rating */}
         <div className="mb-2">
-          <Link href={href} className="group-hover:text-primary transition-colors active-press block">
+          <Link
+            href={href}
+            prefetch={false}
+            className="group-hover:text-primary transition-colors active-press block"
+          >
             <h3 className="text-[17px] sm:text-xl font-bold text-text-main dark:text-white leading-tight line-clamp-2">
               {review.title}
             </h3>
@@ -240,6 +258,7 @@ export function ReviewCardHomepage({
                     src={getOptimizedImageUrl(photo, 300)}
                     alt={`Gallery ${index}`}
                     className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500"
+                    decoding="async"
                     loading="lazy"
                   />
 
@@ -279,88 +298,6 @@ export function ReviewCardHomepage({
     </article>
   );
 }
-// Compact variant for Trending/Hero section - Optimized for Mobile Density
-export function ReviewCardTrending({
-  review,
-  href,
-  postedLabel,
-  ratingStars,
-  ratingValue,
-  imageUrl,
-  imageAlt,
-  avatarUrl,
-  avatarAlt,
-  likesLabel,
-  commentsLabel,
-  imagePriority = false,
-}: ReviewCardHomepageProps) {
-  const authorName = review.author.displayName ?? review.author.username;
-  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 300);
-  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
-  const [isImageLoading, setIsImageLoading] = useState(true);
-
-  return (
-    <article className="card-hover-glow group flex flex-row sm:flex-col bg-white dark:bg-surface-dark rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden h-full">
-      <div className="w-24 min-h-[6rem] sm:w-full sm:h-48 sm:min-h-0 shrink-0 relative overflow-hidden bg-gray-200 dark:bg-gray-800">
-        <Link href={href} className="block h-full w-full relative active-press">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt={imageAlt}
-            className={`absolute inset-0 h-full w-full object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${isImageLoading
-              ? "scale-110 blur-xl grayscale opacity-0"
-              : "scale-100 blur-0 grayscale-0 opacity-100"
-              }`}
-            decoding="async"
-            fetchPriority={imagePriority ? "high" : "auto"}
-            loading={imagePriority ? "eager" : "lazy"}
-            src={optimizedImageUrl}
-            onLoad={() => setIsImageLoading(false)}
-          />
-        </Link>
-      </div>
-
-      <div className="flex-1 p-2.5 sm:p-4 flex flex-col min-w-0">
-        <div className="flex justify-between items-start mb-1">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt={avatarAlt} className="h-full w-full object-cover" src={optimizedAvatarUrl} />
-            </div>
-            <span className="text-[11px] sm:text-sm font-bold text-text-main dark:text-white truncate max-w-[70px] sm:max-w-none">{authorName}</span>
-          </div>
-          <div className="scale-75 origin-right sm:scale-100">
-            <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
-          </div>
-        </div>
-
-        <Link href={href} className="group-hover:text-primary transition-colors mb-1 block active-press">
-          <h3 className="text-[13px] sm:text-xl font-bold text-text-main dark:text-white leading-4 sm:leading-tight line-clamp-2">
-            {review.title}
-          </h3>
-        </Link>
-
-        <p className="text-[11px] sm:text-sm text-text-sub dark:text-gray-400 line-clamp-2 leading-snug mb-1 sm:mb-4 flex-1">
-          {review.excerpt}
-        </p>
-
-        <div className="hidden sm:flex mt-auto items-center gap-3 pt-2 sm:pt-3 border-t border-gray-50 dark:border-gray-800/50">
-          <span className="text-[10px] sm:text-xs text-text-muted truncate">{postedLabel}</span>
-          <div className="flex items-center gap-3 ml-auto text-text-muted">
-            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer active-press">
-              <span className="material-symbols-outlined text-[14px] sm:text-[16px]">thumb_up</span>
-              {likesLabel}
-            </span>
-            <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold hover:text-primary transition-colors cursor-pointer active-press">
-              <span className="material-symbols-outlined text-[14px] sm:text-[16px]">chat_bubble</span>
-              {commentsLabel}
-            </span>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 export type CatalogCategoryMeta = {
   icon: string;
   label: string;
@@ -403,14 +340,14 @@ export function ReviewCardCatalog({
   photoCountLabel,
 }: ReviewCardCatalogData) {
   const authorName = review.author.displayName ?? review.author.username;
-  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
-  const optimizedAvatarUrl = getOptimizedImageUrl(authorAvatarUrl, 100);
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 480);
+  const optimizedAvatarUrl = getOptimizedImageUrl(authorAvatarUrl, 64);
 
   return (
     <article className="card-hover-glow bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
       <div className="p-6 sm:flex gap-6">
         <div className="sm:w-48 sm:shrink-0 mb-4 sm:mb-0">
-          <Link href={href} className="block w-full active-press">
+          <Link href={href} prefetch={false} className="block w-full active-press">
             <div
               className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 rounded-lg bg-cover bg-center relative overflow-hidden group"
               data-alt={imageAlt}
@@ -452,6 +389,8 @@ export function ReviewCardCatalog({
                 className="w-6 h-6 rounded-full"
                 data-alt={authorAvatarDataAlt}
                 src={optimizedAvatarUrl}
+                decoding="async"
+                loading="lazy"
               />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 {authorName}
@@ -513,13 +452,13 @@ export function ReviewCardCategory({
   photoCountLabel,
 }: ReviewCardCategoryData) {
   const authorName = review.author.displayName ?? review.author.username;
-  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
-  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 100);
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 480);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 64);
 
   return (
     <article className="flex flex-col md:flex-row gap-5 bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3] hover:shadow-md transition-shadow">
       <div className="w-full md:w-48 shrink-0">
-        <Link href={href} className="block w-full active-press">
+        <Link href={href} prefetch={false} className="block w-full active-press">
           <div
             className="aspect-[4/3] md:aspect-square w-full rounded-lg bg-cover bg-center border border-[#e7edf3]"
             data-alt={imageAlt}
@@ -659,7 +598,7 @@ export function ReviewCardProfile({
         </button>
       </div>
       <div className="flex gap-4 sm:gap-6 flex-col sm:flex-row">
-        <Link href={href} className="block w-full sm:w-32 shrink-0 active-press">
+        <Link href={href} prefetch={false} className="block w-full sm:w-32 shrink-0 active-press">
           <div
             className="w-full h-48 sm:h-32 rounded-lg bg-cover bg-center border border-border-light dark:border-border-dark"
             data-alt={imageAlt}

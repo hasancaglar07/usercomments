@@ -3,6 +3,7 @@ import asyncio
 import logging
 import argparse
 import random
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
@@ -40,7 +41,7 @@ from .media.image_fetch import fetch_image
 from .media.image_process import process_image
 from .utils.backoff import sleep_with_backoff
 from .utils.hashing import sha1_bytes, sha1_text, short_hash
-from .utils.slugify import slugify
+from .utils.slugify import slugify, contains_cyrillic, transliterate_name
 from .utils.text_clean import clean_html, normalize_whitespace
 from .utils.timing import sleep_jitter
 from .utils.linker import inject_internal_links
@@ -248,11 +249,42 @@ async def _ensure_category_ids_async(
         prod_url = detail.product_source_url
         if not prod_url:
             prod_url = f"{config.source_base_url}/product/{detail.source_slug}"
+        
+        # CRITICAL: Translate product name to English BEFORE creating product
+        # This ensures we never have Cyrillic product names/slugs in the database
+        final_prod_name = prod_name
+        final_prod_desc = f"Product: {prod_name}"
+        
+        if contains_cyrillic(prod_name) and config.groq_api_key:
+            logger.info("Product name contains Cyrillic, translating to English first: %s", prod_name[:50])
+            try:
+                # Get English translation before creating the product
+                en_translation = await translate_product(
+                    groq,
+                    prod_name,
+                    f"Product: {prod_name}",
+                    detail.category_name,
+                    ["en"],  # Only English needed here
+                    logger,
+                )
+                if en_translation and en_translation.get("en"):
+                    en_data = en_translation["en"]
+                    final_prod_name = en_data.get("name") or prod_name
+                    final_prod_desc = en_data.get("description") or f"Product: {final_prod_name}"
+                    logger.info("Product name translated: %s -> %s", prod_name[:30], final_prod_name[:30])
+            except Exception as tr_err:
+                logger.warning("Pre-translation failed for product '%s': %s", prod_name[:30], tr_err)
+        
+        # FALLBACK: If still Cyrillic (translation failed), use transliteration
+        if contains_cyrillic(final_prod_name):
+            final_prod_name = transliterate_name(final_prod_name)
+            final_prod_desc = f"Product: {final_prod_name}"
+            logger.info("Transliterated product name: %s", final_prod_name[:50])
             
         prod_payload = {
-            "name": prod_name,
+            "name": final_prod_name,
             "source_url": prod_url,
-            "description": f"Product: {prod_name}",
+            "description": final_prod_desc,
             "status": "published",
         }
         prod_id = await asyncio.to_thread(upsert_product, supabase, prod_payload)
@@ -945,11 +977,17 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
                                 cat_links.add(link)
                             else:
                                 product_urls.add(link)
+                        # Gentle delay between pages to avoid bot detection
+                        time.sleep(random.uniform(2, 4))
                     except Exception as e:
                         logger.warning("Page scan failed %s: %s", page_url, e)
+                        time.sleep(random.uniform(5, 10))  # Extra delay on error
                 
                 if cat_links:
                     links_by_category.append(list(cat_links))
+                
+                # Delay between categories to be gentle
+                time.sleep(random.uniform(3, 6))
 
             # Interleave the cat_links to ensure variety in source_map ordering
             interleaved_reviews = []
@@ -959,22 +997,25 @@ async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = 
                     if i < len(cat_list):
                         interleaved_reviews.append(cat_list[i])
 
-            # Also deep scan some products across varied categories
+            # Also deep scan some products across varied categories (limited to avoid bot detection)
             if product_urls:
-                logger.info("Deep discovery: Scanning up to 50 product pages for missing reviews...")
+                deep_scan_limit = 8  # Reduced from 20 to avoid Cloudflare 521
+                logger.info("Deep discovery: Scanning up to %d product pages for missing reviews...", deep_scan_limit)
                 p_list = list(product_urls)
                 random.shuffle(p_list)
-                for p_idx, p_url in enumerate(p_list[:20]):
+                for p_idx, p_url in enumerate(p_list[:deep_scan_limit]):
                     try:
                         p_html = http.get(p_url).text
                         deep_links = discover_review_links(p_html, config.source_base_url, logger)
                         for d_link in deep_links:
                             if "-n" in d_link and d_link not in interleaved_reviews:
                                 interleaved_reviews.append(d_link)
-                        if p_idx % 15 == 0:
-                            logger.info("Deep scan progress: %d/%d", p_idx, min(50, len(product_urls)))
+                        logger.info("Deep scan progress: %d/%d", p_idx + 1, deep_scan_limit)
+                        # Gentle delay between product pages
+                        time.sleep(random.uniform(3, 6))
                     except Exception as e:
                         logger.warning("Deep scan failed for %s: %s", p_url, e)
+                        time.sleep(random.uniform(8, 15))  # Longer delay on error
 
             logger.info("Discovery complete. Total unique reviews found (interleaved): %d", len(interleaved_reviews))
             

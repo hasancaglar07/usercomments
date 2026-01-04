@@ -1,5 +1,5 @@
 import "../../styles/globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import Script from "next/script";
 import { Inter } from "next/font/google"; // Import Font
@@ -12,16 +12,19 @@ import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
 
 // Initialize Font
-export const runtime = 'edge';
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 const SITE_NAME = "UserReview";
+
+export const viewport: Viewport = {
+  themeColor: "#137fec",
+};
+
 export const metadata: Metadata = {
   title: "UserReview | Real User Reviews & Honest Product Insights",
   description:
     "Read what real people say before you buy. Thousands of user reviews and honest experiences on the latest products.",
   manifest: "/manifest.json",
-  themeColor: "#137fec",
   icons: {
     icon: "/favicon.png",
   },
@@ -119,12 +122,7 @@ export default async function SiteLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap&text=account_circle,add_circle,analytics,chat_bubble,check,chevron_left,chevron_right,close,cloud_upload,cookie,dataset,delete,diamond,do_not_disturb_on,error,expand_more,flag,forum,gavel,group,history_edu,info,link,lock,mail,military_tech,person,rate_review,remove_circle,sentiment_dissatisfied,share,star,thumb_up,verified,visibility"
         />
         <Providers>
-          <Script
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8614212887540857"
-            crossOrigin="anonymous"
-            strategy="lazyOnload"
-          />
+          {/* Google Analytics - works in all environments */}
           <Script
             src="https://www.googletagmanager.com/gtag/js?id=G-829FXRQW1V"
             strategy="afterInteractive"
@@ -141,27 +139,41 @@ export default async function SiteLayout({
                `,
             }}
           />
-          <Script
-            src="https://news.google.com/swg/js/v1/swg-basic.js"
-            strategy="afterInteractive"
-            type="application/javascript"
-          />
-          <Script
-            id="google-publisher-center"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                (self.SWG_BASIC = self.SWG_BASIC || []).push( basicSubscriptions => {
-                  basicSubscriptions.init({
-                    type: "NewsArticle",
-                    isPartOfType: ["Product"],
-                    isPartOfProductId: "CAowsOzEDA:openaccess",
-                    clientOptions: { theme: "light", lang: "${lang}" },
-                  });
-                });
-              `,
-            }}
-          />
+          {/* AdSense - only in production to avoid data-nscript warning */}
+          {process.env.NODE_ENV === "production" && (
+            <Script
+              async
+              src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8614212887540857"
+              crossOrigin="anonymous"
+              strategy="lazyOnload"
+            />
+          )}
+          {/* Google News SWG - only in production (CORS blocks localhost) */}
+          {process.env.NODE_ENV === "production" && (
+            <>
+              <Script
+                src="https://news.google.com/swg/js/v1/swg-basic.js"
+                strategy="afterInteractive"
+                type="application/javascript"
+              />
+              <Script
+                id="google-publisher-center"
+                strategy="afterInteractive"
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    (self.SWG_BASIC = self.SWG_BASIC || []).push( basicSubscriptions => {
+                      basicSubscriptions.init({
+                        type: "NewsArticle",
+                        isPartOfType: ["Product"],
+                        isPartOfProductId: "CAowsOzEDA:openaccess",
+                        clientOptions: { theme: "light", lang: "${lang}" },
+                      });
+                    });
+                  `,
+                }}
+              />
+            </>
+          )}
           <script type="application/ld+json">{JSON.stringify(websiteJsonLd)}</script>
           <script type="application/ld+json">
             {JSON.stringify(organizationJsonLd)}

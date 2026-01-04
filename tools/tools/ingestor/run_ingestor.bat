@@ -22,9 +22,17 @@ if not exist ".env" (
 :: Proxy Configuration
 :: Provider: Livaproxy
 :: Host: rotating.livaproxy.com, Port: 1080
-set HTTP_PROXY=http://uyDM6Wxe-country-mix-city-mix-residential:YVmInyco@rotating.livaproxy.com:1080
-set HTTPS_PROXY=http://uyDM6Wxe-country-mix-city-mix-residential:YVmInyco@rotating.livaproxy.com:1080
-echo Proxy set to rotating.livaproxy.com:1080
+:: IMPORTANT: Using CONTENT_PROXY instead of HTTP_PROXY to avoid affecting all SDK requests
+:: Only irecommend.ru and CDN will use proxy, Groq/Supabase/R2 will connect directly (saves ~7MB per review!)
+set CONTENT_PROXY=http://uyDM6Wxe-country-mix-city-mix-residential:YVmInyco@rotating.livaproxy.com:1080
+
+:: Clear system proxy to ensure SDKs connect directly
+set HTTP_PROXY=
+set HTTPS_PROXY=
+set http_proxy=
+set https_proxy=
+
+echo [proxy] CONTENT_PROXY set for irecommend.ru only (selective proxy mode)
 
 set MODE=loop
 set DRYRUN=0

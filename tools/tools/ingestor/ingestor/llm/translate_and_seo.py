@@ -6,6 +6,7 @@ from ..utils.slugify import slugify
 from ..utils.text_clean import clean_html, normalize_whitespace
 from .groq_client import GroqClient
 from .json_parse import parse_json_strict
+from . import google_translate
 from .prompts import (
     SYSTEM_PROMPT,
     EXTRACTION_SYSTEM_PROMPT,
@@ -122,6 +123,46 @@ def create_localized_slug(text: str, lang: str, max_length: int = 80, fallback: 
     return slug
 
 
+# Common placeholder patterns that LLM might output literally
+_PLACEHOLDER_PATTERNS = [
+    "polished native title",
+    "polished native content",
+    "catchy, natural title",
+    "catchy title",
+    "your rewritten review",
+    "<rewritten title",
+    "<rewritten html",
+    "do not output this placeholder",
+    "natural native voice",
+    "...",
+]
+
+
+def _contains_cyrillic(text: str) -> bool:
+    """Check if text contains Cyrillic characters."""
+    if not text:
+        return False
+    import re
+    return bool(re.search(r'[\u0400-\u04FF]', text))
+
+
+def _is_placeholder_title(title: str) -> bool:
+    """Check if a title looks like a template placeholder the LLM output literally."""
+    if not title:
+        return True
+    title_lower = title.lower().strip()
+    for pattern in _PLACEHOLDER_PATTERNS:
+        if pattern in title_lower:
+            return True
+    # Also check for very short/generic titles
+    if len(title_lower) < 5:
+        return True
+    # Also reject if title contains Cyrillic (should be translated)
+    if _contains_cyrillic(title):
+        return True
+    return False
+
+
 def _normalize_payload(payload: dict, lang: str, fallback_title: str) -> dict:
     data = {key: (payload.get(key) or "") for key in _REQUIRED_KEYS}
     # Sanitize title to prevent JSON leakage
@@ -130,7 +171,19 @@ def _normalize_payload(payload: dict, lang: str, fallback_title: str) -> dict:
          raw_title = raw_title.split('", "content_html":')[0]
     if '", "' in raw_title: # Generic catch for other JSON fields leaking into title
          raw_title = raw_title.split('", "')[0]
-    data["title"] = raw_title.strip('"').strip() or fallback_title
+    cleaned_title = raw_title.strip('"').strip()
+    
+    # Check if title is valid (not placeholder and not Cyrillic)
+    if _is_placeholder_title(cleaned_title):
+        # Don't use Russian fallback - use fallback only if it's already Latin
+        if fallback_title and not _contains_cyrillic(fallback_title):
+            data["title"] = fallback_title
+        else:
+            # Mark as needing a proper translation - use a flag that upstream can handle
+            data["title"] = ""  # Empty will trigger retry logic
+            data["_title_needs_translation"] = True
+    else:
+        data["title"] = cleaned_title
 
     data["content_html"] = clean_html(str(data["content_html"]))
     data["meta_title"] = normalize_whitespace(str(data["meta_title"])) or data["title"]
@@ -317,11 +370,72 @@ async def translate_review(
             return None
 
     async def _translate_title(lang: str, title_source: str, source_lang_name: str) -> str:
-        prompt = build_title_translation_prompt(lang, title_source, source_lang_name)
-        parsed = await _translate_with_retry(prompt, f"{lang}_title", _temperature_for(lang, "title"))
-        if parsed and parsed.get("title"):
-            return normalize_whitespace(str(parsed.get("title")))
-        return title_source
+        """Translate title with retry logic. Never returns Russian/Cyrillic."""
+        max_title_attempts = 3
+        
+        for attempt in range(max_title_attempts):
+            # Build prompt with stronger instructions on retry
+            if attempt > 0:
+                # Force a direct translation with explicit instruction
+                style_info = LANGUAGE_STYLES.get(lang, LANGUAGE_STYLES["en"])
+                direct_prompt = (
+                    f"CRITICAL: Translate this title to {style_info['name']}. "
+                    f"You MUST output an actual translated title, NOT a placeholder.\n\n"
+                    f"Title to translate: {title_source!r}\n\n"
+                    f"Output JSON: {{\"title\": \"<your {style_info['name']} translation here>\"}}\n\n"
+                    f"Rules:\n"
+                    f"- Output the actual translated title in {style_info['name']}\n"
+                    f"- NO Cyrillic characters\n"
+                    f"- NO placeholder text like 'Polished native title'\n"
+                    f"- Keep brand names unchanged"
+                )
+                parsed = await _translate_with_retry(
+                    direct_prompt, 
+                    f"{lang}_title_retry{attempt}", 
+                    min(_temperature_for(lang, "title") + 0.1 * attempt, 0.7)
+                )
+            else:
+                prompt = build_title_translation_prompt(lang, title_source, source_lang_name)
+                parsed = await _translate_with_retry(prompt, f"{lang}_title", _temperature_for(lang, "title"))
+            
+            if parsed and parsed.get("title"):
+                translated = normalize_whitespace(str(parsed.get("title")))
+                # Check if valid (not placeholder, not Cyrillic)
+                if not _is_placeholder_title(translated):
+                    return translated
+                logger.warning(
+                    "Title translation attempt %d/%d returned invalid title '%s', retrying...", 
+                    attempt + 1, max_title_attempts, translated[:50]
+                )
+        
+        # All Groq LLM retries failed - try Google Translate as fallback
+        logger.warning("All %d Groq title attempts failed for '%s'. Trying Google Translate...", 
+                     max_title_attempts, title_source[:50])
+        try:
+            google_result = await asyncio.to_thread(
+                google_translate.translate_title,
+                title_source,
+                lang,
+                "ru",  # Source language
+                logger
+            )
+            if google_result and not _is_placeholder_title(google_result):
+                logger.info("Google Translate successfully translated title to %s", lang)
+                return google_result
+            else:
+                logger.warning("Google Translate returned invalid title: %s", 
+                             google_result[:50] if google_result else "None")
+        except Exception as e:
+            logger.error("Google Translate fallback failed for title: %s", str(e)[:100])
+        
+        # All translation methods failed - use slugify transliteration as last resort
+        logger.error("All translation methods failed for title '%s'. Using transliteration.", 
+                     title_source[:50])
+        from ..utils.slugify import slugify
+        slug_title = slugify(title_source, max_length=60, fallback="Review")
+        # Convert slug to title case
+        fallback = slug_title.replace("-", " ").title()
+        return fallback if fallback else "Product Review"
 
     async def _translate_content(
         lang: str,
@@ -372,7 +486,13 @@ async def translate_review(
         parsed = await _translate_with_retry(prompt, f"{lang}_content", temperature)
         if not parsed:
             return None
-        translated_title = normalize_whitespace(str(parsed.get("title") or title_source))
+        translated_title = normalize_whitespace(str(parsed.get("title") or ""))
+        # Prevent placeholder titles - retry translation instead of falling back to Russian
+        if _is_placeholder_title(translated_title):
+            logger.warning("Detected placeholder title '%s' from content translation, retrying title separately", 
+                         translated_title[:50] if translated_title else "")
+            # Get a proper translated title
+            translated_title = await _translate_title(lang, title_source, source_lang_name)
         translated_content = str(parsed.get("content_html") or content_source)
         return translated_title, translated_content
 
@@ -390,9 +510,15 @@ async def translate_review(
         prompt = build_native_polish_prompt(lang, title, content_html, min_chars=min_chars, issues=issues)
         parsed = await _translate_with_retry(prompt, f"{lang}_polish", temp)
         if parsed:
-            polished_title = normalize_whitespace(str(parsed.get("title") or title))
+            polished_title = normalize_whitespace(str(parsed.get("title") or ""))
             polished_content = str(parsed.get("content_html") or content_html)
-            return polished_title, polished_content
+            # Prevent placeholder titles - keep the already-translated input title
+            if _is_placeholder_title(polished_title):
+                logger.warning("Detected placeholder title '%s' from polish step, keeping pre-polish title: %s", 
+                             polished_title[:50] if polished_title else "", title[:50])
+                # Keep the input title which should already be translated
+                polished_title = title if not _is_placeholder_title(title) else ""
+            return polished_title or title, polished_content
         return title, content_html
 
     async def _generate_metadata(
@@ -813,6 +939,33 @@ async def translate_product(
     logger: logging.Logger,
 ) -> Dict[str, dict]:
     results: Dict[str, dict] = {}
+    
+    def _contains_cyrillic(text: str) -> bool:
+        """Check if text contains Cyrillic characters."""
+        if not text:
+            return False
+        import re
+        return bool(re.search(r'[\u0400-\u04FF]', text))
+    
+    def _is_product_placeholder(name: str) -> bool:
+        """Check if product name is a placeholder."""
+        if not name:
+            return True
+        name_lower = name.lower().strip()
+        placeholders = [
+            "polished",
+            "placeholder",
+            "natural native",
+            "...",
+            "<",
+            "do not output",
+        ]
+        for p in placeholders:
+            if p in name_lower:
+                return True
+        if len(name_lower) < 3:
+            return True
+        return False
 
     async def _do_one(lang):
         try:
@@ -821,6 +974,10 @@ async def translate_product(
             best_payload = None
 
             for attempt in range(MAX_QUALITY_PASSES):
+                # Add explicit Cyrillic fix instruction on retry
+                if attempt > 0 and issues:
+                    issues.append("CRITICAL: Remove ALL Cyrillic characters - transliterate to Latin")
+                    
                 prompt = build_product_translation_prompt(
                     lang,
                     name_ru,
@@ -837,11 +994,41 @@ async def translate_product(
                 )
                 parsed = await _parse_or_repair(client, raw, logger)
 
-                name = normalize_whitespace(str(parsed.get("name") or name_ru))
+                name = normalize_whitespace(str(parsed.get("name") or ""))
+                
+                # Check for placeholder name - retry if invalid
+                if _is_product_placeholder(name) or _contains_cyrillic(name):
+                    logger.warning("Product translation returned invalid name '%s', will retry", name[:50] if name else "")
+                    if attempt < MAX_QUALITY_PASSES - 1:
+                        issues = ["product name is placeholder or contains Cyrillic", "translate name properly"]
+                        continue
+                    else:
+                        # Try Google Translate as fallback before transliteration
+                        logger.warning("Trying Google Translate for product name '%s'...", name_ru[:50])
+                        try:
+                            google_name = await asyncio.to_thread(
+                                google_translate.translate_text,
+                                name_ru,
+                                lang,
+                                "ru",
+                                logger
+                            )
+                            if google_name and not _is_product_placeholder(google_name) and not _contains_cyrillic(google_name):
+                                name = google_name
+                                logger.info("Google Translate succeeded for product name: '%s'", name[:50])
+                            else:
+                                # Last resort - transliterate using slugify
+                                name = slugify(name_ru, max_length=80, fallback="Product").replace("-", " ").title()
+                                logger.warning("Using transliterated name as fallback: '%s'", name)
+                        except Exception as e:
+                            logger.error("Google Translate failed for product name: %s", str(e)[:100])
+                            name = slugify(name_ru, max_length=80, fallback="Product").replace("-", " ").title()
+                            logger.warning("Using transliterated name as fallback: '%s'", name)
+                    
                 description = normalize_whitespace(str(parsed.get("description") or ""))
                 meta_title = normalize_whitespace(str(parsed.get("meta_title") or name))
                 meta_description = normalize_whitespace(str(parsed.get("meta_description") or ""))
-                slug = create_localized_slug(str(parsed.get("slug") or name), lang, max_length=80, fallback=name_ru)
+                slug = create_localized_slug(str(parsed.get("slug") or name), lang, max_length=80, fallback="product")
 
                 if ENABLE_NATIVE_POLISH:
                     polish_prompt = build_product_polish_prompt(
@@ -860,16 +1047,34 @@ async def translate_product(
                         _temperature_for(lang, "polish"),
                     )
                     polished = await _parse_or_repair(client, polished_raw, logger)
-                    name = normalize_whitespace(str(polished.get("name") or name))
+                    polished_name = normalize_whitespace(str(polished.get("name") or ""))
+                    # Only use polished name if it's valid
+                    if polished_name and not _is_product_placeholder(polished_name):
+                        name = polished_name
                     description = normalize_whitespace(str(polished.get("description") or description))
                     meta_title = normalize_whitespace(str(polished.get("meta_title") or meta_title))
                     meta_description = normalize_whitespace(str(polished.get("meta_description") or meta_description))
+
+                # Final Cyrillic check after polish
+                if _contains_cyrillic(name):
+                    logger.warning("Product name still contains Cyrillic after polish: '%s'. Attempting transliteration.", 
+                                   name[:50])
+                    # Transliterate as last resort
+                    name = slugify(name, max_length=80, fallback="Product").replace("-", " ").title()
+                    if _contains_cyrillic(name):
+                        # If still Cyrillic (shouldn't happen with slugify), use generic
+                        name = slugify(name_ru, max_length=80, fallback="Product").replace("-", " ").title()
+                        logger.error("Forced transliteration for product: '%s'", name)
 
                 if len(meta_description) > 170:
                     meta_description = meta_description[:160].rstrip()
                 if not meta_description:
                     meta_description = name[:160]
 
+                # Ensure we never have an empty or Cyrillic name
+                if not name or _contains_cyrillic(name):
+                    name = slugify(name_ru, max_length=80, fallback="Product").replace("-", " ").title()
+                    
                 best_payload = {
                     "lang": lang,
                     "name": name,

@@ -11,12 +11,36 @@ import requests
 from .utils.backoff import backoff_delay, sleep_with_backoff
 
 
+# Domains that need proxy (Russian content sources that may block direct access)
+# All other domains (Groq, Supabase, R2, etc.) will connect directly to save bandwidth
+PROXY_DOMAINS = [
+    "irecommend.ru",
+    "cdn-irec.r-99.com",
+    "r-99.com",
+]
+
+
+def _needs_proxy(url: str) -> bool:
+    """Check if URL domain requires proxy connection."""
+    try:
+        host = urlparse(url).netloc.lower()
+        for domain in PROXY_DOMAINS:
+            if host == domain or host.endswith("." + domain):
+                return True
+        return False
+    except:
+        return False
+
+
 class HttpClient:
     def __init__(self, timeout_seconds: int, max_retries: int, user_agent: str, logger: logging.Logger, proxy: Optional[str] = None):
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self.logger = logger
         self._lock = threading.Lock()
+        self._proxy = proxy  # Store proxy for selective use
+        
+        # Create session WITHOUT proxy by default
         self.session = cloudscraper.create_scraper(
             browser={
                 'browser': 'chrome',
@@ -26,12 +50,9 @@ class HttpClient:
         )
         if user_agent:
             self.session.headers.update({"User-Agent": user_agent})
+        
         if proxy:
-            self.session.proxies = {
-                "http": proxy,
-                "https": proxy,
-            }
-            self.logger.info("Using proxy: %s", proxy)
+            self.logger.info("Selective proxy configured: %s (only for: %s)", proxy, ", ".join(PROXY_DOMAINS))
 
     USER_AGENTS = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -56,6 +77,10 @@ class HttpClient:
 
     def get(self, url: str, allow_redirects: bool = True) -> requests.Response:
         last_exc: Optional[Exception] = None
+        
+        # Selective proxy: only use proxy for specific domains
+        use_proxy = self._proxy and _needs_proxy(url)
+        
         for attempt in range(self.max_retries + 1):
             try:
                 # Rotate User-Agent from a very modern list
@@ -72,6 +97,12 @@ class HttpClient:
                         "Upgrade-Insecure-Requests": "1"
                     })
                     
+                    # Apply proxy only for specific domains
+                    if use_proxy:
+                        self.session.proxies = {"http": self._proxy, "https": self._proxy}
+                    else:
+                        self.session.proxies = {}
+                    
                     response = self.session.get(
                         url,
                         timeout=self.timeout_seconds,
@@ -83,11 +114,10 @@ class HttpClient:
                     time.sleep(random.uniform(10, 20)) 
                     break
                 
-                # Check for Proxy Failure
-                if self.session.proxies and ("ProxyError" in str(exc) or "407" in str(exc) or "Tunnel connection failed" in str(exc)):
+                # Check for Proxy Failure (only relevant when using proxy)
+                if use_proxy and ("ProxyError" in str(exc) or "407" in str(exc) or "Tunnel connection failed" in str(exc)):
                     self.logger.warning("Proxy failed (%s). Switching to DIRECT connection for fallback.", exc)
-                    with self._lock:
-                        self.session.proxies = {} # Disable proxy for this session
+                    use_proxy = False  # Disable proxy for remaining attempts
                     time.sleep(1)
                     continue
 
@@ -103,16 +133,25 @@ class HttpClient:
                     raise requests.HTTPError(
                         f"HTTP {response.status_code} for {url}", response=response
                     )
-                host = urlparse(url).netloc
-                wait_time = self._retry_delay(attempt, response)
+                
+                # ROTATING PROXY STRATEGY: Create new session = new IP from rotating proxy
                 self.logger.warning(
-                    "Bot protection triggered (%d). Clearing session and waiting %.1fs...", 
-                    response.status_code, wait_time
+                    "Bot protection triggered (%d). Rotating to new IP (new session)...", 
+                    response.status_code
                 )
-                # Hard reset session to drop any bot-flags
+                
                 with self._lock:
-                    self.session.cookies.clear()
-                time.sleep(wait_time)
+                    # Create completely new session = rotating proxy gives new IP
+                    self.session = cloudscraper.create_scraper(
+                        browser={
+                            'browser': 'chrome',
+                            'platform': 'windows',
+                            'desktop': True
+                        }
+                    )
+                
+                # Short delay before retry with new IP
+                time.sleep(random.uniform(2, 4))
                 continue
 
             # Successful request - simulate "reading time"

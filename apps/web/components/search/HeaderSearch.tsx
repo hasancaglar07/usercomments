@@ -437,6 +437,8 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
                           src={imageUrl}
                           alt={suggestion.title}
                           className="h-full w-full object-cover"
+                          decoding="async"
+                          loading="lazy"
                         />
                       ) : (
                         <span>{suggestion.title.slice(0, 1).toUpperCase()}</span>
@@ -521,6 +523,8 @@ export default function HeaderSearch({ lang, variant = "desktop" }: HeaderSearch
                           src={imageUrl}
                           alt={suggestion.title}
                           className="h-full w-full object-cover"
+                          decoding="async"
+                          loading="lazy"
                         />
                       ) : (
                         <span>{suggestion.title.slice(0, 1).toUpperCase()}</span>

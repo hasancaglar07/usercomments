@@ -199,6 +199,22 @@ export type Category = {
   parentId?: number | null;
 };
 
+export type HomepagePayload = {
+  latest: {
+    items: Review[];
+    nextCursor: string | null;
+  };
+  popular: {
+    items: Review[];
+  };
+  categories: {
+    items: Category[];
+  };
+  topReviewers: {
+    items: UserProfile[];
+  };
+};
+
 export type CategoryTranslation = {
   lang: string;
   name: string;

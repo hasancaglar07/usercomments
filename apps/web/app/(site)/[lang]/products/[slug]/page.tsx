@@ -306,7 +306,7 @@ export default async function Page(props: PageProps) {
     : [toAbsoluteUrl(DEFAULT_REVIEW_IMAGE)];
   const productImage = getOptimizedImageUrl(
     product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE,
-    900
+    600
   );
   const reviewHref = `${localizePath("/node/add/review", lang)}?productSlug=${encodeURIComponent(
     product.slug
@@ -415,6 +415,41 @@ export default async function Page(props: PageProps) {
     offers: {
       "@type": "Offer",
       availability: "https://schema.org/InStock",
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: {
+          "@type": "MonetaryAmount",
+          value: "0",
+          currency: "USD",
+        },
+        shippingDestination: {
+          "@type": "DefinedRegion",
+          addressCountry: "US",
+        },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: {
+            "@type": "QuantitativeValue",
+            minValue: 0,
+            maxValue: 1,
+            unitCode: "DAY",
+          },
+          transitTime: {
+            "@type": "QuantitativeValue",
+            minValue: 1,
+            maxValue: 5,
+            unitCode: "DAY",
+          },
+        },
+      },
+      hasMerchantReturnPolicy: {
+        "@type": "MerchantReturnPolicy",
+        applicableCountry: "US",
+        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+        merchantReturnDays: 30,
+        returnMethod: "https://schema.org/ReturnByMail",
+        returnFees: "https://schema.org/FreeReturn",
+      },
       priceCurrency: "USD",
       price: "0",
       priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
@@ -507,6 +542,8 @@ export default async function Page(props: PageProps) {
                   src={productImage}
                   alt={t(lang, "productDetail.meta.titleTemplate", { name: product.name })}
                   className="w-full h-full object-contain p-4"
+                  decoding="async"
+                  fetchPriority="high"
                   loading="eager"
                 />
               </div>

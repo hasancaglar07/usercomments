@@ -51,7 +51,7 @@ export function slugify(value: string): string {
 }
 
 const LANGUAGE_SUFFIXES: Record<string, string> = {
-  tr: "-yorumlari",
+  tr: "-yorumlar",
   en: "-reviews",
   de: "-test",
   es: "-opiniones",
@@ -74,9 +74,30 @@ export function createLocalizedSlug(name: string, lang: string): string {
     return slug;
   }
 
-  if (slug.endsWith(suffix)) {
-    return slug;
+  const reviewKeywords = new Set([
+    "review",
+    "reviews",
+    "yorum",
+    "yorumlar",
+    "yorumlari",
+    "test",
+    "tests",
+    "opiniones",
+    "opinion",
+    "avis",
+    "revue",
+    "opinioni",
+    "opinione",
+    "avaliacao",
+    "avaliacoes",
+  ]);
+  const parts = slug.split("-").filter(Boolean);
+  while (parts.length > 0 && reviewKeywords.has(parts[parts.length - 1])) {
+    parts.pop();
   }
-
-  return `${slug}${suffix}`;
+  const base = parts.join("-");
+  if (!base) {
+    return suffix.replace(/^-/, "");
+  }
+  return `${base}${suffix}`;
 }

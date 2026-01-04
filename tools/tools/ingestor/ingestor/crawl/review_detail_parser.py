@@ -361,3 +361,39 @@ def parse_review_detail(html: str, source_url: str, base_url: str, logger: loggi
         cons=cons,
     )
 
+
+def extract_product_name(html: str) -> Optional[str]:
+    """
+    Extract product name from HTML content.
+    Typically extracts from H1 tag and cleans up common suffixes.
+    Used by backfill bot to fetch product name from source URL.
+    """
+    if not html:
+        return None
+    
+    soup = BeautifulSoup(html, "lxml")
+    
+    # Try H1 first
+    h1 = soup.select_one("h1")
+    if h1:
+        text = h1.get_text(strip=True)
+        # Strip common Russian review suffixes
+        text = re.sub(r"\s*[-—]+\s*\u043e\u0442\u0437\u044b\u0432\s*$", "", text, flags=re.I)
+        text = re.sub(r"\s*[-—]+\s*review\s*$", "", text, flags=re.I)
+        text = normalize_whitespace(text)
+        if text:
+            return text
+    
+    # Fallback: Try meta title
+    meta_title = soup.select_one('meta[property="og:title"]')
+    if meta_title and meta_title.get("content"):
+        return normalize_whitespace(meta_title.get("content"))
+    
+    title_tag = soup.select_one("title")
+    if title_tag:
+        text = title_tag.get_text(strip=True)
+        # Remove site name suffix
+        text = re.sub(r"\s*[\|–—-]\s*[A-Za-z]+\.ru.*$", "", text, flags=re.I)
+        return normalize_whitespace(text)
+    
+    return None

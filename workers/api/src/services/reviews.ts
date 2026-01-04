@@ -108,7 +108,7 @@ const reviewListSelect = `
   product_id,
   created_at,
   profiles(username, profile_pic_url),
-  products(id, slug, name)
+  products(id, slug, name, product_translations(lang, slug, name))
 `;
 
 const reviewDetailSelect = `
@@ -134,9 +134,23 @@ const reviewTranslationSelect = `
   )
 `;
 
+const reviewTranslationListLiteSelect = `
+  review_translations!inner(
+    lang,
+    slug,
+    title,
+    excerpt
+  )
+`;
+
 const reviewListSelectWithTranslations = `
   ${reviewListSelect},
   ${reviewTranslationSelect}
+`;
+
+const reviewListSelectHomepageWithTranslations = `
+  ${reviewListSelect},
+  ${reviewTranslationListLiteSelect}
 `;
 
 type CreateReviewPayload = {
@@ -169,6 +183,45 @@ export async function fetchPopularReviews(
     .select(reviewListSelectWithTranslations)
     .eq("review_translations.lang", lang)
     .eq("status", "published");
+
+  if (timeWindow === "6h") {
+    const time = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", time);
+  } else if (timeWindow === "24h") {
+    const time = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", time);
+  } else if (timeWindow === "week") {
+    const time = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", time);
+  }
+
+  const { data, error } = await query
+    .order("votes_up", { ascending: false })
+    .order("views", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((row) =>
+    mapReviewRow(row as DbReviewRow, { lang, r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+  );
+}
+
+export async function fetchHomepagePopularReviews(
+  env: ParsedEnv,
+  limit: number,
+  lang: SupportedLanguage,
+  timeWindow?: "6h" | "24h" | "week"
+): Promise<Review[]> {
+  const supabase = getSupabaseClient(env);
+  let query = supabase
+    .from("reviews")
+    .select(reviewListSelectHomepageWithTranslations)
+    .eq("review_translations.lang", lang)
+    .eq("status", "published");
+  query = query.gt("photo_count", 0);
 
   if (timeWindow === "6h") {
     const time = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
@@ -242,6 +295,38 @@ export async function fetchLatestReviews(
   return { items, nextCursor };
 }
 
+export async function fetchHomepageLatestReviews(
+  env: ParsedEnv,
+  limit: number,
+  lang: SupportedLanguage
+): Promise<CursorResult<Review>> {
+  const supabase = getSupabaseClient(env);
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(reviewListSelectHomepageWithTranslations)
+    .eq("review_translations.lang", lang)
+    .eq("status", "published")
+    .gt("photo_count", 0)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  const items = (data ?? []).map((row) =>
+    mapReviewRow(row as DbReviewRow, { lang, r2BaseUrl: env.R2_PUBLIC_BASE_URL })
+  );
+  const lastItem = items.length > 0 ? items[items.length - 1] : null;
+  const nextCursor =
+    lastItem?.createdAt && lastItem?.id
+      ? `${lastItem.createdAt}|${lastItem.id}`
+      : lastItem?.createdAt ?? null;
+
+  return { items, nextCursor };
+}
+
 export async function fetchReviews(
   env: ParsedEnv,
   options: {
@@ -249,13 +334,23 @@ export async function fetchReviews(
     categoryId?: number;
     subCategoryId?: number;
     productId?: string;
+    photoOnly?: boolean;
     sort: ReviewSort;
     page: number;
     pageSize: number;
   }
 ): Promise<ReviewListResult> {
   const supabase = getSupabaseClient(env);
-  const { categoryId, subCategoryId, productId, sort, page, pageSize, lang } =
+  const {
+    categoryId,
+    subCategoryId,
+    productId,
+    photoOnly,
+    sort,
+    page,
+    pageSize,
+    lang,
+  } =
     options;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -275,6 +370,10 @@ export async function fetchReviews(
 
   if (productId) {
     query = query.eq("product_id", productId);
+  }
+
+  if (photoOnly) {
+    query = query.gt("photo_count", 0);
   }
 
   switch (sort) {

@@ -8,6 +8,7 @@ import { followUser, getMyFollowing, unfollowUser } from "@/src/lib/api";
 import { ensureAuthLoaded, getAccessToken, getCurrentUser } from "@/src/lib/auth";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
 type TopAuthorsWidgetProps = {
   lang: string;
@@ -132,6 +133,7 @@ export default function TopAuthorsWidget({ lang, authors }: TopAuthorsWidgetProp
         {authors.map((author) => {
           const key = normalizeUsername(author.profile.username);
           const isFollowing = followingMap[key] ?? false;
+          const avatarUrl = getOptimizedImageUrl(author.avatarUrl, 80);
           return (
             <div
               key={author.profile.username}
@@ -150,7 +152,9 @@ export default function TopAuthorsWidget({ lang, authors }: TopAuthorsWidgetProp
                     alt={author.avatarAlt}
                     className="size-10 rounded-full border-2 border-white dark:border-slate-800 shadow-sm"
                     data-alt={author.avatarDataAlt}
-                    src={author.avatarUrl}
+                    src={avatarUrl}
+                    decoding="async"
+                    loading="lazy"
                   />
                   <div className={author.rankClassName}>
                     {author.rankLabel}

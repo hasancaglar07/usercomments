@@ -334,7 +334,7 @@ export default async function Page(props: PageProps) {
   );
   const productImg = getOptimizedImageUrl(
     review.photoUrls?.[0] ?? DEFAULT_REVIEW_IMAGE,
-    900
+    480
   );
   const productSlug =
     productDetail?.translations?.find((translation) => translation.lang === lang)
@@ -352,7 +352,7 @@ export default async function Page(props: PageProps) {
     productNameFromDetail ?? review.product?.name ?? review.title;
   const productImage = getOptimizedImageUrl(
     productDetail?.images?.[0]?.url ?? productImg ?? DEFAULT_REVIEW_IMAGE,
-    900
+    480
   );
   const productRatingAvg =
     productDetail?.stats?.ratingAvg ?? review.ratingAvg ?? 0;
@@ -649,6 +649,8 @@ export default async function Page(props: PageProps) {
                       alt={productName}
                       className="w-28 h-28 object-contain object-center rounded-xl bg-slate-100 dark:bg-slate-700 shrink-0"
                       decoding="async"
+                      fetchPriority="high"
+                      loading="eager"
                     />
                     <div className="flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -840,7 +842,7 @@ export default async function Page(props: PageProps) {
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={url}
+                            src={getOptimizedImageUrl(url, 480)}
                             alt={t(lang, "reviewDetail.gallery")}
                             referrerPolicy="no-referrer"
                             className="w-full h-full object-cover"
@@ -1081,6 +1083,7 @@ export default async function Page(props: PageProps) {
                     referrerPolicy="no-referrer"
                     className="w-40 h-40 object-contain object-center mb-4 rounded-lg bg-slate-50 dark:bg-slate-900/50"
                     decoding="async"
+                    loading="lazy"
                   />
                   <h3 className="text-center font-bold text-slate-900 dark:text-white mb-2">
                     {productName}

@@ -110,7 +110,7 @@ class Config:
                 "USER_AGENT",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             ),
-            http_proxy=os.getenv("HTTP_PROXY"),
+            http_proxy=os.getenv("CONTENT_PROXY") or os.getenv("HTTP_PROXY"),  # CONTENT_PROXY preferred, only for content fetching
             max_concurrent_tasks=env_int("MAX_CONCURRENT_TASKS", 5),
             use_source_published_at=env_bool("USE_SOURCE_PUBLISHED_AT", False),
             retry_failed_sources=env_bool("RETRY_FAILED_SOURCES", True),

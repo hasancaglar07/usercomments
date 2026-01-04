@@ -16,6 +16,7 @@ export type Env = {
   CACHE_TTL_SUBCATEGORIES_SEC?: string;
   CACHE_TTL_LATEST_SEC?: string;
   CACHE_TTL_POPULAR_SEC?: string;
+  CACHE_TTL_HOMEPAGE_SEC?: string;
   CACHE_TTL_REVIEW_LIST_SEC?: string;
   CACHE_TTL_REVIEW_SEC?: string;
   CACHE_TTL_REVIEW_COMMENTS_SEC?: string;
@@ -45,6 +46,7 @@ export type ParsedEnv = {
   CACHE_TTL_SUBCATEGORIES_SEC: number;
   CACHE_TTL_LATEST_SEC: number;
   CACHE_TTL_POPULAR_SEC: number;
+  CACHE_TTL_HOMEPAGE_SEC: number;
   CACHE_TTL_REVIEW_LIST_SEC: number;
   CACHE_TTL_REVIEW_SEC: number;
   CACHE_TTL_REVIEW_COMMENTS_SEC: number;
@@ -74,6 +76,7 @@ const envSchema = z.object({
   CACHE_TTL_SUBCATEGORIES_SEC: z.coerce.number().int().positive().default(21600),
   CACHE_TTL_LATEST_SEC: z.coerce.number().int().positive().default(60),
   CACHE_TTL_POPULAR_SEC: z.coerce.number().int().positive().default(60),
+  CACHE_TTL_HOMEPAGE_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_REVIEW_LIST_SEC: z.coerce.number().int().positive().default(60),
   CACHE_TTL_REVIEW_SEC: z.coerce.number().int().positive().default(30),
   CACHE_TTL_REVIEW_COMMENTS_SEC: z.coerce.number().int().positive().default(30),

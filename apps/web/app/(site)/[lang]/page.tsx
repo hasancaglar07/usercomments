@@ -6,6 +6,7 @@ import { SidebarHomepage } from "@/components/layout/Sidebar";
 import type { ReviewCardHomepageData } from "@/components/cards/ReviewCard";
 import type { HomepageTopReviewer } from "@/components/layout/Sidebar";
 import type { Category, Review } from "@/src/types";
+import { preload } from "react-dom";
 import {
   FALLBACK_AVATARS,
   FALLBACK_REVIEW_IMAGES,
@@ -15,12 +16,8 @@ import {
   getCategoryLabel,
   pickFrom,
 } from "@/src/lib/review-utils";
-import {
-  getCategories,
-  getLatestReviews,
-  getPopularReviews,
-  getUserProfile,
-} from "@/src/lib/api";
+import { getCatalogPage, getHomepageData } from "@/src/lib/api";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
@@ -46,6 +43,7 @@ const TRENDING_TABS = [
 const DEFAULT_TRENDING_TAB: TrendingTab = "popular6h";
 
 type TrendingTab = (typeof TRENDING_TABS)[number]["key"];
+type FeedTab = "all" | "popular" | "photos";
 
 function parseTrendingTab(value?: string): TrendingTab {
   const normalized = value?.toLowerCase();
@@ -56,6 +54,50 @@ function parseTrendingTab(value?: string): TrendingTab {
     return normalized as TrendingTab;
   }
   return DEFAULT_TRENDING_TAB;
+}
+
+function parseFeedTab(value?: string): FeedTab {
+  const normalized = value?.toLowerCase();
+  if (normalized === "popular" || normalized === "photos") {
+    return normalized as FeedTab;
+  }
+  return "all";
+}
+
+function parsePageParam(value?: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.floor(parsed);
+}
+
+function buildHomepageHref({
+  lang,
+  trending,
+  filter,
+  page,
+  includeTrendingParam,
+}: {
+  lang: string;
+  trending?: TrendingTab;
+  filter?: FeedTab;
+  page?: number;
+  includeTrendingParam?: boolean;
+}): string {
+  const params = new URLSearchParams();
+  if (filter && filter !== "all") {
+    params.set("filter", filter);
+  }
+  if (trending && (includeTrendingParam || trending !== DEFAULT_TRENDING_TAB)) {
+    params.set("trending", trending);
+  }
+  if (page && page > 1) {
+    params.set("page", String(page));
+  }
+  const query = params.toString();
+  const base = localizePath("/", lang);
+  return query ? `${base}?${query}` : base;
 }
 
 type HomePageProps = {
@@ -128,6 +170,16 @@ function filterReviewsWithPhotos(reviews: Review[]): Review[] {
   return reviews.filter(hasReviewPhoto);
 }
 
+function getReviewPhotoCount(review: Review): number {
+  const urlCount = Array.isArray(review.photoUrls) ? review.photoUrls.length : 0;
+  const count = typeof review.photoCount === "number" ? review.photoCount : urlCount;
+  return Math.max(count, urlCount);
+}
+
+function hasPhotos(review: Review): boolean {
+  return getReviewPhotoCount(review) >= 2;
+}
+
 function getHomepageBadge(review: Review): "verified" | null {
   const rating = review.ratingAvg ?? 0;
   const ratingsCount = review.ratingCount ?? 0;
@@ -180,48 +232,69 @@ export default async function Page(props: HomePageProps) {
   const trendingTab = parseTrendingTab(
     typeof searchParams?.trending === "string" ? searchParams.trending : undefined
   );
+  const feedTab = parseFeedTab(
+    typeof searchParams?.filter === "string" ? searchParams.filter : undefined
+  );
+  const activeFilter = feedTab !== "all" ? feedTab : undefined;
+  const feedPage = parsePageParam(
+    typeof searchParams?.page === "string" ? searchParams.page : undefined
+  );
+  const includeTrendingParam = typeof searchParams?.trending === "string";
   const apiConfigured = true;
   let recentCards = allowMockFallback ? homepageReviewCards : [];
   let popularFeedCards = allowMockFallback ? homepageReviewCards : [];
+  let feedCards = allowMockFallback ? homepageReviewCards : [];
+  let hasCards = feedCards.length > 0;
+  let hasMore = false;
   let topReviewers = allowMockFallback ? homepageTopReviewers : [];
   let popularCategories = allowMockFallback ? homepagePopularCategories : [];
   let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
   let trendingCards: ReviewCardHomepageData[] = [];
-  let nextCursor: string | null = null;
   let errorMessage: string | null = null;
 
   if (apiConfigured) {
     try {
-      const [latestResult, popularReviews, categoryItems] =
-        await Promise.all([
-          getLatestReviews(HOMEPAGE_LIMIT, null, lang),
-          getPopularReviews(
-            POPULAR_LIMIT,
-            lang,
-            trendingTab === "popular6h"
-              ? "6h"
-              : trendingTab === "popular24h"
-                ? "24h"
-                : trendingTab === "popular1w"
-                  ? "week"
-                  : undefined
-          ),
-          getCategories(lang),
-        ]);
-
-      categories = categoryItems;
+      const homepage = await getHomepageData({
+        latestLimit: HOMEPAGE_LIMIT,
+        popularLimit: POPULAR_LIMIT,
+        timeWindow:
+          trendingTab === "popular6h"
+            ? "6h"
+            : trendingTab === "popular24h"
+              ? "24h"
+              : trendingTab === "popular1w"
+                ? "week"
+                : undefined,
+        lang,
+      });
+      const latestResult = homepage.latest;
+      const popularReviews = homepage.popular.items;
+      categories = homepage.categories.items;
+      const feedResult = await getCatalogPage(
+        feedPage,
+        HOMEPAGE_LIMIT,
+        feedTab === "popular" ? "popular" : "latest",
+        undefined,
+        lang,
+        { photoOnly: true }
+      );
       const latestWithPhotos = filterReviewsWithPhotos(latestResult.items);
       const popularWithPhotos = filterReviewsWithPhotos(popularReviews);
       recentCards = buildHomepageCards(latestWithPhotos, categories, lang);
       popularFeedCards = buildHomepageCards(popularWithPhotos, categories, lang);
-      nextCursor = latestResult.nextCursor;
-      // Extract top reviewers and fetch their stats to show correct review counts
-      const uniqueUsernames = Array.from(new Set(popularReviews.map((r) => r.author.username))).slice(0, 3);
-      const userProfiles = await Promise.all(uniqueUsernames.map((u) => getUserProfile(u).catch(() => null)));
+      const feedWithPhotos = filterReviewsWithPhotos(feedResult.items);
+      hasCards = feedWithPhotos.length > 0;
+      const visibleFeed =
+        feedTab === "photos"
+          ? feedWithPhotos.filter(hasPhotos)
+          : feedWithPhotos;
+      feedCards = buildHomepageCards(visibleFeed, categories, lang);
+      const totalPages = feedResult.pageInfo.totalPages ?? feedPage;
+      hasMore = feedPage < totalPages;
+      const apiTopReviewers = homepage.topReviewers.items;
 
-      const realTopReviewers: HomepageTopReviewer[] = userProfiles
-        .filter((p): p is NonNullable<typeof p> => !!p)
-        .map((profile, index) => ({
+      const realTopReviewers: HomepageTopReviewer[] = apiTopReviewers.map(
+        (profile, index) => ({
           profile: {
             username: profile.username,
             displayName: profile.displayName ?? profile.username,
@@ -232,16 +305,17 @@ export default async function Page(props: HomePageProps) {
           reviewCountLabel: t(lang, "homepage.topReviewers.reviewCountLabel", {
             count: formatCompactNumber(profile.stats?.reviewCount ?? 0, lang),
           }),
-        }));
+        })
+      );
 
       topReviewers =
         realTopReviewers.length > 0
           ? realTopReviewers
           : buildTopReviewers(
-            popularReviews,
-            allowMockFallback ? homepageTopReviewers : [],
-            lang
-          );
+              popularReviews,
+              allowMockFallback ? homepageTopReviewers : [],
+              lang
+            );
       popularCategories = categories.slice(0, 7);
 
       // Determine what to show in the Trending section based on the selected tab
@@ -261,6 +335,48 @@ export default async function Page(props: HomePageProps) {
     errorMessage = t(lang, "homepage.error.apiNotConfigured");
   }
 
+  const filterHrefs = {
+    all: buildHomepageHref({
+      lang,
+      trending: trendingTab,
+      filter: "all",
+      page: 1,
+      includeTrendingParam,
+    }),
+    popular: buildHomepageHref({
+      lang,
+      trending: trendingTab,
+      filter: "popular",
+      page: 1,
+      includeTrendingParam,
+    }),
+    photos: buildHomepageHref({
+      lang,
+      trending: trendingTab,
+      filter: "photos",
+      page: 1,
+      includeTrendingParam,
+    }),
+  };
+  const loadMoreHref = hasMore
+    ? buildHomepageHref({
+        lang,
+        trending: trendingTab,
+        filter: feedTab,
+        page: feedPage + 1,
+        includeTrendingParam,
+      })
+    : null;
+  const heroPreloadUrls = new Set(
+    trendingCards
+      .slice(0, TRENDING_LIMIT)
+      .map((card) => getOptimizedImageUrl(card.imageUrl, 300))
+      .filter(Boolean)
+  );
+  heroPreloadUrls.forEach((url) => {
+    preload(url, { as: "image" });
+  });
+
   return (
     <div
       className="bg-surface-light dark:bg-background-dark font-display text-text-main antialiased min-h-screen flex flex-col"
@@ -276,17 +392,20 @@ export default async function Page(props: HomePageProps) {
           lang={lang}
           initialTab={trendingTab}
           initialData={trendingCards}
+          activeFilter={activeFilter}
         />
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 w-full lg:w-2/3">
             <Suspense fallback={<div className="animate-pulse space-y-4 shadow-sm h-64 bg-gray-100 rounded-lg" />}>
               <HomepageFeed
-                categories={categories}
-                initialCards={recentCards}
-                initialNextCursor={nextCursor}
-                initialPopularCards={popularFeedCards}
-                pageSize={HOMEPAGE_LIMIT}
+                cards={feedCards}
+                hasCards={hasCards}
+                hasMore={hasMore}
+                tab={feedTab}
+                lang={lang}
+                filterHrefs={filterHrefs}
+                loadMoreHref={loadMoreHref}
               />
             </Suspense>
           </div>

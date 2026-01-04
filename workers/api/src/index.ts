@@ -22,6 +22,8 @@ import {
   createReview,
   fetchCommentStatusById,
   fetchLatestComments,
+  fetchHomepageLatestReviews,
+  fetchHomepagePopularReviews,
   fetchLatestReviews,
   fetchPopularReviews,
   fetchReviewBySlug,
@@ -95,10 +97,11 @@ import {
   fetchSitemapReviews,
 } from "./services/sitemap";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage } from "./utils/i18n";
-import type { UploadHealth } from "./types";
+import type { HomepagePayload, UploadHealth, UserProfile } from "./types";
 import { hashString } from "./utils/crypto";
 
 const MAX_SITEMAP_PAGE_SIZE = 50000;
+const HOMEPAGE_DEFAULT_LIMIT = 9;
 const R2_ENV_KEYS = [
   "R2_ENDPOINT",
   "R2_REGION",
@@ -164,6 +167,25 @@ const langSchema = z
   .optional()
   .transform((value) => normalizeLanguage(value));
 
+const photoOnlySchema = z.preprocess(
+  (value) => {
+    if (typeof value === "boolean") {
+      return value;
+    }
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (["1", "true", "yes", "on"].includes(normalized)) {
+        return true;
+      }
+      if (["0", "false", "no", "off"].includes(normalized)) {
+        return false;
+      }
+    }
+    return undefined;
+  },
+  z.boolean().optional()
+);
+
 const supportedLangSchema = z.enum(SUPPORTED_LANGUAGES);
 
 function buildUploadHealth(env: ParsedEnv): UploadHealth {
@@ -213,6 +235,23 @@ const latestQuerySchema = z.object({
   lang: langSchema,
 });
 
+const homepageQuerySchema = z.object({
+  latestLimit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(HOMEPAGE_DEFAULT_LIMIT),
+  popularLimit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_PAGE_SIZE)
+    .default(HOMEPAGE_DEFAULT_LIMIT),
+  lang: langSchema,
+  timeWindow: z.enum(["6h", "24h", "week"]).optional(),
+});
+
 const leaderboardQuerySchema = z.object({
   metric: z.enum(["active", "helpful", "trending"]).default("active"),
   timeframe: z.enum(["all", "month", "week"]).default("all"),
@@ -224,6 +263,7 @@ const leaderboardQuerySchema = z.object({
 const listQuerySchema = z.object({
   categoryId: z.coerce.number().int().positive().optional(),
   subCategoryId: z.coerce.number().int().positive().optional(),
+  photoOnly: photoOnlySchema,
   sort: z.enum(["latest", "popular", "rating"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce
@@ -819,6 +859,7 @@ function buildSitemapIndex(urls: string[]): string {
 
 const POPULAR_LIMITS = [3, 4, 6];
 const LATEST_LIMITS = [3];
+const HOMEPAGE_TIME_WINDOWS = ["6h", "24h", "week"] as const;
 const PRODUCT_SORTS = ["latest", "popular", "rating"] as const;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE_CACHE = 10;
@@ -905,6 +946,30 @@ function buildReviewCacheUrls(options: {
         urls.push(buildApiUrl(origin, "/api/reviews/latest", new URLSearchParams({ limit: String(limit) })));
       }
     });
+
+    const homepageParams = new URLSearchParams({
+      latestLimit: String(HOMEPAGE_DEFAULT_LIMIT),
+      popularLimit: String(HOMEPAGE_DEFAULT_LIMIT),
+      lang,
+    });
+    urls.push(buildApiUrl(origin, "/api/homepage", homepageParams));
+    HOMEPAGE_TIME_WINDOWS.forEach((timeWindow) => {
+      const params = new URLSearchParams(homepageParams);
+      params.set("timeWindow", timeWindow);
+      urls.push(buildApiUrl(origin, "/api/homepage", params));
+    });
+    if (lang === DEFAULT_LANGUAGE) {
+      const fallbackParams = new URLSearchParams({
+        latestLimit: String(HOMEPAGE_DEFAULT_LIMIT),
+        popularLimit: String(HOMEPAGE_DEFAULT_LIMIT),
+      });
+      urls.push(buildApiUrl(origin, "/api/homepage", fallbackParams));
+      HOMEPAGE_TIME_WINDOWS.forEach((timeWindow) => {
+        const params = new URLSearchParams(fallbackParams);
+        params.set("timeWindow", timeWindow);
+        urls.push(buildApiUrl(origin, "/api/homepage", params));
+      });
+    }
 
     const baseParams = new URLSearchParams({
       page: String(DEFAULT_PAGE),
@@ -1198,12 +1263,86 @@ async function handleLatestComments({ env, url }: HandlerContext): Promise<Respo
   return jsonResponse({ items: comments });
 }
 
+async function handleHomepage({ env, url }: HandlerContext): Promise<Response> {
+  const { latestLimit, popularLimit, lang, timeWindow } =
+    homepageQuerySchema.parse(getQueryObject(url));
+  const popularTimeWindow = timeWindow ?? "week";
+  const [latestResult, popularResult, categoriesResult] = await Promise.allSettled([
+    fetchHomepageLatestReviews(env, latestLimit, lang),
+    fetchHomepagePopularReviews(env, popularLimit, lang, popularTimeWindow),
+    fetchCategories(env, lang),
+  ]);
+  const latest =
+    latestResult.status === "fulfilled"
+      ? latestResult.value
+      : { items: [], nextCursor: null };
+  if (latestResult.status === "rejected") {
+    console.warn("Homepage latest fetch failed", latestResult.reason);
+  }
+  let popular =
+    popularResult.status === "fulfilled" ? popularResult.value : [];
+  if (popularResult.status === "rejected") {
+    console.warn("Homepage popular fetch failed", popularResult.reason);
+    if (latest.items.length > 0) {
+      popular = latest.items.slice(0, popularLimit);
+    }
+  }
+  const categories =
+    categoriesResult.status === "fulfilled" ? categoriesResult.value : [];
+  if (categoriesResult.status === "rejected") {
+    console.warn("Homepage categories fetch failed", categoriesResult.reason);
+  }
+  const topUsernames = Array.from(
+    new Set(popular.map((review) => review.author.username).filter(Boolean))
+  ).slice(0, 3);
+  const topReviewerRecords = await Promise.all(
+    topUsernames.map(async (username) => {
+      try {
+        const record = await fetchUserProfileRecord(env, username);
+        return record?.profile ?? null;
+      } catch (error) {
+        console.warn("Homepage top reviewer fetch failed", error);
+        return null;
+      }
+    })
+  );
+  const resolvedTopReviewers = topReviewerRecords.filter(
+    (profile): profile is UserProfile => Boolean(profile)
+  );
+  const fallbackTopReviewers =
+    resolvedTopReviewers.length === 0 && topUsernames.length > 0
+      ? topUsernames.map((username) => {
+          const match = popular.find(
+            (review) => review.author.username === username
+          );
+          return {
+            username,
+            displayName: match?.author.displayName,
+            profilePicUrl: match?.author.profilePicUrl,
+          };
+        })
+      : [];
+  const payload: HomepagePayload = {
+    latest,
+    popular: { items: popular },
+    categories: { items: categories },
+    topReviewers: {
+      items:
+        resolvedTopReviewers.length > 0
+          ? resolvedTopReviewers
+          : fallbackTopReviewers,
+    },
+  };
+  return jsonResponse({ items: payload });
+}
+
 async function handleReviewsList({ env, url }: HandlerContext): Promise<Response> {
-  const { categoryId, subCategoryId, sort, page, pageSize, lang } =
+  const { categoryId, subCategoryId, sort, page, pageSize, lang, photoOnly } =
     listQuerySchema.parse(getQueryObject(url));
   const result = await fetchReviews(env, {
     categoryId,
     subCategoryId,
+    photoOnly,
     sort: sort ?? "latest",
     page,
     pageSize,
@@ -2563,6 +2702,12 @@ const routes: Route[] = [
     pattern: new URLPattern({ pathname: "/api/comments/latest" }),
     handler: handleLatestComments,
     cacheTtl: (env) => env.CACHE_TTL_LATEST_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/homepage" }),
+    handler: handleHomepage,
+    cacheTtl: (env) => env.CACHE_TTL_HOMEPAGE_SEC,
   },
   {
     method: "GET",

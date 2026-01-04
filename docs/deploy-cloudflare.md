@@ -47,6 +47,7 @@ These fall back to defaults if unset:
 - `CACHE_TTL_SUBCATEGORIES_SEC` (default: 21600)
 - `CACHE_TTL_LATEST_SEC` (default: 60)
 - `CACHE_TTL_POPULAR_SEC` (default: 60)
+- `CACHE_TTL_HOMEPAGE_SEC` (default: 90)
 - `CACHE_TTL_REVIEW_LIST_SEC` (default: 60)
 - `CACHE_TTL_REVIEW_SEC` (default: 90)
 - `CACHE_TTL_REVIEW_COMMENTS_SEC` (default: 30)

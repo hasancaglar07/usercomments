@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, Iterable, List, Optional
 
 from ..utils.hashing import short_hash
-from ..utils.slugify import slugify
+from ..utils.slugify import slugify, contains_cyrillic, transliterate_name
 from .supabase_client import SupabaseClient
 
 
@@ -170,6 +170,11 @@ def upsert_product(
     # Check if product exists by source_url (column or legacy description marker) or slug
     name = payload.get("name", "Unknown Product")
     source_url = payload.get("source_url")
+    
+    # SAFETY: Ensure product name is never Cyrillic - transliterate as last resort
+    if contains_cyrillic(name):
+        name = transliterate_name(name)
+    
     base_slug = slugify(name) or f"product-{short_hash(source_url or name)}"
 
     def _is_missing_column(exc: Exception, column: str) -> bool:

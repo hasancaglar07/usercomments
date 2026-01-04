@@ -15,6 +15,38 @@ import { mapProductRow } from "./mappers";
 
 export type ProductSort = "latest" | "rating" | "popular";
 
+const PRODUCT_SLUG_SUFFIXES = [
+  "-yorumlar",
+  "-yorumlari",
+  "-reviews",
+  "-test",
+  "-opiniones",
+  "-avis",
+  "-opinioni",
+  "-otzyvy",
+  "-avaliacao",
+  "-review",
+];
+
+const SLUG_HASH_RE = /-[a-f0-9]{8}$/i;
+const REVIEW_SLUG_TOKENS = new Set([
+  "yorum",
+  "yorumlar",
+  "yorumlari",
+  "review",
+  "reviews",
+  "test",
+  "tests",
+  "opiniones",
+  "opinion",
+  "avis",
+  "revue",
+  "opinioni",
+  "opinione",
+  "avaliacao",
+  "avaliacoes",
+]);
+
 type ProductListResult = {
   items: Product[];
   pageInfo: PaginationInfo;
@@ -109,6 +141,85 @@ function normalizeScore(value: number | string | null | undefined): number {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function stripSlugSuffix(value: string): string {
+  for (const suffix of PRODUCT_SLUG_SUFFIXES) {
+    if (value.endsWith(suffix)) {
+      const trimmed = value.slice(0, -suffix.length);
+      return trimmed.endsWith("-") ? trimmed.slice(0, -1) : trimmed;
+    }
+  }
+  return value;
+}
+
+function collapseRepeatedReviewTokens(value: string): string {
+  const parts = value.split("-").filter(Boolean);
+  if (parts.length < 2) {
+    return value;
+  }
+  const last = parts[parts.length - 1];
+  const prev = parts[parts.length - 2];
+  if (REVIEW_SLUG_TOKENS.has(last) && REVIEW_SLUG_TOKENS.has(prev)) {
+    parts.splice(parts.length - 2, 1);
+    return parts.join("-");
+  }
+  return value;
+}
+
+function buildSlugCandidates(rawSlug: string): string[] {
+  const normalized = rawSlug.trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+  const candidates = new Set<string>();
+  candidates.add(normalized);
+  const collapsed = collapseRepeatedReviewTokens(normalized);
+  if (collapsed) {
+    candidates.add(collapsed);
+  }
+
+  const withoutHash = SLUG_HASH_RE.test(normalized)
+    ? normalized.replace(SLUG_HASH_RE, "")
+    : normalized;
+  if (withoutHash) {
+    candidates.add(withoutHash);
+    const collapsedHashless = collapseRepeatedReviewTokens(withoutHash);
+    if (collapsedHashless) {
+      candidates.add(collapsedHashless);
+    }
+  }
+
+  const withoutSuffix = stripSlugSuffix(normalized);
+  if (withoutSuffix) {
+    candidates.add(withoutSuffix);
+    const collapsedSuffixless = collapseRepeatedReviewTokens(withoutSuffix);
+    if (collapsedSuffixless) {
+      candidates.add(collapsedSuffixless);
+    }
+  }
+
+  const withoutSuffixHash = SLUG_HASH_RE.test(withoutSuffix)
+    ? withoutSuffix.replace(SLUG_HASH_RE, "")
+    : withoutSuffix;
+  if (withoutSuffixHash) {
+    candidates.add(withoutSuffixHash);
+    const collapsedSuffixHash = collapseRepeatedReviewTokens(withoutSuffixHash);
+    if (collapsedSuffixHash) {
+      candidates.add(collapsedSuffixHash);
+    }
+  }
+
+  const withoutHashSuffix = stripSlugSuffix(withoutHash);
+  if (withoutHashSuffix) {
+    candidates.add(withoutHashSuffix);
+    const collapsedHashSuffix = collapseRepeatedReviewTokens(withoutHashSuffix);
+    if (collapsedHashSuffix) {
+      candidates.add(collapsedHashSuffix);
+    }
+  }
+
+  return Array.from(candidates);
 }
 
 async function fetchProductSearchRows(
@@ -884,7 +995,11 @@ export async function fetchProductBySlug(
     }
 
     if (!productBySlug) {
-      return fetchProductByReviewSlug(env, slug, lang);
+      const reviewFallback = await fetchProductByReviewSlug(env, slug, lang);
+      if (reviewFallback) {
+        return reviewFallback;
+      }
+      return fetchProductBySlugCandidates(env, slug, lang);
     }
 
     const productRow = productBySlug as DbProductRow;
@@ -1104,6 +1219,49 @@ async function fetchProductByIdPublic(
     includeTranslations: true,
     r2BaseUrl: env.R2_PUBLIC_BASE_URL,
   });
+}
+
+async function fetchProductBySlugCandidates(
+  env: ParsedEnv,
+  slug: string,
+  lang: SupportedLanguage
+): Promise<Product | null> {
+  const candidates = buildSlugCandidates(slug).filter((item) => item !== slug);
+  if (candidates.length === 0) {
+    return null;
+  }
+  const supabase = getSupabaseClient(env);
+  for (const candidate of candidates) {
+    const { data: translationMatch, error: translationError } = await supabase
+      .from("product_translations")
+      .select("product_id")
+      .eq("slug", candidate)
+      .maybeSingle();
+
+    if (translationError) {
+      throw translationError;
+    }
+
+    if (translationMatch?.product_id) {
+      return fetchProductByIdPublic(env, translationMatch.product_id, lang);
+    }
+
+    const { data: productMatch, error: productError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("slug", candidate)
+      .maybeSingle();
+
+    if (productError) {
+      throw productError;
+    }
+
+    if (productMatch?.id) {
+      return fetchProductByIdPublic(env, productMatch.id, lang);
+    }
+  }
+
+  return null;
 }
 
 async function fetchProductByReviewSlug(

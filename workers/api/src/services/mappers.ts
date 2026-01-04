@@ -79,11 +79,13 @@ type DbReview = {
     id: string | null;
     slug: string | null;
     name: string | null;
+    product_translations?: DbProductTranslation[] | null;
   }
   | {
     id: string | null;
     slug: string | null;
     name: string | null;
+    product_translations?: DbProductTranslation[] | null;
   }[]
   | null;
 };
@@ -168,6 +170,35 @@ type DbProductRow = {
   product_categories?: { category_id: number | null }[] | null;
 };
 
+const CYRILLIC_RE = /[\u0400-\u04FF]/;
+
+function deriveNameFromSlug(slug: string | null | undefined): string | undefined {
+  if (!slug) return undefined;
+  const cleaned = slug.replace(/[-_]+/g, " ").trim();
+  return cleaned || undefined;
+}
+
+function sanitizeProductName(
+  name: string | null | undefined,
+  slug: string | null | undefined
+): string | undefined {
+  if (!name) return undefined;
+  if (!CYRILLIC_RE.test(name)) {
+    return name;
+  }
+  return deriveNameFromSlug(slug) ?? name;
+}
+
+function sanitizeProductDescription(
+  description: string | null | undefined
+): string | undefined {
+  if (!description) return undefined;
+  if (CYRILLIC_RE.test(description)) {
+    return undefined;
+  }
+  return description;
+}
+
 function fixUrl(url: string | null | undefined, r2BaseUrl?: string): string | undefined {
   if (!url) return undefined;
   if (r2BaseUrl && url.includes(".r2.dev")) {
@@ -207,6 +238,12 @@ export function mapReviewRow(
 ): Review {
   const profile = pickRelation(row.profiles);
   const product = pickRelation(row.products);
+  const productTranslations = Array.isArray(product?.product_translations)
+    ? product.product_translations
+    : [];
+  const preferredProductTranslation = options?.lang
+    ? productTranslations.find((translation) => translation.lang === options.lang)
+    : productTranslations[0];
 
   const translations = Array.isArray(row.review_translations)
     ? row.review_translations
@@ -251,6 +288,12 @@ export function mapReviewRow(
   const commentCount = normalizeNumber(row.comment_count);
   const categoryId = normalizeNumber(row.category_id);
   const subCategoryId = normalizeNumber(row.sub_category_id);
+  const resolvedProductSlug = preferredProductTranslation?.slug ?? product?.slug ?? "";
+  const resolvedProductName = preferredProductTranslation?.name ?? product?.name ?? "";
+  const safeProductName = sanitizeProductName(
+    resolvedProductName,
+    resolvedProductSlug
+  );
 
   return {
     id: row.id,
@@ -293,8 +336,8 @@ export function mapReviewRow(
     product: product?.id
       ? {
         id: product.id,
-        slug: product.slug ?? "",
-        name: product.name ?? "",
+        slug: resolvedProductSlug,
+        name: safeProductName ?? resolvedProductName,
       }
       : undefined,
   };
@@ -359,12 +402,18 @@ export function mapProductRow(
       .filter((item): item is number => typeof item === "number")
     : undefined;
 
+  const resolvedSlug = translation?.slug ?? row.slug;
+  const resolvedName = translation?.name ?? row.name;
+  const resolvedDescription = translation?.description ?? row.description;
+  const safeName = sanitizeProductName(resolvedName, resolvedSlug);
+  const safeDescription = sanitizeProductDescription(resolvedDescription);
+
   return {
     id: row.id,
     translationLang: translation?.lang,
-    slug: translation?.slug ?? row.slug,
-    name: translation?.name ?? row.name,
-    description: translation?.description ?? row.description ?? undefined,
+    slug: resolvedSlug,
+    name: safeName ?? resolvedName,
+    description: safeDescription ?? undefined,
     status: (row.status as ProductStatus) ?? undefined,
     brand: brand?.id
       ? {

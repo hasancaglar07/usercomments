@@ -1,6 +1,7 @@
 import type {
   Category,
   Comment,
+  HomepagePayload,
   LeaderboardEntry,
   LeaderboardMetric,
   LeaderboardTimeframe,
@@ -20,6 +21,10 @@ export type CursorResult<T> = {
 export type PaginatedResult<T> = {
   items: T[];
   pageInfo: PaginationInfo;
+};
+
+export type HomepageResult = {
+  items: HomepagePayload;
 };
 
 type FetchOptions = RequestInit & {
@@ -184,6 +189,37 @@ export async function getLatestComments(
   );
 }
 
+export async function getHomepageData(
+  {
+    latestLimit = 9,
+    popularLimit = 9,
+    timeWindow,
+    lang = DEFAULT_LANGUAGE,
+  }: {
+    latestLimit?: number;
+    popularLimit?: number;
+    timeWindow?: "6h" | "24h" | "week";
+    lang?: SupportedLanguage;
+  },
+  fetchOptions?: FetchOptions
+): Promise<HomepagePayload> {
+  const searchParams = new URLSearchParams({
+    latestLimit: String(latestLimit),
+    popularLimit: String(popularLimit),
+    lang,
+  });
+  if (timeWindow) {
+    searchParams.set("timeWindow", timeWindow);
+  }
+  const options: FetchOptions = {
+    next: { revalidate: 60 },
+    ...fetchOptions,
+  };
+  return fetchJson<HomepageResult>(`/api/homepage?${searchParams}`, options).then(
+    (result) => result.items
+  );
+}
+
 export async function getLeaderboard(
   metric: LeaderboardMetric,
   timeframe: LeaderboardTimeframe,
@@ -214,7 +250,8 @@ export async function getCatalogPage(
   pageSize: number,
   sort: "latest" | "popular" | "rating" = "latest",
   categoryId?: number,
-  lang: SupportedLanguage = DEFAULT_LANGUAGE
+  lang: SupportedLanguage = DEFAULT_LANGUAGE,
+  options?: { photoOnly?: boolean }
 ): Promise<PaginatedResult<Review>> {
   const searchParams = new URLSearchParams({
     page: String(page),
@@ -224,6 +261,9 @@ export async function getCatalogPage(
   });
   if (categoryId) {
     searchParams.set("categoryId", String(categoryId));
+  }
+  if (options?.photoOnly) {
+    searchParams.set("photoOnly", "true");
   }
   return fetchJson<PaginatedResult<Review>>(`/api/reviews?${searchParams}`, {
     next: { revalidate: 60 },

@@ -30,7 +30,7 @@ export default function ProductCard({
     resolvedLang
   );
   const imageUrl = product.images?.[0]?.url ?? DEFAULT_REVIEW_IMAGE;
-  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
+  const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 480);
   const productHref = localizePath(`/products/${product.slug}`, lang);
   const reviewHref = `${localizePath("/node/add/review", lang)}?productSlug=${encodeURIComponent(
     product.slug
