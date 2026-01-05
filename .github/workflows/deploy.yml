@@ -3,6 +3,7 @@ name: 🚀 YENI BUILD (Tikla)
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   publish:
