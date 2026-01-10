@@ -255,30 +255,44 @@ export default async function Page(props: HomePageProps) {
 
   if (apiConfigured) {
     try {
-      const homepage = await getHomepageData({
-        latestLimit: HOMEPAGE_LIMIT,
-        popularLimit: POPULAR_LIMIT,
-        timeWindow:
-          trendingTab === "popular6h"
-            ? "6h"
-            : trendingTab === "popular24h"
-              ? "24h"
-              : trendingTab === "popular1w"
-                ? "week"
-                : undefined,
-        lang,
-      });
+      // Add timeout protection for API calls
+      const homepage = await Promise.race([
+        getHomepageData({
+          latestLimit: HOMEPAGE_LIMIT,
+          popularLimit: POPULAR_LIMIT,
+          timeWindow:
+            trendingTab === "popular6h"
+              ? "6h"
+              : trendingTab === "popular24h"
+                ? "24h"
+                : trendingTab === "popular1w"
+                  ? "week"
+                  : undefined,
+          lang,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Homepage API timeout')), 5000)
+        )
+      ]);
+
       const latestResult = homepage.latest;
       const popularReviews = homepage.popular.items;
       categories = homepage.categories.items;
-      const feedResult = await getCatalogPage(
-        feedPage,
-        HOMEPAGE_LIMIT,
-        feedTab === "popular" ? "popular" : "latest",
-        undefined,
-        lang,
-        { photoOnly: true }
-      );
+
+      const feedResult = await Promise.race([
+        getCatalogPage(
+          feedPage,
+          HOMEPAGE_LIMIT,
+          feedTab === "popular" ? "popular" : "latest",
+          undefined,
+          lang,
+          { photoOnly: true }
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Catalog API timeout')), 5000)
+        )
+      ]);
+
       const latestWithPhotos = filterReviewsWithPhotos(latestResult.items);
       const popularWithPhotos = filterReviewsWithPhotos(popularReviews);
       recentCards = buildHomepageCards(latestWithPhotos, categories, lang);
@@ -326,11 +340,11 @@ export default async function Page(props: HomePageProps) {
         trendingCards = popularFeedCards.slice(0, TRENDING_LIMIT);
       }
     } catch (e) {
+      // Log error but continue rendering with fallback/empty data
       if (e instanceof Error) {
         console.error("Homepage data fetch failed:", e.message);
-        const detail = e.message;
-        errorMessage = `${t(lang, "homepage.error.loadFailed")} (${detail})`;
       }
+      // Do NOT set errorMessage - allow page to render with empty/fallback content
     }
   } else if (!allowMockFallback) {
     errorMessage = t(lang, "homepage.error.apiNotConfigured");
