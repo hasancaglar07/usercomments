@@ -1092,7 +1092,7 @@ export async function getTopReviewersDirect(limit: number): Promise<UserProfile[
 
     const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, username, display_name, profile_pic_url, stats, created_at, is_verified")
+        .select("user_id, username, profile_pic_url, stats, created_at, is_verified")
         .limit(50); // Fetch 50, sort in memory
 
     if (error || !data) {
@@ -1109,7 +1109,7 @@ export async function getTopReviewersDirect(limit: number): Promise<UserProfile[
     return sorted.slice(0, limit).map((row: any) => ({
         userId: row.user_id,
         username: row.username,
-        displayName: row.display_name ?? row.username,
+        displayName: row.username, // Fallback to username
         profilePicUrl: fixUrl(row.profile_pic_url),
         stats: row.stats,
         isVerified: row.is_verified,
@@ -1263,9 +1263,10 @@ export async function getLeaderboardDirect(
     // If stats are critical for sorting, we need a fallback.
     // We'll select *, assuming 'stats' returns undefined, so we avoid error.
     // We reverted to 'user_id' as 'id' column does not exist in the profiles table.
+    // Also removed 'display_name' as it does not exist in the profiles table.
     let query = supabase
         .from("profiles")
-        .select("user_id, username, display_name, profile_pic_url, created_at, is_verified", { count: "exact" });
+        .select("user_id, username, profile_pic_url, created_at, is_verified", { count: "exact" });
 
     // Since we removed 'stats' from selection, we can't rely on it for sorting unless we fetch related counts.
     // Fetching related counts for ALL users is expensive (N+1).
@@ -1293,7 +1294,7 @@ export async function getLeaderboardDirect(
         profile: {
             userId: row.id || row.user_id, // Handle both id and user_id cases
             username: row.username,
-            displayName: row.display_name,
+            displayName: row.username, // Fallback to username
             profilePicUrl: fixUrl(row.profile_pic_url),
             isVerified: row.is_verified,
             createdAt: row.created_at,
