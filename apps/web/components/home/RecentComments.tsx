@@ -5,7 +5,19 @@ import { t } from "@/src/lib/copy";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
 export default async function RecentComments({ lang }: { lang: SupportedLanguage }) {
-    const { items: comments } = await getLatestComments(5, lang); // Pass lang
+    let comments = [];
+
+    try {
+        const result = await Promise.race([
+            getLatestComments(5, lang),
+            new Promise<{ items: never[] }>((_, reject) =>
+                setTimeout(() => reject(new Error('Comments API timeout')), 3000)
+            )
+        ]);
+        comments = result.items || [];
+    } catch (error) {
+        console.error("Failed to load recent comments:", error);
+    }
 
     if (!comments || comments.length === 0) return null;
 
