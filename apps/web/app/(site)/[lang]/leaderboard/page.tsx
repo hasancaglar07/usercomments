@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import EmptyState from "@/components/ui/EmptyState";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { LeaderboardList, getLeaderboardBadges } from "@/components/leaderboard/LeaderboardList";
 import type {
   LeaderboardEntry,
@@ -340,7 +341,7 @@ async function fetchLeaderboardRange(
   const pages = startPage === endPage ? [startPage] : [startPage, endPage];
   const results = await Promise.all(
     pages.map((page) =>
-      getLeaderboard(metric, timeframe, page, pageSize, normalizeLanguage(lang))
+      getLeaderboardDirect(metric, timeframe, page, pageSize, normalizeLanguage(lang))
     )
   );
   const items = results.flatMap((result) => result.items);
@@ -411,14 +412,13 @@ function PodiumCard({
         #{rank}
       </div>
       <div
-        className={`relative ${isWinner ? "size-24" : "size-20"} rounded-full overflow-hidden bg-white ${podiumStyles.ring}`}
+        className={`relative ${isWinner ? "size-24" : "size-20"} rounded-full bg-white ${podiumStyles.ring}`}
       >
-        <Image
-          src={getOptimizedImageUrl(avatarUrl, 144, 80)}
+        <UserAvatar
+          src={avatarUrl}
           alt={t(resolvedLang, "leaderboard.avatarAlt", { username: displayName })}
-          fill
-          sizes="96px"
-          className="object-cover"
+          size={isWinner ? 96 : 80}
+          className="rounded-full"
         />
       </div>
       <div>

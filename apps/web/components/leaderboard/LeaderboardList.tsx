@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import UserAvatar from "@/components/ui/UserAvatar";
 import type { LeaderboardEntry } from "@/src/types";
 import { DEFAULT_AVATAR, formatCompactNumber } from "@/src/lib/review-utils";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
@@ -123,15 +124,14 @@ export function LeaderboardList({
                   >
                     #{rank}
                   </span>
-                  <div className="relative size-12 rounded-full overflow-hidden border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
-                    <Image
-                      src={getOptimizedImageUrl(avatarUrl, 96, 80)}
+                  <div className="relative size-12 rounded-full border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark">
+                    <UserAvatar
+                      src={avatarUrl}
                       alt={t(resolvedLang, "leaderboard.avatarAlt", {
                         username: displayName,
                       })}
-                      fill
-                      sizes="48px"
-                      className="object-cover"
+                      size={48}
+                      className="rounded-full"
                     />
                   </div>
                 </div>
