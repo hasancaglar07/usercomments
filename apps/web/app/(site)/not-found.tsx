@@ -4,6 +4,8 @@ import { Inter } from "next/font/google";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
+
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export default async function NotFound() {

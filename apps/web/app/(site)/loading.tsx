@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 export default function Loading() {
   return (
     <div className="bg-surface-light dark:bg-background-dark text-text-main min-h-screen flex flex-col">
