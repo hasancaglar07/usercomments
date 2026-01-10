@@ -7,12 +7,12 @@ import ReviewDetailClient, {
 import type { Metadata } from "next";
 import type { Review, Comment, Category, Product } from "@/src/types";
 import {
-  getReviewComments,
-  getCategories,
-  getCategoryPage,
-  getProductBySlug,
-} from "@/src/lib/api";
-import { getReviewBySlugDirect } from "@/src/lib/api-direct";
+  getReviewBySlugDirect,
+  getReviewCommentsDirect,
+  getCategoriesDirect,
+  getProductBySlugDirect,
+  getCategoryPageDirect
+} from "@/src/lib/api-direct";
 import TableOfContents from "@/components/content/TableOfContents";
 import {
   DEFAULT_AVATAR,
@@ -272,22 +272,20 @@ export default async function Page(props: PageProps) {
 
     const productSlug = review?.product?.slug;
     const relatedPromise = review?.categoryId
-      ? getCategoryPage(
+      ? getCategoryPageDirect(
         review.categoryId,
         1,
         RELATED_FETCH_LIMIT,
-        "latest",
-        undefined,
         lang
-      ).catch(() => null)
-      : Promise.resolve(null);
+      ).catch(() => ({ items: [] }))
+      : Promise.resolve({ items: [] });
     const [fetchedComments, fetchedCategories, fetchedProduct, relatedResult] = await Promise.all([
       review
-        ? getReviewComments(review.id, 50).then((res) => res.items)
+        ? getReviewCommentsDirect(review.id, 50).then((res) => res.items)
         : Promise.resolve<Comment[]>([]),
-      getCategories(lang),
+      getCategoriesDirect(lang),
       productSlug
-        ? getProductBySlug(productSlug, lang).catch(() => null)
+        ? getProductBySlugDirect(productSlug, lang).catch(() => null)
         : Promise.resolve<Product | null>(null),
       relatedPromise,
     ]);
