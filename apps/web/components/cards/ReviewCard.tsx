@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/RatingStars";
 import type { Review, StarType } from "@/src/types";
 import { t } from "@/src/lib/copy";
+import { DEFAULT_AVATAR } from "@/src/lib/review-utils";
 import type { SupportedLanguage } from "@/src/lib/i18n";
 
 type HomepageBadge = "verified" | "expert" | null;
@@ -60,7 +61,7 @@ export function ReviewCardHomepage({
 }: ReviewCardHomepageProps) {
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 600);
-  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 64);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl || DEFAULT_AVATAR, 64);
   const [isImageLoading, setIsImageLoading] = useState(!imagePriority);
 
   const galleryPhotos = review.photoUrls?.slice(1, 6) || [];
@@ -342,7 +343,7 @@ export function ReviewCardCatalog({
 }: ReviewCardCatalogData) {
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 480);
-  const optimizedAvatarUrl = getOptimizedImageUrl(authorAvatarUrl, 64);
+  const optimizedAvatarUrl = getOptimizedImageUrl(authorAvatarUrl || DEFAULT_AVATAR, 64);
 
   return (
     <article className="card-hover-glow bg-card-light dark:bg-card-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
@@ -459,7 +460,7 @@ export function ReviewCardCategory({
 }: ReviewCardCategoryData) {
   const authorName = review.author.displayName ?? review.author.username;
   const optimizedImageUrl = getOptimizedImageUrl(imageUrl, 480);
-  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl, 64);
+  const optimizedAvatarUrl = getOptimizedImageUrl(avatarUrl || DEFAULT_AVATAR, 64);
 
   return (
     <article className="flex flex-col md:flex-row gap-5 bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3] hover:shadow-md transition-shadow">

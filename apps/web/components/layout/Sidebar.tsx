@@ -12,6 +12,8 @@ import {
 import type { Category, Review, UserProfile } from "@/src/types";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
+import { DEFAULT_AVATAR } from "@/src/lib/review-utils";
+import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
 export type HomepageTopReviewer = {
   profile: UserProfile;
@@ -56,7 +58,7 @@ export function SidebarHomepage({
               <div className="flex items-center gap-3">
                 <div className="relative w-10 h-10 shrink-0">
                   <Image
-                    src={reviewer.avatarUrl || "/stitch_assets/images/img-038.png"}
+                    src={getOptimizedImageUrl(reviewer.avatarUrl || DEFAULT_AVATAR, 64)}
                     alt={reviewer.avatarAlt}
                     fill
                     sizes="40px"
@@ -235,11 +237,15 @@ export function SidebarCategory({
               <span className="text-xl font-bold text-gray-300 w-6 text-center group-hover:text-primary transition-colors">
                 {item.rankLabel}
               </span>
-              <div
-                className="size-12 rounded bg-cover bg-center shrink-0 border border-[#e7edf3]"
-                data-alt={item.imageAlt}
-                style={{ backgroundImage: `url(${item.imageUrl})` }}
-              />
+              <div className="relative size-12 shrink-0">
+                <Image
+                  src={getOptimizedImageUrl(item.imageUrl, 128)}
+                  alt={item.imageAlt}
+                  fill
+                  sizes="48px"
+                  className="rounded object-cover border border-[#e7edf3]"
+                />
+              </div>
               <div className="flex flex-col min-w-0">
                 <p className="text-sm font-bold text-[#0d141b] leading-tight group-hover:text-primary transition-colors truncate">
                   {item.review.title}
@@ -280,11 +286,15 @@ export function SidebarCategory({
                   lang
                 )}
               >
-                <div
-                  className="size-10 rounded-full bg-cover bg-center shrink-0 border border-[#e7edf3]"
-                  data-alt={author.avatarAlt}
-                  style={{ backgroundImage: `url(${author.avatarUrl})` }}
-                />
+                <div className="relative size-10 shrink-0">
+                  <Image
+                    src={getOptimizedImageUrl(author.avatarUrl || DEFAULT_AVATAR, 64)}
+                    alt={author.avatarAlt}
+                    fill
+                    sizes="40px"
+                    className="rounded-full object-cover border border-[#e7edf3]"
+                  />
+                </div>
                 <div className="flex flex-col">
                   <p className="text-sm font-bold text-[#0d141b] group-hover:text-primary transition-colors">
                     {author.profile.displayName ?? author.profile.username}
@@ -416,11 +426,15 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
               className="flex gap-3 items-center group/item active-press"
               href={localizePath(`/content/${item.review.slug}`, lang)}
             >
-              <div
-                className="w-12 h-12 rounded-lg bg-cover bg-center shrink-0"
-                data-alt={item.thumbnailAlt}
-                style={{ backgroundImage: `url(${item.thumbnailUrl})` }}
-              />
+              <div className="relative w-12 h-12 shrink-0">
+                <Image
+                  src={getOptimizedImageUrl(item.thumbnailUrl, 128)}
+                  alt={item.thumbnailAlt}
+                  fill
+                  sizes="48px"
+                  className="rounded-lg object-cover"
+                />
+              </div>
               <div className="flex flex-col min-w-0">
                 <p className="text-text-main-light dark:text-text-main-dark text-sm font-semibold truncate group-hover/item:text-primary transition-colors">
                   {item.review.title}
