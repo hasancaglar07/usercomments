@@ -5,6 +5,7 @@ import RecentComments from "@/components/home/RecentComments";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import PopularReviewsWidget from "@/components/layout/PopularReviewsWidget";
 import TopAuthorsWidget from "@/components/layout/TopAuthorsWidget";
+import UserAvatar from "@/components/ui/UserAvatar";
 import {
   UserProfileAchievementsTrigger,
   UserProfileShareLink,
@@ -56,15 +57,12 @@ export function SidebarHomepage({
               )}
             >
               <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 shrink-0">
-                  <Image
-                    src={getOptimizedImageUrl(reviewer.avatarUrl || DEFAULT_AVATAR, 64)}
-                    alt={reviewer.avatarAlt}
-                    fill
-                    sizes="40px"
-                    className="rounded-full object-cover"
-                  />
-                </div>
+                <UserAvatar
+                  src={reviewer.avatarUrl}
+                  alt={reviewer.avatarAlt}
+                  size={40}
+                  className="shrink-0"
+                />
                 <div>
                   <p className="text-sm font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
                     {reviewer.profile.displayName ?? reviewer.profile.username}
@@ -286,15 +284,12 @@ export function SidebarCategory({
                   lang
                 )}
               >
-                <div className="relative size-10 shrink-0">
-                  <Image
-                    src={getOptimizedImageUrl(author.avatarUrl || DEFAULT_AVATAR, 64)}
-                    alt={author.avatarAlt}
-                    fill
-                    sizes="40px"
-                    className="rounded-full object-cover border border-[#e7edf3]"
-                  />
-                </div>
+                <UserAvatar
+                  src={author.avatarUrl}
+                  alt={author.avatarAlt}
+                  size={40}
+                  className="shrink-0 border border-[#e7edf3]"
+                />
                 <div className="flex flex-col">
                   <p className="text-sm font-bold text-[#0d141b] group-hover:text-primary transition-colors">
                     {author.profile.displayName ?? author.profile.username}

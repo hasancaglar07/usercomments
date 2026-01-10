@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import UserAvatar from "@/components/ui/UserAvatar";
 import { useState } from "react";
 import {
   RatingStarsCatalog,
@@ -97,16 +98,12 @@ export function ReviewCardHomepage({
 
           <div className="absolute bottom-3 left-4 right-4 text-white">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-6 h-6 rounded-full border border-white/30 overflow-hidden shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={avatarAlt}
-                  className="w-full h-full object-cover"
-                  src={optimizedAvatarUrl}
-                  decoding="async"
-                  loading="lazy"
-                />
-              </div>
+              <UserAvatar
+                src={avatarUrl}
+                alt={avatarAlt}
+                size={24}
+                className="border border-white/30 shrink-0"
+              />
               <span className="text-xs font-medium text-white/90 truncate drop-shadow-sm">{authorName}</span>
             </div>
             <h3 className="text-lg font-bold text-white leading-tight line-clamp-2 drop-shadow-md">
@@ -208,16 +205,12 @@ export function ReviewCardHomepage({
         {/* Header: Author & Date */}
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt={avatarAlt}
-                className="h-full w-full object-cover"
-                src={optimizedAvatarUrl}
-                decoding="async"
-                loading="lazy"
-              />
-            </div>
+            <UserAvatar
+              src={avatarUrl}
+              alt={avatarAlt}
+              size={32}
+              className="shrink-0 border border-gray-100 dark:border-gray-700"
+            />
             <div className="flex flex-col">
               <span className="text-sm font-bold text-text-main dark:text-white leading-none">{authorName}</span>
               <span className="text-[11px] text-text-muted mt-0.5">{authorMeta}</span>
@@ -390,14 +383,10 @@ export function ReviewCardCatalog({
           </p>
           <div className="mt-auto flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-4">
             <div className="flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <UserAvatar
+                src={authorAvatarUrl}
                 alt={authorAvatarAlt}
-                className="w-6 h-6 rounded-full"
-                data-alt={authorAvatarDataAlt}
-                src={optimizedAvatarUrl}
-                decoding="async"
-                loading="lazy"
+                size={24}
               />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 {authorName}
@@ -482,15 +471,11 @@ export function ReviewCardCategory({
       <div className="flex flex-col flex-1 gap-2">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-2">
-            <div className="relative size-6 shrink-0">
-              <Image
-                src={optimizedAvatarUrl}
-                alt={avatarAlt}
-                fill
-                sizes="24px"
-                className="rounded-full object-cover"
-              />
-            </div>
+            <UserAvatar
+              src={avatarUrl}
+              alt={avatarAlt}
+              size={24}
+            />
             <span className="text-xs font-semibold text-[#4c739a]">
               {authorName}
             </span>
