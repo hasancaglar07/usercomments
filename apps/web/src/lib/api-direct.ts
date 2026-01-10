@@ -1,6 +1,6 @@
 import { getSupabaseClient } from "@/src/lib/supabase";
 import { DEFAULT_LANGUAGE, isSupportedLanguage, type SupportedLanguage } from "@/src/lib/i18n";
-import type { Review, Comment, Product, ProductStats, ProductImage, ProductStatus, BrandStatus, Category, PaginationInfo, UserProfile } from "@/src/types";
+import type { Review, Comment, Product, ProductStats, ProductImage, ProductStatus, BrandStatus, Category, PaginationInfo, UserProfile, LeaderboardMetric, LeaderboardTimeframe, LeaderboardEntry, HomepagePayload } from "@/src/types";
 
 // --- Internal Types matching DB structure ---
 
@@ -268,12 +268,7 @@ type DbCategoryTranslation = {
     name: string;
 };
 
-type DbCategory = {
-    id: number;
-    name: string;
-    parent_id: number | null;
-    category_translations?: DbCategoryTranslation[] | null;
-};
+
 
 // --- Mappers ---
 
@@ -1085,36 +1080,46 @@ export async function getPopularReviewsDirect(
 export async function getTopReviewersDirect(limit: number): Promise<UserProfile[]> {
     const supabase = getSupabaseClient();
 
-    // Fetch users. Try to order by review_count in stats if possible.
-    // If we can't sort by JSON field easily using .order('stats->reviewCount'), we might need an RPC or fallback.
-    // Let's assume stats->reviewCount works or we just order by created_at as fallback for now.
-    // Alternatively, we can fetch more users and sort in memory if N is small (e.g. 50).
+    // Fetch users. 
+    // We cannot use 'stats' column as it is missing.
+    // We select 'reviews(count)' to get the review count.
 
     const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, username, profile_pic_url, stats, created_at, is_verified")
-        .limit(50); // Fetch 50, sort in memory
+        .select("user_id, username, profile_pic_url, created_at, is_verified, reviews(count)")
+        .limit(50); // Fetch 50 candidates
 
     if (error || !data) {
         return [];
     }
 
-    // Sort in memory by reviewCount
-    const sorted = data.sort((a: any, b: any) => {
-        const countA = a.stats?.reviewCount ?? 0;
-        const countB = b.stats?.reviewCount ?? 0;
-        return countB - countA;
+    // Map and Calculate Stats
+    // We only have review count strictly from the DB relation.
+    // Ideally we would fetch views/likes too, but for "Top Reviewers" widget which usually ranks by "Activity" (Review Count), this involves less overhead.
+
+    let items = data.map((row: any) => {
+        const rawCount = row.reviews?.[0]?.count;
+        const reviewCount = typeof rawCount === 'number' ? rawCount : 0;
+
+        return {
+            userId: row.user_id,
+            username: row.username,
+            displayName: row.username, // Fallback
+            profilePicUrl: fixUrl(row.profile_pic_url),
+            stats: {
+                reviewCount: reviewCount,
+                totalViews: 0,
+                reputation: 0
+            },
+            isVerified: row.is_verified,
+            createdAt: row.created_at
+        };
     });
 
-    return sorted.slice(0, limit).map((row: any) => ({
-        userId: row.user_id,
-        username: row.username,
-        displayName: row.username, // Fallback to username
-        profilePicUrl: fixUrl(row.profile_pic_url),
-        stats: row.stats,
-        isVerified: row.is_verified,
-        createdAt: row.created_at
-    }));
+    // Sort in memory by reviewCount
+    items.sort((a, b) => (b.stats.reviewCount ?? 0) - (a.stats.reviewCount ?? 0));
+
+    return items.slice(0, limit);
 }
 
 export async function getHomepageDataDirect({
@@ -1264,12 +1269,13 @@ export async function getLeaderboardDirect(
     // We'll select *, assuming 'stats' returns undefined, so we avoid error.
     // We reverted to 'user_id' as 'id' column does not exist in the profiles table.
     // Also removed 'display_name' as it does not exist in the profiles table.
+    // We include 'reviews(count)' to at least get the review count active metric.
+    // Note: PostgREST relationship detection required. Assuming 'reviews' has FK to profiles.
     let query = supabase
         .from("profiles")
-        .select("user_id, username, profile_pic_url, created_at, is_verified", { count: "exact" });
+        .select("user_id, username, profile_pic_url, created_at, is_verified, reviews(count)", { count: "exact" });
 
     // Since we removed 'stats' from selection, we can't rely on it for sorting unless we fetch related counts.
-    // Fetching related counts for ALL users is expensive (N+1).
     // Ideally, we'd use .select("*, reviews(count)") but that's still heavy.
     // For now, let's just show users ordered by creation date as a fallback to ensure DATA VISIBILITY
     // while noting that stats might be empty until schema supports it.
@@ -1278,48 +1284,103 @@ export async function getLeaderboardDirect(
     query = query.order("created_at", { ascending: false });
 
     // Fetch batch
-    const { data: profiles, count, error } = await query.range(from, to + 20); // Fetch a bit more to be safe
+    const { data: profiles, count, error } = await query.range(from, to + 49); // Fetch 50 to have some pool for in-memory sort
 
     if (error) {
         console.error("getLeaderboardDirect Error:", JSON.stringify(error, null, 2));
         return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
     }
 
-    // Now, for the visible profiles, let's try to fetch their review counts efficiently if possible
-    // or just default to 0. 
-    // To make it "World Class", we would need a materialized view.
-    // Here, we will map what we have.
+    // Process profiles to extract review count
+    let items: LeaderboardEntry[] = (profiles ?? []).map((row: any) => {
+        // Extract count from relation: reviews: [{ count: 5 }]
+        const rawCount = row.reviews?.[0]?.count;
+        const reviewCount = typeof rawCount === 'number' ? rawCount : 0;
 
-    let items: LeaderboardEntry[] = (profiles ?? []).map((row: any) => ({
-        profile: {
-            userId: row.id || row.user_id, // Handle both id and user_id cases
-            username: row.username,
-            displayName: row.username, // Fallback to username
-            profilePicUrl: fixUrl(row.profile_pic_url),
-            isVerified: row.is_verified,
-            createdAt: row.created_at,
-            stats: { reviewCount: 0, totalViews: 0, reputation: 0 } // Default stats
-        },
-        stats: { reviewCount: 0, totalViews: 0, reputation: 0 },
-        rank: 0
-    }));
+        return {
+            profile: {
+                userId: row.id || row.user_id,
+                username: row.username,
+                displayName: row.username, // Fallback to username
+                profilePicUrl: fixUrl(row.profile_pic_url),
+                isVerified: row.is_verified,
+                createdAt: row.created_at,
+                stats: { reviewCount: reviewCount, totalViews: 0, reputation: 0 }
+            },
+            stats: { reviewCount: reviewCount, totalViews: 0, reputation: 0 },
+            rank: 0
+        };
+    });
 
-    // OPTIONAL: Enrich with review counts for this page (Small batch N+1 is acceptable for 10-20 items)
-    // This makes the "Active" tab actually show something meaningful.
+    // 2. Aggregate "Total Views" and "Reputation" (Likes) for these displayed users.
+    // Since we don't have a 'stats' column, we must query 'reviews' table.
+    // We only do this for the *fetched* profiles to keep it fast.
     if (items.length > 0) {
-        const userIds = items.map(i => i.profile.userId);
+        const userIds = items.map(i => i.profile.userId).filter(Boolean);
 
-        // Count reviews for these users
-        // .rpc() is ideal, but let's try a simple aggregation if possible or separate count queries.
-        // Actually, easiest way without modifying DB is to count in app for just these displayed users.
-        // But that doesn't help with GLOBAL sorting.
-        // Global sorting requires a DB index.
-        // For the purpose of "Showing profiles", we accept unsorted (or date sorted) data over NO data.
+        // We fetch summary data for these users: sum(views), sum(votes_up), count(id)
+        // Since PostgREST doesn't support sum() in one go for multiple groups easily without RPC,
+        // we'll fetch a customized selection: user_id, views, votes_up
+        // for ALL reviews of these users.
+        // WARNING: If a user has 1000 reviews, this brings 1000 rows.
+        // Optimization: Limit per user? No. We'll trust that typical paging size (20-50 users) * avg reviews (10-20) = ~1000 rows, which is fast.
 
-        // We will return the items as is, with 0 stats, so at least users appear.
+        const { data: reviewsStats, error: statsError } = await supabase
+            .from("reviews")
+            .select("user_id, views, votes_up")
+            .in("user_id", userIds)
+            .eq("status", "published");
+
+        if (!statsError && reviewsStats) {
+            // Aggregate in Memory
+            const statsMap = new Map<string, { views: number; votes: number }>();
+
+            for (const r of reviewsStats) {
+                const uid = r.user_id; // assuming user_id matches profile
+                const current = statsMap.get(uid) || { views: 0, votes: 0 };
+                current.views += (r.views || 0);
+                current.votes += (r.votes_up || 0);
+                statsMap.set(uid, current);
+            }
+
+            // Assign back to items
+            items.forEach(item => {
+                if (item.profile.userId) {
+                    const s = statsMap.get(item.profile.userId);
+                    if (s) {
+                        item.stats.totalViews = s.views;
+                        item.stats.reputation = s.votes; // Assuming reputation ~ likes
+
+                        // Also update profile stats to match
+                        if (!item.profile.stats) item.profile.stats = {};
+                        item.profile.stats.totalViews = s.views;
+                        item.profile.stats.reputation = s.votes;
+                    }
+                }
+            });
+        }
     }
 
-    // Apply rank (visual only since sort is weak)
+    // 3. In-memory Sort (since we fetched 50, we can sort them to show "best of this batch")
+    // This isn't perfect "Global Top", but improves the "Latest Users" view significance.
+    if (metric === "active") {
+        items.sort((a, b) => b.stats.reviewCount - a.stats.reviewCount);
+    } else if (metric === "helpful") {
+        items.sort((a, b) => b.stats.reputation - a.stats.reputation);
+    } else if (metric === "trending") {
+        items.sort((a, b) => b.stats.totalViews - a.stats.totalViews);
+    }
+
+    // Sort logic fallbacks
+    // If scores are tied, maybe created_at?
+
+    // Slice to actual page size requested (we fetched extra for sorting buffer)
+    // Note: 'from' was used for query offset. If we re-sort, we might mess up strict pagination order across pages.
+    // However, since database sort is 'created_at', random users appear.
+    // Making the *visible* users sorted is better UX than random.
+    // Ideally, we'd handle this with a DB View.
+
+    // Apply rank (visual only)
     items = items.map((item, idx) => ({ ...item, rank: from + idx + 1 }));
 
     // Pagination info
