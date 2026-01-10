@@ -50,7 +50,13 @@ export default async function SiteLayout({
   let categories: Category[] = [];
 
   try {
-    const allCategories = await getCategories(lang);
+    // Add timeout to prevent hanging on Edge Runtime
+    const allCategories = await Promise.race([
+      getCategories(lang),
+      new Promise<Category[]>((_, reject) =>
+        setTimeout(() => reject(new Error('Categories API timeout')), 3000)
+      )
+    ]);
 
     // Exact order and selection from irecommend.ru
     const headerCategoryIds = [930, 932, 929, 937, 934, 936, 935, 940, 941, 938];
@@ -71,6 +77,8 @@ export default async function SiteLayout({
     }
   } catch (error) {
     console.error("Failed to load header categories", error);
+    // Ensure we continue rendering with empty categories
+    categories = [];
   }
 
   let websiteJsonLd = {};
