@@ -22,6 +22,9 @@ function isOptimizableUrl(url: string): boolean {
   if (url.includes("localhost") || url.includes("127.0.0.1")) {
     return false;
   }
+  if (url.includes("/stitch_assets/")) {
+    return false;
+  }
   return true;
 }
 
