@@ -1262,11 +1262,10 @@ export async function getLeaderboardDirect(
     // Since we can't create views or columns, we'll try to get data without stats first to at least show users.
     // If stats are critical for sorting, we need a fallback.
     // We'll select *, assuming 'stats' returns undefined, so we avoid error.
-    // We'll select 'id' as well in case 'user_id' is not the column name.
-    // Standard Supabase profiles table usually uses 'id' as the FK to auth.users.
+    // We reverted to 'user_id' as 'id' column does not exist in the profiles table.
     let query = supabase
         .from("profiles")
-        .select("id, username, display_name, profile_pic_url, created_at, is_verified", { count: "exact" });
+        .select("user_id, username, display_name, profile_pic_url, created_at, is_verified", { count: "exact" });
 
     // Since we removed 'stats' from selection, we can't rely on it for sorting unless we fetch related counts.
     // Fetching related counts for ALL users is expensive (N+1).
