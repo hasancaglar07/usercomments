@@ -54,7 +54,7 @@ export default async function SiteLayout({
     const allCategories = await Promise.race([
       getCategories(lang),
       new Promise<Category[]>((_, reject) =>
-        setTimeout(() => reject(new Error('Categories API timeout')), 3000)
+        setTimeout(() => reject(new Error('Categories API timeout')), 15000)
       )
     ]);
 

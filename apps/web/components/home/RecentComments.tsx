@@ -11,7 +11,7 @@ export default async function RecentComments({ lang }: { lang: SupportedLanguage
         const result = await Promise.race([
             getLatestComments(5, lang),
             new Promise<{ items: never[] }>((_, reject) =>
-                setTimeout(() => reject(new Error('Comments API timeout')), 3000)
+                setTimeout(() => reject(new Error('Comments API timeout')), 15000)
             )
         ]);
         comments = result.items || [];

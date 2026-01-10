@@ -271,7 +271,7 @@ export default async function Page(props: HomePageProps) {
           lang,
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Homepage API timeout')), 5000)
+          setTimeout(() => reject(new Error('Homepage API timeout')), 15000)
         )
       ]);
 
@@ -289,7 +289,7 @@ export default async function Page(props: HomePageProps) {
           { photoOnly: true }
         ),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Catalog API timeout')), 5000)
+          setTimeout(() => reject(new Error('Catalog API timeout')), 15000)
         )
       ]);
 
