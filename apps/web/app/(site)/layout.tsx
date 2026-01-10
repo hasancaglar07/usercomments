@@ -16,6 +16,8 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 const SITE_NAME = "UserReview";
 
+export const runtime = 'edge';
+
 export const viewport: Viewport = {
   themeColor: "#137fec",
 };
