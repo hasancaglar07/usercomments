@@ -7,7 +7,7 @@ import Header from "../../components/layout/Header";
 import Footer from "../../components/layout/Footer";
 import { Providers } from "../../components/Providers";
 import { isRtlLanguage, localizePath, normalizeLanguage } from "@/src/lib/i18n";
-import { getCategories } from "@/src/lib/api";
+import { getCategoriesDirect } from "@/src/lib/api-direct";
 import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
 
@@ -52,7 +52,7 @@ export default async function SiteLayout({
   try {
     // Add timeout to prevent hanging on Edge Runtime
     const allCategories = await Promise.race([
-      getCategories(lang),
+      getCategoriesDirect(lang),
       new Promise<Category[]>((_, reject) =>
         setTimeout(() => reject(new Error('Categories API timeout')), 15000)
       )

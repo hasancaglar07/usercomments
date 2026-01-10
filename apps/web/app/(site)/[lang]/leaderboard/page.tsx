@@ -9,7 +9,7 @@ import type {
   LeaderboardTimeframe,
   PaginationInfo,
 } from "@/src/types";
-import { getLeaderboard } from "@/src/lib/api";
+import { getLeaderboardDirect } from "@/src/lib/api-direct";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { buildMetadata } from "@/src/lib/seo";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
@@ -495,7 +495,7 @@ export default async function LeaderboardPage(props: LeaderboardPageProps) {
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
-      const podiumResult = await getLeaderboard(metric, timeframe, 1, PODIUM_SIZE, lang);
+      const podiumResult = await getLeaderboardDirect(metric, timeframe, 1, PODIUM_SIZE, lang);
       const totalItems = podiumResult.pageInfo.totalItems ?? podiumResult.items.length;
       topCount = totalItems > 0 ? Math.min(MAX_RANKS, totalItems) : 0;
       const pagination = buildListPagination(topCount, requestedPage, DEFAULT_PAGE_SIZE);
@@ -509,14 +509,14 @@ export default async function LeaderboardPage(props: LeaderboardPageProps) {
 
       podiumEntries = podiumResult.items.slice(0, PODIUM_SIZE);
       if (pagination.listTotal > 0) {
-        listEntries = await fetchLeaderboardRange(
+        const listResult = await getLeaderboardDirect(
           metric,
           timeframe,
-          lang,
-          pagination.listStartRank,
-          pagination.listEndRank,
-          DEFAULT_PAGE_SIZE
+          pagination.currentPage,
+          DEFAULT_PAGE_SIZE,
+          lang
         );
+        listEntries = listResult.items;
       }
 
       hasApiData = true;

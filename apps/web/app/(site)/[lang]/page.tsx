@@ -5,7 +5,7 @@ import HomepageFeed from "@/components/homepage/HomepageFeed";
 import { SidebarHomepage } from "@/components/layout/Sidebar";
 import type { ReviewCardHomepageData } from "@/components/cards/ReviewCard";
 import type { HomepageTopReviewer } from "@/components/layout/Sidebar";
-import type { Category, Review } from "@/src/types";
+import type { Category, Review, UserProfile } from "@/src/types";
 import { preload } from "react-dom";
 import {
   FALLBACK_AVATARS,
@@ -16,7 +16,7 @@ import {
   getCategoryLabel,
   pickFrom,
 } from "@/src/lib/review-utils";
-import { getCatalogPage, getHomepageData } from "@/src/lib/api";
+import { getCatalogPageDirect, getHomepageDataDirect } from "@/src/lib/api-direct";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
@@ -106,6 +106,7 @@ type HomePageProps = {
   searchParams?: Promise<{
     filter?: string;
     trending?: string;
+    page?: string;
   }>;
 };
 
@@ -257,7 +258,7 @@ export default async function Page(props: HomePageProps) {
     try {
       // Add timeout protection for API calls
       const homepage = await Promise.race([
-        getHomepageData({
+        getHomepageDataDirect({
           latestLimit: HOMEPAGE_LIMIT,
           popularLimit: POPULAR_LIMIT,
           timeWindow:
@@ -280,7 +281,7 @@ export default async function Page(props: HomePageProps) {
       categories = homepage.categories.items;
 
       const feedResult = await Promise.race([
-        getCatalogPage(
+        getCatalogPageDirect(
           feedPage,
           HOMEPAGE_LIMIT,
           feedTab === "popular" ? "popular" : "latest",
@@ -309,7 +310,7 @@ export default async function Page(props: HomePageProps) {
       const apiTopReviewers = homepage.topReviewers.items;
 
       const realTopReviewers: HomepageTopReviewer[] = apiTopReviewers.map(
-        (profile, index) => ({
+        (profile: UserProfile, index: number) => ({
           profile: {
             username: profile.username,
             displayName: profile.displayName ?? profile.username,

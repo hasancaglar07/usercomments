@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import Image from "next/image";
 import RecentComments from "@/components/home/RecentComments";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import PopularReviewsWidget from "@/components/layout/PopularReviewsWidget";
@@ -53,11 +54,15 @@ export function SidebarHomepage({
               )}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full bg-cover bg-center shrink-0"
-                  data-alt={reviewer.avatarAlt}
-                  style={{ backgroundImage: `url(${reviewer.avatarUrl})` }}
-                />
+                <div className="relative w-10 h-10 shrink-0">
+                  <Image
+                    src={reviewer.avatarUrl || "/stitch_assets/images/img-038.png"}
+                    alt={reviewer.avatarAlt}
+                    fill
+                    sizes="40px"
+                    className="rounded-full object-cover"
+                  />
+                </div>
                 <div>
                   <p className="text-sm font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
                     {reviewer.profile.displayName ?? reviewer.profile.username}

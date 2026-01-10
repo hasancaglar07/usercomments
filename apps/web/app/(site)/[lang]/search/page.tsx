@@ -4,7 +4,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import type { ReviewCardCatalogData } from "@/components/cards/ReviewCard";
 import type { Metadata } from "next";
 import type { Category, PaginationInfo, Review } from "@/src/types";
-import { getCategories, searchReviews } from "@/src/lib/api";
+import { getCategoriesDirect, searchReviewsDirect } from "@/src/lib/api-direct";
 import { Suspense } from "react";
 import {
   FALLBACK_AVATARS,
@@ -80,8 +80,8 @@ export default async function Page(props: SearchPageProps) {
   if (query && apiConfigured) {
     try {
       const [result, categoryItems] = await Promise.all([
-        searchReviews(query, page, pageSize, categoryId, lang),
-        getCategories(lang),
+        searchReviewsDirect(query, page, pageSize, categoryId, lang),
+        getCategoriesDirect(lang),
       ]);
       results = result.items;
       pagination = result.pageInfo;

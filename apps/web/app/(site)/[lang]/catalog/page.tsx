@@ -23,11 +23,11 @@ import {
   pickFrom,
 } from "@/src/lib/review-utils";
 import {
-  getCatalogPage,
-  getCategories,
-  getPopularReviews,
-  getUserProfile,
-} from "@/src/lib/api";
+  getCatalogPageDirect,
+  getCategoriesDirect,
+  getPopularReviewsDirect,
+  getUserProfileDirect,
+} from "@/src/lib/api-direct";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
@@ -69,7 +69,7 @@ export async function generateMetadata(
 
   if (categoryId && process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
-      const categories = await getCategories(lang);
+      const categories = await getCategoriesDirect(lang);
       categoryLabel = getCategoryLabel(categories, categoryId);
     } catch {
       categoryLabel = undefined;
@@ -295,9 +295,9 @@ export default async function Page(props: CatalogPageProps) {
   if (apiConfigured) {
     try {
       const [catalogResult, popularReviews, categoryItems] = await Promise.all([
-        getCatalogPage(page, pageSize, apiSort, categoryId, lang),
-        getPopularReviews(POPULAR_LIMIT, lang),
-        getCategories(lang),
+        getCatalogPageDirect(page, pageSize, apiSort, categoryId, lang),
+        getPopularReviewsDirect(POPULAR_LIMIT, undefined, lang),
+        getCategoriesDirect(lang),
       ]);
 
       categories = categoryItems;
@@ -311,7 +311,7 @@ export default async function Page(props: CatalogPageProps) {
         )
       ).slice(0, 3);
       const profileResults = await Promise.allSettled(
-        topAuthorUsernames.map((username) => getUserProfile(username))
+        topAuthorUsernames.map((username) => getUserProfileDirect(username))
       );
       const topAuthorProfiles = profileResults
         .map((result) => (result.status === "fulfilled" ? result.value : null))

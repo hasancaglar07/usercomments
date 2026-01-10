@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import {
   RatingStarsCatalog,
@@ -349,12 +350,17 @@ export function ReviewCardCatalog({
         <div className="sm:w-48 sm:shrink-0 mb-4 sm:mb-0">
           <Link href={href} prefetch={false} className="block w-full active-press">
             <div
-              className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 rounded-lg bg-cover bg-center relative overflow-hidden group"
-              data-alt={imageAlt}
-              style={{ backgroundImage: `url(${optimizedImageUrl})` }}
+              className="aspect-video sm:aspect-[4/3] w-full bg-slate-100 rounded-lg relative overflow-hidden group"
             >
+              <Image
+                src={optimizedImageUrl}
+                alt={imageAlt}
+                fill
+                sizes="(max-width: 640px) 100vw, 192px"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
               {showImageOverlay ? (
-                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
               ) : null}
             </div>
           </Link>
@@ -460,20 +466,30 @@ export function ReviewCardCategory({
       <div className="w-full md:w-48 shrink-0">
         <Link href={href} prefetch={false} className="block w-full active-press">
           <div
-            className="aspect-[4/3] md:aspect-square w-full rounded-lg bg-cover bg-center border border-[#e7edf3]"
-            data-alt={imageAlt}
-            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
-          />
+            className="aspect-[4/3] md:aspect-square w-full rounded-lg border border-[#e7edf3] relative overflow-hidden"
+          >
+            <Image
+              src={optimizedImageUrl}
+              alt={imageAlt}
+              fill
+              sizes="(max-width: 768px) 100vw, 192px"
+              className="object-cover"
+            />
+          </div>
         </Link>
       </div>
       <div className="flex flex-col flex-1 gap-2">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-2">
-            <div
-              className="size-6 rounded-full bg-gray-200 bg-cover bg-center"
-              data-alt={avatarAlt}
-              style={{ backgroundImage: `url(${optimizedAvatarUrl})` }}
-            />
+            <div className="relative size-6 shrink-0">
+              <Image
+                src={optimizedAvatarUrl}
+                alt={avatarAlt}
+                fill
+                sizes="24px"
+                className="rounded-full object-cover"
+              />
+            </div>
             <span className="text-xs font-semibold text-[#4c739a]">
               {authorName}
             </span>
@@ -584,12 +600,12 @@ export function ReviewCardProfile({
           type="button"
           data-review-report
           onClick={() =>
-          onReport?.({
-            kind: "review",
-            reviewId: review.id,
-            reviewSlug: review.slug,
-            reviewTitle: review.title,
-          })
+            onReport?.({
+              kind: "review",
+              reviewId: review.id,
+              reviewSlug: review.slug,
+              reviewTitle: review.title,
+            })
           }
         >
           <span className="material-symbols-outlined text-[20px]">
@@ -600,10 +616,16 @@ export function ReviewCardProfile({
       <div className="flex gap-4 sm:gap-6 flex-col sm:flex-row">
         <Link href={href} prefetch={false} className="block w-full sm:w-32 shrink-0 active-press">
           <div
-            className="w-full h-48 sm:h-32 rounded-lg bg-cover bg-center border border-border-light dark:border-border-dark"
-            data-alt={imageAlt}
-            style={{ backgroundImage: `url(${optimizedImageUrl})` }}
-          />
+            className="w-full h-48 sm:h-32 rounded-lg border border-border-light dark:border-border-dark relative overflow-hidden"
+          >
+            <Image
+              src={optimizedImageUrl}
+              alt={imageAlt}
+              fill
+              sizes="(max-width: 640px) 100vw, 128px"
+              className="object-cover"
+            />
+          </div>
         </Link>
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-1">

@@ -5,7 +5,7 @@ import ProductFilters from "@/components/catalog/ProductFilters";
 import { PaginationCatalog } from "@/components/ui/Pagination";
 import EmptyState from "@/components/ui/EmptyState";
 import type { Category } from "@/src/types";
-import { getCategories, getProducts } from "@/src/lib/api";
+import { getCategoriesDirect, getProductsDirect } from "@/src/lib/api-direct";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { getCategoryLabel } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
@@ -71,7 +71,7 @@ export async function generateMetadata(
 
   if (categoryId && process.env.NEXT_PUBLIC_API_BASE_URL) {
     try {
-      const categories = await getCategories(lang);
+      const categories = await getCategoriesDirect(lang);
       categoryLabel = getCategoryLabel(categories, categoryId);
     } catch {
       categoryLabel = undefined;
@@ -120,8 +120,8 @@ export default async function Page(props: ProductsPageProps) {
   const categoryId = parseOptionalNumber(searchParams?.categoryId);
 
   const [categories, productsResult] = await Promise.all([
-    getCategories(lang),
-    getProducts(page, pageSize, sort, categoryId, lang),
+    getCategoriesDirect(lang),
+    getProductsDirect(page, pageSize, sort, categoryId, lang),
   ]);
 
   const categoryMap = new Map<number, Category>();
@@ -129,7 +129,7 @@ export default async function Page(props: ProductsPageProps) {
   const popularProducts =
     sort === "popular" && page === 1
       ? productsResult.items.slice(0, POPULAR_PRODUCTS_LIMIT)
-      : (await getProducts(1, POPULAR_PRODUCTS_LIMIT, "popular", categoryId, lang).catch(
+      : (await getProductsDirect(1, POPULAR_PRODUCTS_LIMIT, "popular", categoryId, lang).catch(
         () => null
       ))?.items ?? [];
 
