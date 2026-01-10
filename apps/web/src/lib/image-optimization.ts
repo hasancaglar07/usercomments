@@ -43,17 +43,7 @@ export function getOptimizedImageUrl(
   if (!url) {
     return "";
   }
-  if (url.includes("/profile_icon/")) {
-    if (url.startsWith("/")) {
-      return url;
-    }
-    try {
-      const parsed = new URL(url);
-      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    } catch {
-      return url;
-    }
-  }
+
 
   let targetUrl = url;
   if (url.startsWith("/")) {

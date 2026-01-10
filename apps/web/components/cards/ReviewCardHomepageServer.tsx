@@ -35,7 +35,7 @@ export default function ReviewCardHomepageServer({
 
   return (
     <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
-      <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
+      <div className="w-full sm:w-64 h-56 sm:aspect-[4/3] flex-shrink-0 relative overflow-hidden">
         <Link href={href} prefetch={false} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
