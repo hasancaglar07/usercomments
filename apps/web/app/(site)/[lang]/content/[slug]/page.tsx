@@ -7,12 +7,12 @@ import ReviewDetailClient, {
 import type { Metadata } from "next";
 import type { Review, Comment, Category, Product } from "@/src/types";
 import {
-  getReviewBySlug,
   getReviewComments,
   getCategories,
   getCategoryPage,
   getProductBySlug,
 } from "@/src/lib/api";
+import { getReviewBySlugDirect } from "@/src/lib/api-direct";
 import TableOfContents from "@/components/content/TableOfContents";
 import {
   DEFAULT_AVATAR,
@@ -64,7 +64,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
-  const review = await getReviewBySlug(params.slug, lang).catch(() => null);
+  const review = await getReviewBySlugDirect(params.slug, lang).catch(() => null);
   if (!review) {
     return buildMetadata({
       title: t(lang, "reviewDetail.meta.notFoundTitle"),
@@ -262,7 +262,7 @@ export default async function Page(props: PageProps) {
   let relatedReviews: Review[] = [];
 
   try {
-    review = await getReviewBySlug(params.slug, lang);
+    review = await getReviewBySlugDirect(params.slug, lang);
     if (review?.translationLang && review.translationLang !== lang) {
       const fallbackSlug =
         review.translations?.find((translation) => translation.lang === DEFAULT_LANGUAGE)
