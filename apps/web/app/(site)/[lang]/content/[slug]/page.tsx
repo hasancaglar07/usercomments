@@ -45,6 +45,7 @@ import {
 } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
 export const revalidate = 120;
 
 const RELATED_FETCH_LIMIT = 6;

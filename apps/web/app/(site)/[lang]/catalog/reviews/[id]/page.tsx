@@ -40,6 +40,7 @@ import {
 import { categoryTopAuthors } from "@/data/mock/users";
 import { categoryPopularTags } from "@/data/mock/categories";
 
+export const runtime = 'edge';
 export const revalidate = 60;
 
 const DEFAULT_PAGE_SIZE = 10;

@@ -22,6 +22,7 @@ import { homepagePopularCategories } from "@/data/mock/categories";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
 export const revalidate = 30;
 
 

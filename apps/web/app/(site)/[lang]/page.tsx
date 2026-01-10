@@ -26,6 +26,7 @@ import { homepageTopReviewers } from "@/data/mock/users";
 import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
 export const revalidate = 60;
 
 const HOMEPAGE_LIMIT = 9;
@@ -312,10 +313,10 @@ export default async function Page(props: HomePageProps) {
         realTopReviewers.length > 0
           ? realTopReviewers
           : buildTopReviewers(
-              popularReviews,
-              allowMockFallback ? homepageTopReviewers : [],
-              lang
-            );
+            popularReviews,
+            allowMockFallback ? homepageTopReviewers : [],
+            lang
+          );
       popularCategories = categories.slice(0, 7);
 
       // Determine what to show in the Trending section based on the selected tab
@@ -360,12 +361,12 @@ export default async function Page(props: HomePageProps) {
   };
   const loadMoreHref = hasMore
     ? buildHomepageHref({
-        lang,
-        trending: trendingTab,
-        filter: feedTab,
-        page: feedPage + 1,
-        includeTrendingParam,
-      })
+      lang,
+      trending: trendingTab,
+      filter: feedTab,
+      page: feedPage + 1,
+      includeTrendingParam,
+    })
     : null;
   const heroPreloadUrls = new Set(
     trendingCards

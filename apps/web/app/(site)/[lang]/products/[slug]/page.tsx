@@ -43,6 +43,7 @@ import {
 } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
 export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -178,7 +179,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   // Fallback: If no official product image, try to find a review image
   if (!ogImage && reviewCount > 0) {
     try {
-      const reviews = await getProductReviews(product.id, 1, 5, "popular", resolvedLang);
+      const reviews = await getProductReviews(product.id, 1, 5, "popular", resolvedLang as SupportedLanguage);
       const reviewWithImage = reviews.items.find(
         (r) => r.photoUrls && r.photoUrls.length > 0
       );

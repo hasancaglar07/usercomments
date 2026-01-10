@@ -3,6 +3,8 @@ import RegisterForm from "@/components/auth/RegisterForm";
 import { normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
+
 export const metadata: Metadata = {
   robots: {
     index: false,

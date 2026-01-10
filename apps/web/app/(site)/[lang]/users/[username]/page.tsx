@@ -39,6 +39,7 @@ import {
   type SupportedLanguage,
 } from "@/src/lib/i18n";
 
+export const runtime = 'edge';
 export const revalidate = 120;
 
 const DEFAULT_PAGE_SIZE = 10;

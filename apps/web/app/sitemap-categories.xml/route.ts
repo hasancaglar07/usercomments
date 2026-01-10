@@ -2,6 +2,7 @@ import { getSiteUrl } from "@/src/lib/seo";
 import { DEFAULT_LANGUAGE, localizePath } from "@/src/lib/i18n";
 import { SITEMAP_CACHE_SECONDS } from "@/src/lib/sitemap";
 
+export const runtime = 'edge';
 export const dynamic = "force-dynamic";
 export const revalidate = 1800;
 

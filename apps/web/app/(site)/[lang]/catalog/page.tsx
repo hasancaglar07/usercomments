@@ -39,6 +39,7 @@ import {
 } from "@/data/mock/reviews";
 import { catalogTopAuthors } from "@/data/mock/users";
 
+export const runtime = 'edge';
 export const revalidate = 60;
 
 const DEFAULT_PAGE_SIZE = 10;

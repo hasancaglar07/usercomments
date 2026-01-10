@@ -12,6 +12,7 @@ import { formatNumber, getCategoryLabel } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
+export const runtime = 'edge';
 export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 12;
@@ -135,8 +136,8 @@ export default async function Page(props: PageProps) {
     sort === "popular" && page === 1
       ? productsResult.items.slice(0, POPULAR_PRODUCTS_LIMIT)
       : (await getProducts(1, POPULAR_PRODUCTS_LIMIT, "popular", categoryId, lang).catch(
-          () => null
-        ))?.items ?? [];
+        () => null
+      ))?.items ?? [];
 
   const categoryLabel = getCategoryLabel(categories, categoryId);
   if (!categoryLabel && categories.length > 0) {

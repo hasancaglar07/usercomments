@@ -3,6 +3,7 @@ import { buildLanguageSitemapXml, buildUrlset, SITEMAP_CACHE_SECONDS, SITEMAP_PA
 import { isSupportedLanguage, localizePath, type SupportedLanguage } from "@/src/lib/i18n";
 import { getSiteUrl } from "@/src/lib/seo";
 
+export const runtime = 'edge';
 export const dynamic = "force-dynamic";
 export const revalidate = 1800;
 

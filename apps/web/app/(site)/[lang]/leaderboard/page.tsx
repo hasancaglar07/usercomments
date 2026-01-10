@@ -17,6 +17,7 @@ import { t } from "@/src/lib/copy";
 import { DEFAULT_AVATAR, formatCompactNumber } from "@/src/lib/review-utils";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
+export const runtime = 'edge';
 export const revalidate = 120;
 
 const DEFAULT_METRIC: LeaderboardMetric = "active";
@@ -695,7 +696,7 @@ export default async function LeaderboardPage(props: LeaderboardPageProps) {
               </div>
             </section>
 
-            {pageInfo.totalItems > 0 ? (
+            {((pageInfo.totalItems ?? 0) > 0) ? (
               <section className="mt-12">
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
                   <div>
