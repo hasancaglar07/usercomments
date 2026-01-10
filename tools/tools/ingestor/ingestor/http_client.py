@@ -5,7 +5,7 @@ import threading
 from typing import Optional
 from urllib.parse import urlparse
 
-import cloudscraper
+from curl_cffi import requests as cffi_requests
 import requests
 
 from .utils.backoff import backoff_delay, sleep_with_backoff
@@ -40,29 +40,34 @@ class HttpClient:
         self._lock = threading.Lock()
         self._proxy = proxy  # Store proxy for selective use
         
-        # Create session WITHOUT proxy by default
-        self.session = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True
-            }
-        )
-        if user_agent:
-            self.session.headers.update({"User-Agent": user_agent})
+        # Create session with curl_cffi (mimics Chrome TLS)
+        # We use a persistent session to maintain cookies/handshakes
+        self.session = cffi_requests.Session(impersonate="chrome120")
+        self._warmup()
         
         if proxy:
             self.logger.info("Selective proxy configured: %s (only for: %s)", proxy, ", ".join(PROXY_DOMAINS))
 
-    USER_AGENTS = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    ]
+    def _warmup(self):
+        """Warm up the session by visiting the homepage. 
+        This establishes the necessary TLS session tickets and initial cookies (ssu, etc.)
+        that are often required for deep links to work."""
+        try:
+            # We only warm up irecommend for now as it's the strict one
+            self.session.get(
+                "https://irecommend.ru/", 
+                timeout=15, 
+                proxies={"http": self._proxy, "https": self._proxy} if self._proxy else None,
+                headers={
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                    "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+                }
+            )
+        except Exception:
+            pass # Warmup failure shouldn't block, next request will try
+
+    # Removed USER_AGENTS list to rely on cloudscraper's consistent native headers
+
 
     def _retry_delay(self, attempt: int, response: Optional[requests.Response] = None) -> float:
         if response is not None:
@@ -75,7 +80,7 @@ class HttpClient:
         # Even more aggressive backoff for Cloudflare 521/403
         return backoff_delay(attempt, base=10.0, max_delay=120.0)
 
-    def get(self, url: str, allow_redirects: bool = True) -> requests.Response:
+    def get(self, url: str, allow_redirects: bool = True) -> cffi_requests.Response:
         last_exc: Optional[Exception] = None
         
         # Selective proxy: only use proxy for specific domains
@@ -83,30 +88,23 @@ class HttpClient:
         
         for attempt in range(self.max_retries + 1):
             try:
-                # Rotate User-Agent from a very modern list
-                ua = random.choice(self.USER_AGENTS)
                 with self._lock:
-                    self.session.headers.update({
-                        "User-Agent": ua,
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                        "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-                        "Sec-Fetch-Dest": "document",
-                        "Sec-Fetch-Mode": "navigate",
-                        "Sec-Fetch-Site": "none",
-                        "Sec-Fetch-User": "?1",
-                        "Upgrade-Insecure-Requests": "1"
-                    })
-                    
                     # Apply proxy only for specific domains
+                    proxies = None
                     if use_proxy:
-                        self.session.proxies = {"http": self._proxy, "https": self._proxy}
-                    else:
-                        self.session.proxies = {}
+                        proxies = {"http": self._proxy, "https": self._proxy}
                     
+                    # Ensure Referer is set for deep links (basic heuristic)
+                    headers = {}
+                    if "irecommend.ru" in url and url != "https://irecommend.ru/":
+                         headers["Referer"] = "https://irecommend.ru/"
+
                     response = self.session.get(
                         url,
                         timeout=self.timeout_seconds,
                         allow_redirects=allow_redirects,
+                        proxies=proxies,
+                        headers=headers
                     )
             except Exception as exc:
                 last_exc = exc
@@ -142,13 +140,9 @@ class HttpClient:
                 
                 with self._lock:
                     # Create completely new session = rotating proxy gives new IP
-                    self.session = cloudscraper.create_scraper(
-                        browser={
-                            'browser': 'chrome',
-                            'platform': 'windows',
-                            'desktop': True
-                        }
-                    )
+                    # Reset to chrome120 to match intended fingerprint
+                    self.session = cffi_requests.Session(impersonate="chrome120")
+                    self._warmup()
                 
                 # Short delay before retry with new IP
                 time.sleep(random.uniform(2, 4))

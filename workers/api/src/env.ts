@@ -27,6 +27,7 @@ export type Env = {
   CACHE_TTL_USER_REVIEWS_SEC?: string;
   CACHE_TTL_SEARCH_SEC?: string;
   CACHE_TTL_SITEMAP_SEC?: string;
+  CACHE_WARMUP_ORIGIN?: string;
   CACHE_PURGE_SECRET?: string;
 };
 
@@ -57,6 +58,7 @@ export type ParsedEnv = {
   CACHE_TTL_USER_REVIEWS_SEC: number;
   CACHE_TTL_SEARCH_SEC: number;
   CACHE_TTL_SITEMAP_SEC: number;
+  CACHE_WARMUP_ORIGIN?: string;
   CACHE_PURGE_SECRET?: string;
 };
 
@@ -87,6 +89,7 @@ const envSchema = z.object({
   CACHE_TTL_USER_REVIEWS_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_SEARCH_SEC: z.coerce.number().int().positive().default(30),
   CACHE_TTL_SITEMAP_SEC: z.coerce.number().int().positive().default(1800),
+  CACHE_WARMUP_ORIGIN: z.string().url().optional(),
   CACHE_PURGE_SECRET: z.string().min(1).optional(),
 });
 

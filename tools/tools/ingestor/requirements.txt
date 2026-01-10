@@ -10,3 +10,4 @@ groq
 supabase
 boto3
 pydantic
+rich

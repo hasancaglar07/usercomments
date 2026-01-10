@@ -194,6 +194,7 @@ If no new rule is detected → do not update the file.
 \- Admin UI: Ferah, geniş ve rahat kullanılan ekranlar tasarla; arama ve bulma akışları sayfalara sıkışmamalı.
 \- Product direction: En profesyonel ve üretim kalitesinde çözümü tercih et, çünkü kullanıcı bunu talep ediyor.
 \- Localization: Çeviriler hedef dilde yerli/native gibi okunmalı; çeviri kokusu vermemeli, çünkü kullanıcı gerçekçi ve doğal içerik bekliyor.
+\- Workflow: Mümkünse kurulumu ve aksiyonları asistan yapsın; kullanıcıdan manuel adım isteme çünkü kullanıcı bunu istemiyor.
 
 \### Dislikes
 

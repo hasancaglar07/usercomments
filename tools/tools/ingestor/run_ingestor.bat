@@ -24,7 +24,7 @@ if not exist ".env" (
 :: Host: rotating.livaproxy.com, Port: 1080
 :: IMPORTANT: Using CONTENT_PROXY instead of HTTP_PROXY to avoid affecting all SDK requests
 :: Only irecommend.ru and CDN will use proxy, Groq/Supabase/R2 will connect directly (saves ~7MB per review!)
-set CONTENT_PROXY=http://uyDM6Wxe-country-mix-city-mix-residential:YVmInyco@rotating.livaproxy.com:1080
+set CONTENT_PROXY=http://uyDM6Wxe-country-ru-city-other-residential:YVmInyco@rotating.livaproxy.com:1080
 
 :: Clear system proxy to ensure SDKs connect directly
 set HTTP_PROXY=

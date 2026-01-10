@@ -58,11 +58,13 @@ These fall back to defaults if unset:
 - `CACHE_TTL_USER_REVIEWS_SEC` (default: 90)
 - `CACHE_TTL_SEARCH_SEC` (default: 30)
 - `CACHE_TTL_SITEMAP_SEC` (default: 1800)
+- `CACHE_WARMUP_ORIGIN` (optional; Worker public base URL used by scheduled cache warmup)
 
 ### Scheduled jobs (cron)
 - The leaderboard refresh uses a scheduled Worker trigger to call `refresh_leaderboard_user_stats`.
 - Ensure `SUPABASE_SERVICE_ROLE_KEY` is set so the refresh can run.
 - Configure the cron in `workers/api/wrangler.toml` under `[triggers]`.
+- Cache warmup runs on the same cron when `CACHE_WARMUP_ORIGIN` is configured.
 
 ### Rate limiting note
 - The Worker uses an in-memory token bucket per instance. This limits abuse but is not globally consistent across the edge.

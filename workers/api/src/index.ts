@@ -860,6 +860,7 @@ function buildSitemapIndex(urls: string[]): string {
 const POPULAR_LIMITS = [3, 4, 6];
 const LATEST_LIMITS = [3];
 const HOMEPAGE_TIME_WINDOWS = ["6h", "24h", "week"] as const;
+const WARMUP_REVIEW_SORTS = ["latest", "popular"] as const;
 const PRODUCT_SORTS = ["latest", "popular", "rating"] as const;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE_CACHE = 10;
@@ -1093,6 +1094,64 @@ function buildReviewCacheUrls(options: {
   return urls;
 }
 
+function buildWarmupUrls(origin: string): string[] {
+  const urls = new Set<string>();
+
+  SUPPORTED_LANGUAGES.forEach((lang) => {
+    const homepageParams = new URLSearchParams({
+      latestLimit: String(HOMEPAGE_DEFAULT_LIMIT),
+      popularLimit: String(HOMEPAGE_DEFAULT_LIMIT),
+      lang,
+    });
+    urls.add(buildApiUrl(origin, "/api/homepage", homepageParams));
+    HOMEPAGE_TIME_WINDOWS.forEach((timeWindow) => {
+      const params = new URLSearchParams(homepageParams);
+      params.set("timeWindow", timeWindow);
+      urls.add(buildApiUrl(origin, "/api/homepage", params));
+    });
+
+    urls.add(buildApiUrl(origin, "/api/categories", new URLSearchParams({ lang })));
+
+    POPULAR_LIMITS.forEach((limit) => {
+      urls.add(
+        buildApiUrl(
+          origin,
+          "/api/reviews/popular",
+          new URLSearchParams({ limit: String(limit), lang })
+        )
+      );
+    });
+
+    LATEST_LIMITS.forEach((limit) => {
+      urls.add(
+        buildApiUrl(
+          origin,
+          "/api/reviews/latest",
+          new URLSearchParams({ limit: String(limit), lang })
+        )
+      );
+    });
+
+    WARMUP_REVIEW_SORTS.forEach((sort) => {
+      urls.add(
+        buildApiUrl(
+          origin,
+          "/api/reviews",
+          new URLSearchParams({
+            page: String(DEFAULT_PAGE),
+            pageSize: String(HOMEPAGE_DEFAULT_LIMIT),
+            sort,
+            lang,
+            photoOnly: "true",
+          })
+        )
+      );
+    });
+  });
+
+  return Array.from(urls);
+}
+
 function buildCategoryCacheUrls(origin: string, parentId?: number | null): string[] {
   const urls: string[] = [];
   SUPPORTED_LANGUAGES.forEach((lang) => {
@@ -1209,6 +1268,32 @@ function queueCachePurge(ctx: ExecutionContext, urls: string[]) {
     return;
   }
   ctx.waitUntil(purgeCacheUrls(urls));
+}
+
+async function warmupCache(env: ParsedEnv): Promise<void> {
+  const origin = env.CACHE_WARMUP_ORIGIN?.replace(/\/$/, "");
+  if (!origin) {
+    console.warn("Cache warmup skipped: CACHE_WARMUP_ORIGIN is not set");
+    return;
+  }
+
+  const urls = buildWarmupUrls(origin);
+  const results = await Promise.allSettled(
+    urls.map(async (url) => {
+      const response = await fetch(url);
+      response.body?.cancel();
+      return response.status;
+    })
+  );
+  const failures = results.filter((result) => result.status === "rejected").length;
+  if (failures > 0) {
+    console.warn("Cache warmup completed with failures", {
+      total: results.length,
+      failures,
+    });
+  } else {
+    console.info("Cache warmup completed", { total: results.length });
+  }
 }
 
 async function handleHealth(): Promise<Response> {
@@ -3198,5 +3283,6 @@ export default {
   async scheduled(_: ScheduledController, env: Env, ctx: ExecutionContext) {
     const parsedEnv = getEnv(env);
     ctx.waitUntil(refreshLeaderboardStats(parsedEnv));
+    ctx.waitUntil(warmupCache(parsedEnv));
   },
 };
