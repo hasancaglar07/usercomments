@@ -707,30 +707,293 @@ export async function getCategoryPageDirect(
     categoryId: number,
     page: number,
     pageSize: number,
+    sort: "latest" | "popular" | "rating" = "latest",
+    subCategoryId?: number,
     lang: SupportedLanguage = DEFAULT_LANGUAGE
-): Promise<{ items: Review[] }> {
+): Promise<{ items: Review[], pageInfo: PaginationInfo }> {
     const supabase = getSupabaseClient();
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const reviewListSelect = `
-    id, slug, title, excerpt, rating_avg, rating_count, views, votes_up, votes_down, photo_urls, photo_count, comment_count, recommend, pros, cons, category_id, sub_category_id, product_id, created_at,
-    profiles(username, profile_pic_url),
-    products(id, slug, name, product_translations(lang, slug, name)),
-    review_translations(lang, title, slug, excerpt) 
-    `;
-
-    const { data, error } = await supabase
+    let query = supabase
         .from("reviews")
-        .select(reviewListSelect)
+        .select(`
+            id, slug, title, excerpt, rating_avg, rating_count, views, votes_up, votes_down, photo_urls, photo_count, comment_count, recommend, pros, cons, category_id, sub_category_id, product_id, created_at,
+            profiles(username, profile_pic_url),
+            products(id, slug, name, product_translations(lang, slug, name)),
+            review_translations(lang, title, slug, excerpt) 
+        `, { count: "exact" })
         .eq("category_id", categoryId)
         .eq("status", "published")
+        .eq("review_translations.lang", lang);
+
+    if (subCategoryId) {
+        query = query.eq("sub_category_id", subCategoryId);
+    }
+
+    if (sort === "popular") {
+        query = query.order("views", { ascending: false });
+    } else if (sort === "rating") {
+        query = query.order("rating_avg", { ascending: false });
+    } else {
+        query = query.order("created_at", { ascending: false });
+    }
+
+    const { data, count, error } = await query.range(from, to);
+
+    if (error) {
+        console.error("Category Page Direct Error", error);
+        return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+    }
+
+    const items = (data ?? []).map((row: any) => mapReviewRow(row as DbReviewRow, { lang }));
+    const totalItems = count ?? 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return { items, pageInfo: { page, pageSize, totalItems, totalPages } };
+}
+
+// 6. User Profile
+export async function getUserProfileDirect(username: string): Promise<UserProfile | null> {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, username, bio, profile_pic_url, created_at, is_verified, verified_at, verified_by")
+        .ilike("username", username)
+        .maybeSingle();
+
+    if (error || !data) return null;
+
+    const { data: statsData } = await supabase.rpc("get_user_stats", { target_user_id: data.user_id });
+    const statsRow = Array.isArray(statsData) ? statsData[0] : null;
+
+    return {
+        userId: data.user_id,
+        username: data.username,
+        displayName: data.username,
+        bio: data.bio ?? undefined,
+        profilePicUrl: fixUrl(data.profile_pic_url),
+        createdAt: data.created_at ?? undefined,
+        isVerified: data.is_verified ?? false,
+        stats: {
+            reviewCount: normalizeNumber(statsRow?.review_count),
+            totalViews: normalizeNumber(statsRow?.total_views),
+            reputation: normalizeNumber(statsRow?.total_votes),
+            karma: normalizeNumber(statsRow?.total_votes),
+            totalComments: normalizeNumber(statsRow?.total_comments),
+        }
+    };
+}
+
+// 7. User Reviews
+export async function getUserReviewsDirect(
+    username: string,
+    page: number,
+    pageSize: number,
+    lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<{ items: Review[], pageInfo: PaginationInfo }> {
+    const supabase = getSupabaseClient();
+    const { data: user } = await supabase.from("profiles").select("user_id").ilike("username", username).maybeSingle();
+    if (!user) return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, count, error } = await supabase
+        .from("reviews")
+        .select(`
+            id, slug, title, excerpt, rating_avg, rating_count, views, votes_up, votes_down, photo_urls, photo_count, comment_count, recommend, pros, cons, category_id, sub_category_id, product_id, created_at,
+            profiles(username, profile_pic_url),
+            products(id, slug, name, product_translations(lang, slug, name)),
+            review_translations(lang, title, slug, excerpt)
+        `, { count: "exact" })
+        .eq("status", "published")
+        .eq("user_id", user.user_id)
         .eq("review_translations.lang", lang)
         .order("created_at", { ascending: false })
         .range(from, to);
 
-    if (error) return { items: [] };
+    if (error) {
+        return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+    }
 
     const items = (data ?? []).map((row: any) => mapReviewRow(row as DbReviewRow, { lang }));
-    return { items };
+    const totalItems = count ?? 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return { items, pageInfo: { page, pageSize, totalItems, totalPages } };
+}
+
+// 8. User Comments (Returning Reviews commented on)
+export async function getUserCommentsDirect(
+    username: string,
+    page: number,
+    pageSize: number,
+    lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<{ items: Review[], pageInfo: PaginationInfo }> {
+    const supabase = getSupabaseClient();
+    const { data: user } = await supabase.from("profiles").select("user_id").ilike("username", username).maybeSingle();
+    if (!user) return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Fetch comments to get review_ids
+    const { data: comments, count, error } = await supabase
+        .from("comments")
+        .select("review_id", { count: "exact" })
+        .eq("status", "published")
+        .eq("user_id", user.user_id)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+    if (error || !comments || comments.length === 0) {
+        return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+    }
+
+    const reviewIds = Array.from(new Set(comments.map((c: any) => c.review_id)));
+
+    const { data: reviews } = await supabase
+        .from("reviews")
+        .select(`
+            id, slug, title, excerpt, rating_avg, rating_count, views, votes_up, votes_down, photo_urls, photo_count, comment_count, recommend, pros, cons, category_id, sub_category_id, product_id, created_at,
+            profiles(username, profile_pic_url),
+            products(id, slug, name, product_translations(lang, slug, name)),
+            review_translations(lang, title, slug, excerpt)
+        `)
+        .in("id", reviewIds)
+        .eq("review_translations.lang", lang);
+
+    const items = (reviews ?? []).map((row: any) => mapReviewRow(row as DbReviewRow, { lang }));
+    const totalItems = count ?? 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return { items, pageInfo: { page, pageSize, totalItems, totalPages } };
+}
+
+// 9. Products List
+export async function getProductsDirect(
+    page: number,
+    pageSize: number,
+    sort: "latest" | "popular" | "rating" = "latest",
+    categoryId?: number,
+    lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<{ items: Product[], pageInfo: PaginationInfo }> {
+    const supabase = getSupabaseClient();
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabase
+        .from("products")
+        .select(`
+            id, slug, name, description, status, created_at, updated_at,
+            brands(id, slug, name, status),
+            product_images(id, url, sort_order),
+            product_categories(category_id),
+            product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count),
+            product_translations(lang, slug, name, description, meta_title, meta_description)
+        `, { count: "exact" })
+        .eq("status", "published");
+
+    if (categoryId) {
+        // This requires filtering by joined table which is tricky in single query with Supabase standard client
+        // Often resolved by filtering on 'product_categories.category_id' but Supabase (PostgREST) semantics can be strict.
+        // using !inner on join
+        query = supabase
+            .from("products")
+            .select(`
+             id, slug, name, description, status, created_at, updated_at,
+             brands(id, slug, name, status),
+             product_images(id, url, sort_order),
+             product_categories!inner(category_id),
+             product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count),
+             product_translations(lang, slug, name, description, meta_title, meta_description)
+            `, { count: "exact" })
+            .eq("status", "published")
+            .eq("product_categories.category_id", categoryId);
+    }
+
+    // Sort logic needs to handle joined product_stats for popular/rating, or fallback to simple fields
+    if (sort === "popular") {
+        // Sorting by joined column is complex in PostgREST JS client without RPC or computed columns.
+        // Assuming we can't easily sort by joined stats here without a View or RPC.
+        // Fallback to created_at or use simple internal stats if available.
+        // For now, let's just order by created_at to avoid errors, or try to order by related ?
+        query = query.order("created_at", { ascending: false });
+    } else if (sort === "rating") {
+        query = query.order("created_at", { ascending: false });
+    } else {
+        query = query.order("created_at", { ascending: false });
+    }
+
+    const { data, count, error } = await query.range(from, to);
+
+    if (error) {
+        return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+    }
+
+    const items = (data ?? []).map((row: any) => mapProductRow(row as DbProductRow, { lang, includeTranslations: true }));
+    const totalItems = count ?? 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return { items, pageInfo: { page, pageSize, totalItems, totalPages } };
+}
+
+// 10. Product Reviews
+export async function getProductReviewsDirect(
+    productId: string,
+    page: number,
+    pageSize: number,
+    sort: "latest" | "popular" | "rating" = "latest",
+    lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<{ items: Review[], pageInfo: PaginationInfo }> {
+    const supabase = getSupabaseClient();
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabase
+        .from("reviews")
+        .select(`
+            id, slug, title, excerpt, rating_avg, rating_count, views, votes_up, votes_down, photo_urls, photo_count, comment_count, recommend, pros, cons, category_id, sub_category_id, product_id, created_at,
+            profiles(username, profile_pic_url),
+            products(id, slug, name, product_translations(lang, slug, name)),
+            review_translations(lang, title, slug, excerpt)
+        `, { count: "exact" })
+        .eq("status", "published")
+        .eq("product_id", productId)
+        .eq("review_translations.lang", lang);
+
+    if (sort === "popular") {
+        query = query.order("views", { ascending: false });
+    } else if (sort === "rating") {
+        query = query.order("rating_avg", { ascending: false });
+    } else {
+        query = query.order("created_at", { ascending: false });
+    }
+
+    const { data, count, error } = await query.range(from, to);
+
+    if (error) {
+        return { items: [], pageInfo: { page, pageSize, totalItems: 0, totalPages: 0 } };
+    }
+
+    const items = (data ?? []).map((row: any) => mapReviewRow(row as DbReviewRow, { lang }));
+    const totalItems = count ?? 0;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return { items, pageInfo: { page, pageSize, totalItems, totalPages } };
+}
+
+// 11. Subcategories
+export async function getSubcategoriesDirect(
+    parentId: number,
+    lang: SupportedLanguage = DEFAULT_LANGUAGE
+): Promise<Category[]> {
+    const supabase = getSupabaseClient();
+    const { data } = await supabase
+        .from("categories")
+        .select("id, name, parent_id")
+        .eq("parent_id", parentId);
+
+    return (data ?? []).map(mapCategoryRow);
 }

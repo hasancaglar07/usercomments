@@ -18,11 +18,11 @@ import {
 } from "@/src/lib/review-utils";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import {
-  getCategories,
-  getUserComments,
-  getUserProfile,
-  getUserReviews,
-} from "@/src/lib/api";
+  getCategoriesDirect,
+  getUserCommentsDirect,
+  getUserProfileDirect,
+  getUserReviewsDirect,
+} from "@/src/lib/api-direct";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import {
   profileReviewCards,
@@ -314,13 +314,13 @@ export default async function Page(props: UserProfilePageProps) {
     try {
       const commentsPromise =
         activeTab === "comments"
-          ? getUserComments(params.username, page, pageSize, lang)
+          ? getUserCommentsDirect(params.username, page, pageSize, lang)
           : Promise.resolve(null);
       const [userProfile, userReviews, categoryItems, commentResult] =
         await Promise.all([
-          getUserProfile(params.username),
-          getUserReviews(params.username, page, pageSize, lang),
-          getCategories(lang),
+          getUserProfileDirect(params.username),
+          getUserReviewsDirect(params.username, page, pageSize, lang),
+          getCategoriesDirect(lang),
           commentsPromise,
         ]);
 

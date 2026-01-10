@@ -24,10 +24,10 @@ import {
   pickFrom,
 } from "@/src/lib/review-utils";
 import {
-  getCategories,
-  getCategoryPage,
-  getSubcategories,
-} from "@/src/lib/api";
+  getCategoriesDirect,
+  getCategoryPageDirect,
+  getSubcategoriesDirect,
+} from "@/src/lib/api-direct";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
@@ -82,7 +82,7 @@ export async function generateMetadata(
 
   if (process.env.NEXT_PUBLIC_API_BASE_URL && Number.isFinite(categoryId)) {
     try {
-      const categories = await getCategories(lang);
+      const categories = await getCategoriesDirect(lang);
       categoryLabel = getCategoryLabel(categories, categoryId);
       categoryMissing = categories.length > 0 && !categoryLabel;
     } catch {
@@ -285,7 +285,7 @@ export default async function Page(props: CategoryPageProps) {
       const popularResultPromise =
         sort === "popular"
           ? Promise.resolve(null)
-          : getCategoryPage(
+          : getCategoryPageDirect(
             categoryId,
             1,
             POPULAR_REVIEWS_LIMIT,
@@ -295,9 +295,9 @@ export default async function Page(props: CategoryPageProps) {
           ).catch(() => null);
       const [categoryResult, categories, subcategories, popularResult] =
         await Promise.all([
-          getCategoryPage(categoryId, page, pageSize, sort, subCategoryId, lang),
-          getCategories(lang),
-          getSubcategories(categoryId, lang),
+          getCategoryPageDirect(categoryId, page, pageSize, sort, subCategoryId, lang),
+          getCategoriesDirect(lang),
+          getSubcategoriesDirect(categoryId, lang),
           popularResultPromise,
         ]);
 

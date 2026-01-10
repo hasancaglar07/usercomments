@@ -14,12 +14,12 @@ import EmptyState from "@/components/ui/EmptyState";
 import { RatingStarsCatalog } from "@/components/ui/RatingStars";
 import type { Category, Product, Review } from "@/src/types";
 import {
-  getCategoryPage,
-  getCategories,
-  getProducts,
-  getProductBySlug,
-  getProductReviews,
-} from "@/src/lib/api";
+  getCategoryPageDirect,
+  getCategoriesDirect,
+  getProductsDirect,
+  getProductBySlugDirect,
+  getProductReviewsDirect,
+} from "@/src/lib/api-direct";
 import {
   buildRatingStars,
   DEFAULT_REVIEW_IMAGE,
@@ -144,7 +144,7 @@ function buildRelatedReviewCards(
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
-  const product = await getProductBySlug(params.slug, lang).catch(() => null);
+  const product = await getProductBySlugDirect(params.slug, lang).catch(() => null);
 
   if (!product) {
     return buildMetadata({
@@ -179,7 +179,7 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
   // Fallback: If no official product image, try to find a review image
   if (!ogImage && reviewCount > 0) {
     try {
-      const reviews = await getProductReviews(product.id, 1, 5, "popular", resolvedLang as SupportedLanguage);
+      const reviews = await getProductReviewsDirect(product.id, 1, 5, "popular", resolvedLang as SupportedLanguage);
       const reviewWithImage = reviews.items.find(
         (r) => r.photoUrls && r.photoUrls.length > 0
       );
@@ -219,7 +219,7 @@ export default async function Page(props: PageProps) {
   const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
   const sort = parseSort(searchParams?.sort);
 
-  const product = await getProductBySlug(params.slug, lang).catch(() => null);
+  const product = await getProductBySlugDirect(params.slug, lang).catch(() => null);
   if (!product) {
     notFound();
   }
@@ -234,12 +234,12 @@ export default async function Page(props: PageProps) {
 
   const primaryCategoryId = product.categoryIds?.[0];
   const relatedProductsPromise = primaryCategoryId
-    ? getProducts(1, RELATED_FETCH_LIMIT, "popular", primaryCategoryId, lang).catch(
+    ? getProductsDirect(1, RELATED_FETCH_LIMIT, "popular", primaryCategoryId, lang).catch(
       () => null
     )
     : Promise.resolve(null);
   const relatedReviewsPromise = primaryCategoryId
-    ? getCategoryPage(
+    ? getCategoryPageDirect(
       primaryCategoryId,
       1,
       RELATED_FETCH_LIMIT,
@@ -251,8 +251,8 @@ export default async function Page(props: PageProps) {
 
   const [categories, reviewsResult, relatedProductsResult, relatedReviewsResult] =
     await Promise.all([
-      getCategories(lang),
-      getProductReviews(product.id, page, pageSize, sort, lang),
+      getCategoriesDirect(lang),
+      getProductReviewsDirect(product.id, page, pageSize, sort, lang),
       relatedProductsPromise,
       relatedReviewsPromise,
     ]);
