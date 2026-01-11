@@ -24,7 +24,7 @@ export function TrendingSectionSkeleton() {
 
 export function HomepageFeedSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
+    <div className="space-y-6 -mx-4 sm:mx-0 animate-pulse">
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={`feed-skeleton-${index}`}
@@ -46,7 +46,7 @@ export function HomepageFeedSkeleton() {
 
 export function HomepageSidebarSkeleton() {
   return (
-    <div className="w-full lg:w-1/3 space-y-6 animate-pulse">
+    <div className="w-full lg:w-1/3 flex flex-col gap-6 animate-pulse">
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={`sidebar-skeleton-${index}`}
