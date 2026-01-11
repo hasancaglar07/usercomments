@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import HeaderSearch from "@/components/search/HeaderSearch";
@@ -16,9 +17,10 @@ type HeaderProps = {
 };
 
 
-export default function Header({ lang, categories }: HeaderProps) {
+export default function Header({ lang: initialLang, categories }: HeaderProps) {
   const { user, loading, isAuthenticated } = useAuth();
-  const resolvedLang = normalizeLanguage(lang);
+  const params = useParams();
+  const resolvedLang = normalizeLanguage((params?.lang as string) || initialLang);
 
   const username =
     user?.user_metadata?.username ||

@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import "../../styles/globals.css";
 import { plusJakartaSans } from "@/src/lib/fonts";
 import type { Metadata, Viewport } from "next";
@@ -39,8 +40,9 @@ export default async function SiteLayout({
   children: React.ReactNode;
   params: Promise<{ lang?: string }>;
 }>) {
-  const resolvedParams = await params;
-  const lang = normalizeLanguage(resolvedParams?.lang);
+  const requestHeaders = await headers();
+  const headerLang = requestHeaders.get("x-lang");
+  const lang = normalizeLanguage(headerLang);
   const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
   let categories: Category[] = [];
 

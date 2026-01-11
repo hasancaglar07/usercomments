@@ -23,20 +23,9 @@ export function localizePath(path: string, lang: string): string {
   if (!path.startsWith("/")) {
     return path;
   }
-
-  const [pathnameWithQuery, hash] = path.split("#");
-  const [pathname, query] = pathnameWithQuery.split("?");
-  const segments = pathname.split("/").filter(Boolean);
-
-  if (segments.length > 0 && isSupportedLanguage(segments[0])) {
-    return path;
-  }
-
-  const normalizedPath = pathname === "/" ? "" : pathname;
-  const localized = `/${lang}${normalizedPath}`;
-  const withQuery = query ? `${localized}?${query}` : localized;
-  return hash ? `${withQuery}#${hash}` : withQuery;
+  return replaceLanguageInPath(path, lang);
 }
+
 
 export function replaceLanguageInPath(path: string, lang: string): string {
   if (!path.startsWith("/")) {
