@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { ReviewListCatalog } from "@/components/lists/ReviewList";
 import Link from "next/link";
 import EmptyState from "@/components/ui/EmptyState";

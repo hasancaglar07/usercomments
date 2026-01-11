@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import type { Metadata } from "next";
 import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 import { buildMetadata } from "@/src/lib/seo";

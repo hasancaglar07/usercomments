@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import ReviewListProfileClient from "@/components/lists/ReviewListProfileClient";
 import UserProfileActionsClient from "@/components/user/UserProfileActionsClient";
 import type { Metadata } from "next";

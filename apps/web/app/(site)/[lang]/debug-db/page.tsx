@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { getReviewBySlugDirect } from "@/src/lib/api-direct";
 import { normalizeLanguage } from "@/src/lib/i18n";
 import { getSupabaseClient } from "@/src/lib/supabase";

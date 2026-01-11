@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { Suspense } from "react";
 import TrendingSection from "@/components/homepage/TrendingSection";
 import type { Metadata } from "next";

@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { getSiteUrl } from "@/src/lib/seo";
 import { SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
 import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";

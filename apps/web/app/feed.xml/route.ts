@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { getSiteUrl } from "@/src/lib/seo";
 import { DEFAULT_LANGUAGE, getLocale, localizePath } from "@/src/lib/i18n";
 

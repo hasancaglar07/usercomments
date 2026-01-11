@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import type { Metadata } from "next";
 import UserSettingsClient from "@/components/user/UserSettingsClient";
 import { buildMetadata } from "@/src/lib/seo";

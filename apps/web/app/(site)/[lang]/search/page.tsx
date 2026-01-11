@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { ReviewListCatalog } from "@/components/lists/ReviewList";
 import SearchCategoryFilter from "@/components/search/SearchCategoryFilter";
 import EmptyState from "@/components/ui/EmptyState";

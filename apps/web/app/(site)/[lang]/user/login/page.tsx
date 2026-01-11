@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import type { Metadata } from "next";
 import LoginForm from "@/components/auth/LoginForm";
 import { normalizeLanguage } from "@/src/lib/i18n";

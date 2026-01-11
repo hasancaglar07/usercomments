@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import type { Metadata } from "next";
 import RegisterForm from "@/components/auth/RegisterForm";
 import { normalizeLanguage } from "@/src/lib/i18n";

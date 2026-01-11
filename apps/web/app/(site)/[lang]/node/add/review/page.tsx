@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import type { Metadata } from "next";
 import AddReviewClient from "@/components/reviews/AddReviewClient";
 import { getCategories } from "@/src/lib/api";

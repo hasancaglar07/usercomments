@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 
 import { buildLanguageSitemapXml, buildUrlset, SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 import { isSupportedLanguage, localizePath, type SupportedLanguage } from "@/src/lib/i18n";
