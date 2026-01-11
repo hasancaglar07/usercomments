@@ -16,17 +16,21 @@ import {
   getCategoryLabel,
   pickFrom,
 } from "@/src/lib/review-utils";
-import { getCatalogPageDirect, getHomepageDataDirect } from "@/src/lib/api-direct";
+import { getCatalogPage, getCategories, getHomepageData } from "@/src/lib/api";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 import { buildMetadata } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
-import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import { localizePath, normalizeLanguage, type SupportedLanguage } from "@/src/lib/i18n";
 import { homepageReviewCards } from "@/data/mock/reviews";
 import { homepageTopReviewers } from "@/data/mock/users";
 import { homepagePopularCategories } from "@/data/mock/categories";
 import { t } from "@/src/lib/copy";
+import {
+  HomepageFeedSkeleton,
+  HomepageSidebarSkeleton,
+  TrendingSectionSkeleton,
+} from "@/components/homepage/HomepageSectionSkeletons";
 
-export const runtime = 'edge';
 export const revalidate = 60;
 
 const HOMEPAGE_LIMIT = 9;
@@ -227,128 +231,159 @@ function buildTopReviewers(
   return reviewers.length > 0 ? reviewers : fallback;
 }
 
-export default async function Page(props: HomePageProps) {
-  const params = await props.params;
-  const searchParams = await props.searchParams;
-  const lang = normalizeLanguage(params.lang);
-  const trendingTab = parseTrendingTab(
-    typeof searchParams?.trending === "string" ? searchParams.trending : undefined
+function getTrendingTimeWindow(
+  trendingTab: TrendingTab
+): "6h" | "24h" | "week" | undefined {
+  if (trendingTab === "popular6h") {
+    return "6h";
+  }
+  if (trendingTab === "popular24h") {
+    return "24h";
+  }
+  if (trendingTab === "popular1w") {
+    return "week";
+  }
+  return undefined;
+}
+
+async function getHomepagePayloadWithTimeout(
+  lang: SupportedLanguage,
+  trendingTab: TrendingTab
+) {
+  return Promise.race([
+    getHomepageData({
+      latestLimit: HOMEPAGE_LIMIT,
+      popularLimit: POPULAR_LIMIT,
+      timeWindow: getTrendingTimeWindow(trendingTab),
+      lang,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Homepage API timeout")), 15000)
+    ),
+  ]);
+}
+
+async function getCatalogPageWithTimeout({
+  page,
+  pageSize,
+  sort,
+  lang,
+}: {
+  page: number;
+  pageSize: number;
+  sort: "latest" | "popular" | "rating";
+  lang: SupportedLanguage;
+}) {
+  return Promise.race([
+    getCatalogPage(page, pageSize, sort, undefined, lang, { photoOnly: true }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Catalog API timeout")), 15000)
+    ),
+  ]);
+}
+
+async function HomepageTrendingSectionSlot({
+  lang,
+  trendingTab,
+  activeFilter,
+}: {
+  lang: SupportedLanguage;
+  trendingTab: TrendingTab;
+  activeFilter?: FeedTab;
+}) {
+  let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
+  let trendingCards: ReviewCardHomepageData[] = allowMockFallback
+    ? homepageReviewCards.slice(0, TRENDING_LIMIT)
+    : [];
+
+  try {
+    const homepage = await getHomepagePayloadWithTimeout(lang, trendingTab);
+    const latestResult = homepage.latest;
+    const popularReviews = homepage.popular.items;
+    categories = homepage.categories.items;
+
+    const latestWithPhotos = filterReviewsWithPhotos(latestResult.items);
+    const popularWithPhotos = filterReviewsWithPhotos(popularReviews);
+    const recentCards = buildHomepageCards(latestWithPhotos, categories, lang);
+    const popularFeedCards = buildHomepageCards(popularWithPhotos, categories, lang);
+
+    trendingCards =
+      trendingTab === "latest"
+        ? recentCards.slice(0, TRENDING_LIMIT)
+        : popularFeedCards.slice(0, TRENDING_LIMIT);
+  } catch (e) {
+    if (e instanceof Error) {
+      console.error("Homepage trending fetch failed:", e.message);
+    }
+  }
+
+  const heroPreloadUrls = new Set(
+    trendingCards
+      .slice(0, TRENDING_LIMIT)
+      .map((card) => getOptimizedImageUrl(card.imageUrl, 300))
+      .filter(Boolean)
   );
-  const feedTab = parseFeedTab(
-    typeof searchParams?.filter === "string" ? searchParams.filter : undefined
+  heroPreloadUrls.forEach((url) => {
+    preload(url, { as: "image" });
+  });
+
+  return (
+    <TrendingSection
+      lang={lang}
+      initialTab={trendingTab}
+      initialData={trendingCards}
+      activeFilter={activeFilter}
+    />
   );
-  const activeFilter = feedTab !== "all" ? feedTab : undefined;
-  const feedPage = parsePageParam(
-    typeof searchParams?.page === "string" ? searchParams.page : undefined
-  );
-  const includeTrendingParam = typeof searchParams?.trending === "string";
-  const apiConfigured = true;
-  let recentCards = allowMockFallback ? homepageReviewCards : [];
-  let popularFeedCards = allowMockFallback ? homepageReviewCards : [];
+}
+
+async function HomepageFeedSectionSlot({
+  lang,
+  feedTab,
+  trendingTab,
+  feedPage,
+  includeTrendingParam,
+}: {
+  lang: SupportedLanguage;
+  feedTab: FeedTab;
+  trendingTab: TrendingTab;
+  feedPage: number;
+  includeTrendingParam: boolean;
+}) {
+  let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
   let feedCards = allowMockFallback ? homepageReviewCards : [];
   let hasCards = feedCards.length > 0;
   let hasMore = false;
-  let topReviewers = allowMockFallback ? homepageTopReviewers : [];
-  let popularCategories = allowMockFallback ? homepagePopularCategories : [];
-  let categories: Category[] = allowMockFallback ? homepagePopularCategories : [];
-  let trendingCards: ReviewCardHomepageData[] = [];
-  let errorMessage: string | null = null;
 
-  if (apiConfigured) {
-    try {
-      // Add timeout protection for API calls
-      const homepage = await Promise.race([
-        getHomepageDataDirect({
-          latestLimit: HOMEPAGE_LIMIT,
-          popularLimit: POPULAR_LIMIT,
-          timeWindow:
-            trendingTab === "popular6h"
-              ? "6h"
-              : trendingTab === "popular24h"
-                ? "24h"
-                : trendingTab === "popular1w"
-                  ? "week"
-                  : undefined,
-          lang,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Homepage API timeout')), 15000)
-        )
-      ]);
+  try {
+    const [feedResult, apiCategories] = await Promise.all([
+      getCatalogPageWithTimeout({
+        page: feedPage,
+        pageSize: HOMEPAGE_LIMIT,
+        sort: feedTab === "popular" ? "popular" : "latest",
+        lang,
+      }),
+      getCategories(lang).catch(() => []),
+    ]);
 
-      const latestResult = homepage.latest;
-      const popularReviews = homepage.popular.items;
-      categories = homepage.categories.items;
-
-      const feedResult = await Promise.race([
-        getCatalogPageDirect(
-          feedPage,
-          HOMEPAGE_LIMIT,
-          feedTab === "popular" ? "popular" : "latest",
-          undefined,
-          lang,
-          { photoOnly: true }
-        ),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Catalog API timeout')), 15000)
-        )
-      ]);
-
-      const latestWithPhotos = filterReviewsWithPhotos(latestResult.items);
-      const popularWithPhotos = filterReviewsWithPhotos(popularReviews);
-      recentCards = buildHomepageCards(latestWithPhotos, categories, lang);
-      popularFeedCards = buildHomepageCards(popularWithPhotos, categories, lang);
-      const feedWithPhotos = filterReviewsWithPhotos(feedResult.items);
-      hasCards = feedWithPhotos.length > 0;
-      const visibleFeed =
-        feedTab === "photos"
-          ? feedWithPhotos.filter(hasPhotos)
-          : feedWithPhotos;
-      feedCards = buildHomepageCards(visibleFeed, categories, lang);
-      const totalPages = feedResult.pageInfo.totalPages ?? feedPage;
-      hasMore = feedPage < totalPages;
-      const apiTopReviewers = homepage.topReviewers.items;
-
-      const realTopReviewers: HomepageTopReviewer[] = apiTopReviewers.map(
-        (profile: UserProfile, index: number) => ({
-          profile: {
-            username: profile.username,
-            displayName: profile.displayName ?? profile.username,
-          },
-          avatarUrl: profile.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
-          avatarAlt: t(lang, "homepage.avatarAlt", { username: profile.username }),
-          rankLabel: `#${index + 1}`,
-          reviewCountLabel: t(lang, "homepage.topReviewers.reviewCountLabel", {
-            count: formatCompactNumber(profile.stats?.reviewCount ?? 0, lang),
-          }),
-        })
-      );
-
-      topReviewers =
-        realTopReviewers.length > 0
-          ? realTopReviewers
-          : buildTopReviewers(
-            popularReviews,
-            allowMockFallback ? homepageTopReviewers : [],
-            lang
-          );
-      popularCategories = categories.slice(0, 7);
-
-      // Determine what to show in the Trending section based on the selected tab
-      if (trendingTab === "latest") {
-        trendingCards = recentCards.slice(0, TRENDING_LIMIT);
-      } else {
-        trendingCards = popularFeedCards.slice(0, TRENDING_LIMIT);
-      }
-    } catch (e) {
-      // Log error but continue rendering with fallback/empty data
-      if (e instanceof Error) {
-        console.error("Homepage data fetch failed:", e.message);
-      }
-      // Do NOT set errorMessage - allow page to render with empty/fallback content
+    if (apiCategories.length > 0) {
+      categories = apiCategories;
     }
-  } else if (!allowMockFallback) {
-    errorMessage = t(lang, "homepage.error.apiNotConfigured");
+
+    const feedWithPhotos = filterReviewsWithPhotos(feedResult.items);
+    hasCards = feedWithPhotos.length > 0;
+    const visibleFeed =
+      feedTab === "photos"
+        ? feedWithPhotos.filter(hasPhotos)
+        : feedWithPhotos;
+    feedCards = buildHomepageCards(visibleFeed, categories, lang);
+
+    const totalPages = feedResult.pageInfo.totalPages ?? feedPage;
+    hasMore = feedPage < totalPages;
+  } catch (e) {
+    if (e instanceof Error) {
+      console.error("Homepage feed fetch failed:", e.message);
+    }
   }
 
   const filterHrefs = {
@@ -374,6 +409,7 @@ export default async function Page(props: HomePageProps) {
       includeTrendingParam,
     }),
   };
+
   const loadMoreHref = hasMore
     ? buildHomepageHref({
       lang,
@@ -383,15 +419,97 @@ export default async function Page(props: HomePageProps) {
       includeTrendingParam,
     })
     : null;
-  const heroPreloadUrls = new Set(
-    trendingCards
-      .slice(0, TRENDING_LIMIT)
-      .map((card) => getOptimizedImageUrl(card.imageUrl, 300))
-      .filter(Boolean)
+
+  return (
+    <HomepageFeed
+      cards={feedCards}
+      hasCards={hasCards}
+      hasMore={hasMore}
+      tab={feedTab}
+      lang={lang}
+      filterHrefs={filterHrefs}
+      loadMoreHref={loadMoreHref}
+    />
   );
-  heroPreloadUrls.forEach((url) => {
-    preload(url, { as: "image" });
-  });
+}
+
+async function HomepageSidebarSectionSlot({
+  lang,
+  trendingTab,
+}: {
+  lang: SupportedLanguage;
+  trendingTab: TrendingTab;
+}) {
+  let topReviewers = allowMockFallback ? homepageTopReviewers : [];
+  let popularCategories = allowMockFallback ? homepagePopularCategories : [];
+
+  try {
+    const homepage = await getHomepagePayloadWithTimeout(lang, trendingTab);
+    const popularReviews = homepage.popular.items;
+    const categories = homepage.categories.items;
+
+    popularCategories =
+      categories.length > 0 ? categories.slice(0, 7) : popularCategories;
+
+    const apiTopReviewers = homepage.topReviewers.items;
+    const realTopReviewers: HomepageTopReviewer[] = apiTopReviewers.map(
+      (profile: UserProfile, index: number) => ({
+        profile: {
+          username: profile.username,
+          displayName: profile.displayName ?? profile.username,
+        },
+        avatarUrl: profile.profilePicUrl ?? pickFrom(FALLBACK_AVATARS, index),
+        avatarAlt: t(lang, "homepage.avatarAlt", { username: profile.username }),
+        rankLabel: `#${index + 1}`,
+        reviewCountLabel: t(lang, "homepage.topReviewers.reviewCountLabel", {
+          count: formatCompactNumber(profile.stats?.reviewCount ?? 0, lang),
+        }),
+      })
+    );
+
+    topReviewers =
+      realTopReviewers.length > 0
+        ? realTopReviewers
+        : buildTopReviewers(
+            popularReviews,
+            allowMockFallback ? homepageTopReviewers : [],
+            lang
+          );
+  } catch (e) {
+    if (e instanceof Error) {
+      console.error("Homepage sidebar fetch failed:", e.message);
+    }
+  }
+
+  return (
+    <SidebarHomepage
+      lang={lang}
+      topReviewers={topReviewers}
+      popularCategories={popularCategories}
+    />
+  );
+}
+
+export default async function Page(props: HomePageProps) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const lang = normalizeLanguage(params.lang);
+  const trendingTab = parseTrendingTab(
+    typeof searchParams?.trending === "string" ? searchParams.trending : undefined
+  );
+  const feedTab = parseFeedTab(
+    typeof searchParams?.filter === "string" ? searchParams.filter : undefined
+  );
+  const activeFilter = feedTab !== "all" ? feedTab : undefined;
+  const feedPage = parsePageParam(
+    typeof searchParams?.page === "string" ? searchParams.page : undefined
+  );
+  const includeTrendingParam = typeof searchParams?.trending === "string";
+  const apiConfigured = true;
+  const errorMessage =
+    !apiConfigured && !allowMockFallback
+      ? t(lang, "homepage.error.apiNotConfigured")
+      : null;
 
   return (
     <div
@@ -404,32 +522,32 @@ export default async function Page(props: HomePageProps) {
             {errorMessage}
           </div>
         ) : null}
-        <TrendingSection
-          lang={lang}
-          initialTab={trendingTab}
-          initialData={trendingCards}
-          activeFilter={activeFilter}
-        />
+        <Suspense fallback={<TrendingSectionSkeleton />}>
+          <HomepageTrendingSectionSlot
+            lang={lang}
+            trendingTab={trendingTab}
+            activeFilter={activeFilter}
+          />
+        </Suspense>
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="flex-1 w-full lg:w-2/3">
-            <Suspense fallback={<div className="animate-pulse space-y-4 shadow-sm h-64 bg-gray-100 rounded-lg" />}>
-              <HomepageFeed
-                cards={feedCards}
-                hasCards={hasCards}
-                hasMore={hasMore}
-                tab={feedTab}
+            <Suspense fallback={<HomepageFeedSkeleton />}>
+              <HomepageFeedSectionSlot
                 lang={lang}
-                filterHrefs={filterHrefs}
-                loadMoreHref={loadMoreHref}
+                feedTab={feedTab}
+                trendingTab={trendingTab}
+                feedPage={feedPage}
+                includeTrendingParam={includeTrendingParam}
               />
             </Suspense>
           </div>
-          <SidebarHomepage
-            lang={lang}
-            topReviewers={topReviewers}
-            popularCategories={popularCategories}
-          />
+          <Suspense fallback={<HomepageSidebarSkeleton />}>
+            <HomepageSidebarSectionSlot
+              lang={lang}
+              trendingTab={trendingTab}
+            />
+          </Suspense>
         </div>
       </main>
     </div>

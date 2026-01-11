@@ -41,6 +41,7 @@ class Config:
     cache_purge_url: Optional[str]
     cache_purge_secret: Optional[str]
     daily_review_limit: int
+    fallback_category_id: Optional[int]  # ID of "Other" category for unmatched reviews
 
 
     @staticmethod
@@ -119,6 +120,7 @@ class Config:
             cache_purge_url=env_optional("CACHE_PURGE_URL"),
             cache_purge_secret=env_optional("CACHE_PURGE_SECRET"),
             daily_review_limit=env_int("DAILY_REVIEW_LIMIT", 140),
+            fallback_category_id=env_int("FALLBACK_CATEGORY_ID", 0) or None,  # 0 means disabled
         )
 
 

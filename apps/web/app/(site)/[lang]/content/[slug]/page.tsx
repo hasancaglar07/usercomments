@@ -5,6 +5,7 @@ import ReviewDetailClient, {
   ReviewHelpfulButton,
 } from "@/components/reviews/ReviewDetailClient";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import type { Review, Comment, Category, Product } from "@/src/types";
 import {
   getReviewBySlugDirect,
@@ -37,6 +38,10 @@ import {
   type ReviewCardCategoryData,
 } from "@/components/cards/ReviewCard";
 import {
+  ReviewCommentsSkeleton,
+  ReviewRelatedSkeleton,
+} from "@/components/content/ReviewDetailSectionSkeletons";
+import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
   localizePath,
@@ -45,7 +50,6 @@ import {
 } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
-export const runtime = 'edge';
 export const revalidate = 120;
 
 const RELATED_FETCH_LIMIT = 6;
@@ -252,14 +256,193 @@ function buildRelatedCards(
   });
 }
 
+async function RelatedReviewsSection({
+  review,
+  categories,
+  categoryLabel,
+  relatedCategoryHref,
+  lang,
+}: {
+  review: Review;
+  categories: Category[];
+  categoryLabel?: string;
+  relatedCategoryHref: string | null;
+  lang: SupportedLanguage;
+}) {
+  let relatedReviews: Review[] = [];
+
+  try {
+    if (review.categoryId) {
+      const relatedResult = await getCategoryPageDirect(
+        review.categoryId,
+        1,
+        RELATED_FETCH_LIMIT,
+        lang
+      ).catch(() => ({ items: [] }));
+      relatedReviews = relatedResult?.items ?? [];
+    }
+  } catch (error) {
+    console.error("Failed to load related reviews", error);
+  }
+
+  if (relatedReviews.length === 0 && allowMockFallback) {
+    relatedReviews = homepageReviewCards.map((card) => card.review);
+  }
+
+  const filteredRelatedReviews = relatedReviews
+    .filter((item) => item.id !== review.id && item.slug !== review.slug)
+    .slice(0, RELATED_LIMIT);
+  const relatedCards = buildRelatedCards(
+    filteredRelatedReviews,
+    categories,
+    lang
+  );
+
+  if (relatedCards.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+            {t(lang, "reviewDetail.related.title")}
+          </h3>
+          {categoryLabel ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {t(lang, "reviewDetail.related.subtitle", {
+                category: categoryLabel,
+              })}
+            </p>
+          ) : null}
+        </div>
+        {relatedCategoryHref ? (
+          <Link
+            href={relatedCategoryHref}
+            className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+          >
+            {t(lang, "reviewDetail.related.viewAll")}
+          </Link>
+        ) : null}
+      </div>
+      <div className="mt-6 flex flex-col gap-4">
+        {relatedCards.map((card) => (
+          <ReviewCardCategory key={card.review.id} {...card} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+async function ReviewCommentsSection({
+  reviewId,
+  commentCount,
+  lang,
+}: {
+  reviewId: string;
+  commentCount?: number | null;
+  lang: SupportedLanguage;
+}) {
+  let comments: Comment[] = [];
+
+  try {
+    comments = await getReviewCommentsDirect(reviewId, 50).then(
+      (res) => res.items
+    );
+  } catch (error) {
+    console.error("Failed to load review comments", error);
+  }
+
+  if (comments.length === 0 && allowMockFallback) {
+    comments = mockComments;
+  }
+
+  const commentCountLabel = formatCompactNumber(
+    commentCount ?? comments.length,
+    lang
+  );
+
+  return (
+    <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
+      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+        {t(lang, "reviewDetail.comments.title")}{" "}
+        <span className="text-slate-400 font-normal text-lg">
+          ({commentCountLabel})
+        </span>
+      </h3>
+
+      <ReviewCommentForm reviewId={reviewId} avatarUrl={DEFAULT_AVATAR} />
+
+      <div className="flex flex-col gap-8">
+        {comments.length > 0 ? (
+          comments.map((comment) => {
+            const commentAvatarUrl = getOptimizedImageUrl(
+              comment.author.profilePicUrl ?? DEFAULT_AVATAR,
+              80
+            );
+
+            return (
+              <div key={comment.id} className="flex gap-4">
+                <Link
+                  href={localizePath(`/users/${comment.author.username}`, lang)}
+                  className="shrink-0"
+                >
+                  <div
+                    className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-slate-100 dark:border-slate-700"
+                    style={{ backgroundImage: `url("${commentAvatarUrl}")` }}
+                  />
+                </Link>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <Link
+                      href={localizePath(
+                        `/users/${comment.author.username}`,
+                        lang
+                      )}
+                      className="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors"
+                    >
+                      {comment.author.displayName || comment.author.username}
+                    </Link>
+                    <span className="text-xs text-slate-400">
+                      {formatRelativeTime(comment.createdAt, lang)}
+                    </span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                    {comment.text}
+                  </p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <button className="text-slate-400 hover:text-primary text-xs font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[16px]">
+                        thumb_up
+                      </span>{" "}
+                      0
+                    </button>
+                    <button className="text-slate-400 hover:text-primary text-xs font-medium">
+                      {t(lang, "reviewDetail.comments.reply")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-center text-slate-400 py-8 italic">
+            {t(lang, "reviewDetail.comments.empty")}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default async function Page(props: PageProps) {
   const params = await props.params;
   const lang = normalizeLanguage(params.lang);
   let review: Review | null = null;
-  let comments: Comment[] = [];
   let categories: Category[] = [];
   let productDetail: Product | null = null;
-  let relatedReviews: Review[] = [];
+  let comments: Comment[] = [];
 
   try {
     review = await getReviewBySlugDirect(params.slug, lang);
@@ -271,37 +454,22 @@ export default async function Page(props: PageProps) {
     }
 
     const productSlug = review?.product?.slug;
-    const relatedPromise = review?.categoryId
-      ? getCategoryPageDirect(
-        review.categoryId,
-        1,
-        RELATED_FETCH_LIMIT,
-        lang
-      ).catch(() => ({ items: [] }))
-      : Promise.resolve({ items: [] });
-    const [fetchedComments, fetchedCategories, fetchedProduct, relatedResult] = await Promise.all([
-      review
-        ? getReviewCommentsDirect(review.id, 50).then((res) => res.items)
-        : Promise.resolve<Comment[]>([]),
+    const [fetchedCategories, fetchedProduct, fetchedComments] = await Promise.all([
       getCategoriesDirect(lang),
       productSlug
         ? getProductBySlugDirect(productSlug, lang).catch(() => null)
         : Promise.resolve<Product | null>(null),
-      relatedPromise,
+      review ? getReviewCommentsDirect(review.id, 50).then(res => res.items).catch(() => []) : Promise.resolve<Comment[]>([]),
     ]);
-    comments = fetchedComments;
     categories = fetchedCategories;
     productDetail = fetchedProduct;
-    relatedReviews = relatedResult?.items ?? [];
-
+    comments = fetchedComments;
   } catch (error) {
     console.error("Failed to load review details", error);
   }
 
   if (!review && allowMockFallback) {
     review = mockReviewDetail;
-    comments = mockComments;
-    relatedReviews = homepageReviewCards.map((card) => card.review);
   }
 
   if (!review) {
@@ -311,22 +479,14 @@ export default async function Page(props: PageProps) {
   const extracted = parseReviewContent(review.contentHtml, review.excerpt);
 
   const ratingAvg = review.ratingAvg ?? 0;
-  const ratingLabel =
-    ratingAvg > 0 ? ratingAvg.toFixed(1) : t(lang, "productDetail.rating.none");
+  const ratingLabel = ratingAvg > 0 ? ratingAvg.toFixed(1) : t(lang, "productDetail.rating.none");
   const dateLabel = formatRelativeTime(review.createdAt, lang);
+
   const categoryLabel = getCategoryLabel(categories, review.categoryId);
   const subCategoryLabel = getCategoryLabel(categories, review.subCategoryId);
   const relatedCategoryHref = review.categoryId
     ? localizePath(`/catalog/reviews/${review.categoryId}`, lang)
     : null;
-  const filteredRelatedReviews = relatedReviews
-    .filter((item) => item.id !== review.id && item.slug !== review.slug)
-    .slice(0, RELATED_LIMIT);
-  const relatedCards = buildRelatedCards(
-    filteredRelatedReviews,
-    categories,
-    lang
-  );
   const authorPic = getOptimizedImageUrl(
     review.author.profilePicUrl ?? DEFAULT_AVATAR,
     160
@@ -361,10 +521,6 @@ export default async function Page(props: PageProps) {
     productDetail?.stats?.reviewCount ?? review.ratingCount ?? 0;
   const authorName = review.author.displayName || review.author.username;
   const viewsLabel = formatCompactNumber(review.views ?? 0, lang);
-  const commentCountLabel = formatCompactNumber(
-    review.commentCount ?? comments.length,
-    lang
-  );
   const votesUp = review.votesUp ?? 0;
   const reviewUrl = toAbsoluteUrl(localizePath(`/content/${review.slug}`, lang));
   const authorUrl = toAbsoluteUrl(
@@ -969,102 +1125,23 @@ export default async function Page(props: PageProps) {
                 </div>
               </article>
 
-              {relatedCards.length > 0 ? (
-                <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                        {t(lang, "reviewDetail.related.title")}
-                      </h3>
-                      {categoryLabel ? (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {t(lang, "reviewDetail.related.subtitle", {
-                            category: categoryLabel,
-                          })}
-                        </p>
-                      ) : null}
-                    </div>
-                    {relatedCategoryHref ? (
-                      <Link
-                        href={relatedCategoryHref}
-                        className="text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
-                      >
-                        {t(lang, "reviewDetail.related.viewAll")}
-                      </Link>
-                    ) : null}
-                  </div>
-                  <div className="mt-6 flex flex-col gap-4">
-                    {relatedCards.map((card) => (
-                      <ReviewCardCategory key={card.review.id} {...card} />
-                    ))}
-                  </div>
-                </section>
-              ) : null}
+              <Suspense fallback={<ReviewRelatedSkeleton />}>
+                <RelatedReviewsSection
+                  review={review}
+                  categories={categories}
+                  categoryLabel={categoryLabel}
+                  relatedCategoryHref={relatedCategoryHref}
+                  lang={lang}
+                />
+              </Suspense>
 
-              {/* Comments Section */}
-              <section className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-                  {t(lang, "reviewDetail.comments.title")}{" "}
-                  <span className="text-slate-400 font-normal text-lg">
-                    ({commentCountLabel})
-                  </span>
-                </h3>
-
-                {/* Inline Comment Form */}
-                <ReviewCommentForm reviewId={review.id} avatarUrl={DEFAULT_AVATAR} />
-
-                {/* Comments List */}
-                <div className="flex flex-col gap-8">
-                  {comments.length > 0 ? comments.map((comment) => {
-                    const commentAvatarUrl = getOptimizedImageUrl(
-                      comment.author.profilePicUrl ?? DEFAULT_AVATAR,
-                      80
-                    );
-
-                    return (
-                      <div key={comment.id} className="flex gap-4">
-                        <Link
-                          href={localizePath(`/users/${comment.author.username}`, lang)}
-                          className="shrink-0"
-                        >
-                          <div
-                            className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border border-slate-100 dark:border-slate-700"
-                            style={{ backgroundImage: `url("${commentAvatarUrl}")` }}
-                          />
-                        </Link>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <Link
-                              href={localizePath(`/users/${comment.author.username}`, lang)}
-                              className="font-bold text-slate-900 dark:text-white hover:text-primary transition-colors"
-                            >
-                              {comment.author.displayName || comment.author.username}
-                            </Link>
-                            <span className="text-xs text-slate-400">
-                              {formatRelativeTime(comment.createdAt, lang)}
-                            </span>
-                          </div>
-                          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
-                            {comment.text}
-                          </p>
-                          <div className="flex items-center gap-4 mt-2">
-                            <button className="text-slate-400 hover:text-primary text-xs font-medium flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[16px]">thumb_up</span> 0
-                            </button>
-                            <button className="text-slate-400 hover:text-primary text-xs font-medium">
-                              {t(lang, "reviewDetail.comments.reply")}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }) : (
-                    <p className="text-center text-slate-400 py-8 italic">
-                      {t(lang, "reviewDetail.comments.empty")}
-                    </p>
-                  )}
-                </div>
-              </section>
+              <Suspense fallback={<ReviewCommentsSkeleton />}>
+                <ReviewCommentsSection
+                  reviewId={review.id}
+                  commentCount={review.commentCount}
+                  lang={lang}
+                />
+              </Suspense>
             </main>
 
             {/* Sidebar */}

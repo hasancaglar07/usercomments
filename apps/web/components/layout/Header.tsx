@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import AuthCtaButton from "@/components/auth/AuthCtaButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import HeaderSearch from "@/components/search/HeaderSearch";
+import MobileMenu from "@/components/layout/MobileMenu";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 import type { Category } from "@/src/types";
@@ -13,6 +14,7 @@ type HeaderProps = {
   lang: string;
   categories: Category[];
 };
+
 
 export default function Header({ lang, categories }: HeaderProps) {
   const { user, loading, isAuthenticated } = useAuth();
@@ -32,6 +34,7 @@ export default function Header({ lang, categories }: HeaderProps) {
 
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const controlNavbar = () => {
@@ -62,17 +65,31 @@ export default function Header({ lang, categories }: HeaderProps) {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
-          <Link
-            className="flex items-center gap-2 flex-shrink-0 cursor-pointer active-press"
-            href={homeHref}
-          >
-            <span className="material-symbols-outlined text-primary text-3xl">
-              forum
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-primary">
-              UserReview
-            </span>
-          </Link>
+          <div className="flex items-center gap-2 lg:gap-4 shrink-0">
+            {/* Hamburger Menu Trigger */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="lg:hidden p-2 -ml-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active-press"
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined text-[28px]">menu</span>
+            </button>
+            <Link
+              className="flex items-center gap-2 cursor-pointer active-press"
+              href={homeHref}
+            >
+              <span className="material-symbols-outlined text-primary text-3xl">
+                forum
+              </span>
+              <span className="text-2xl font-bold tracking-tight text-primary hidden sm:block">
+                UserReview
+              </span>
+              <span className="text-xl font-bold tracking-tight text-primary sm:hidden">
+                UserReview
+              </span>
+            </Link>
+          </div>
+
           <HeaderSearch lang={resolvedLang} />
           <div className="flex items-center gap-3">
             <HeaderSearch lang={resolvedLang} variant="mobile" />
@@ -108,7 +125,7 @@ export default function Header({ lang, categories }: HeaderProps) {
           </div>
         </div>
         {categories.length > 0 && (
-          <nav className="flex items-center gap-2 py-2 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800/50 -mx-4 px-4 md:mx-0 md:px-0 mask-linear-fade">
+          <nav className="hidden lg:flex items-center gap-2 py-2 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800/50 -mx-4 px-4 md:mx-0 md:px-0 mask-linear-fade">
             {categories.map((category) => (
               <Link
                 key={category.id}
@@ -121,6 +138,14 @@ export default function Header({ lang, categories }: HeaderProps) {
           </nav>
         )}
       </div>
+
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        lang={resolvedLang}
+        categories={categories}
+      />
     </header>
   );
 }
+

@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { Inter } from "next/font/google";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
-
-export const runtime = 'edge';
-
-const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export default async function NotFound() {
   const requestHeaders = await headers();
@@ -15,7 +10,8 @@ export default async function NotFound() {
   const homeHref = localizePath("/", lang);
 
   return (
-    <div className={`min-h-[80vh] flex flex-col items-center justify-center text-center px-4 ${inter.className}`}>
+    <div className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4">
+
       <div className="relative mb-8">
         <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
         <span className="relative material-symbols-outlined text-[120px] text-primary animate-pulse">
@@ -27,10 +23,10 @@ export default async function NotFound() {
         404
       </h1>
       <h2 className="text-xl md:text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-6">
-        {t(lang, "notFound.title") || "Page not found"}
+        {t(lang, "notFound.title" as any) || "Page not found"}
       </h2>
       <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-10 leading-relaxed">
-        {t(lang, "notFound.description") || "The page you are looking for might have been removed, had its name changed, or is temporarily unavailable."}
+        {t(lang, "notFound.description" as any) || "The page you are looking for might have been removed, had its name changed, or is temporarily unavailable."}
       </p>
 
       <Link
@@ -38,8 +34,9 @@ export default async function NotFound() {
         className="shine-effect flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-8 py-3.5 rounded-full font-bold transition-all hover:-translate-y-1 shadow-lg shadow-primary/25 active-press"
       >
         <span className="material-symbols-outlined">home</span>
-        {t(lang, "notFound.backHome") || "Back to Homepage"}
+        {t(lang, "notFound.backHome" as any) || "Back to Homepage"}
       </Link>
+
     </div>
   );
 }

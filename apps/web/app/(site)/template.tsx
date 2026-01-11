@@ -1,14 +1,11 @@
 "use client";
 
-
-// Wait, user doesn't have framer-motion. I'll use pure CSS + React.
-
 import React from "react";
 
 export default function Template({ children }: { children: React.ReactNode }) {
-    return (
-        <div className="animate-fade-in min-h-screen">
-            {children}
-        </div>
-    );
+  return (
+    <div className="page-transition motion-reduce:animate-none min-h-screen">
+      {children}
+    </div>
+  );
 }

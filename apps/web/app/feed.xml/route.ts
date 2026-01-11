@@ -1,7 +1,6 @@
 import { getSiteUrl } from "@/src/lib/seo";
 import { DEFAULT_LANGUAGE, getLocale, localizePath } from "@/src/lib/i18n";
 
-export const runtime = 'edge';
 export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 

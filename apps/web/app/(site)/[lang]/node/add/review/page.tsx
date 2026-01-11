@@ -10,7 +10,6 @@ type AddReviewPageProps = {
   params: Promise<{ lang: string }>;
 };
 
-export const runtime = 'edge';
 
 export const metadata: Metadata = {
   robots: {

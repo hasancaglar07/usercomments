@@ -45,7 +45,7 @@ function buildCloudflareImageUrl(url: string, width: number, quality: number): s
 export function getOptimizedImageUrl(
   url: string | undefined,
   width: number = 800,
-  quality: number = 80
+  quality: number = 75
 ): string {
   if (!url) {
     return "";

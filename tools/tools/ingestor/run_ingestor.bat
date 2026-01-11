@@ -43,6 +43,9 @@ set DAILY_REVIEW_LIMIT=1000
 set LOOP_MIN_SECONDS=300
 set LOOP_MAX_SECONDS=900
 
+:: Fallback category for unmatched reviews (ID 928 = "Others")
+set FALLBACK_CATEGORY_ID=928
+
 if /I "%MODE%"=="once" (
   if "%DRYRUN%"=="1" (
     python -m ingestor.main --once --dry-run

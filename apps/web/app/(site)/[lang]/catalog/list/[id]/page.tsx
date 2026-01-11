@@ -12,7 +12,6 @@ import { formatNumber, getCategoryLabel } from "@/src/lib/review-utils";
 import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
-export const runtime = 'edge';
 export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 12;

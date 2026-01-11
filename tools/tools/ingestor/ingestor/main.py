@@ -231,17 +231,29 @@ async def _ensure_category_ids_async(
         if sub_id:
             logger.info("Subcategory matched: '%s' -> ID %s", detail.subcategory_name, sub_id)
 
-    # STRICT CHECK: If no category match, abort immediately.
-    # Do NOT create product if we don't know where to put it.
+    # STRICT CHECK: If no category match, try fallback category.
+    # If no fallback configured, abort product creation.
     if not cat_id and not sub_id:
-        logger.warning(
-            "Category mismatch (Strict Mode). Product creation aborted.\n"
-            "  Source Category URL: %s\n"
-            "  Source SubCategory URL: %s\n"
-            "  Product: %s",
-            cat_url, sub_url, prod_name
-        )
-        return {"category_id": None, "sub_category_id": None, "product_id": None}
+        if config.fallback_category_id:
+            logger.warning(
+                "Category mismatch - using FALLBACK category (ID: %s).\n"
+                "  Source Category URL: %s\n"
+                "  Source SubCategory URL: %s\n"
+                "  Product: %s",
+                config.fallback_category_id, cat_url, sub_url, prod_name
+            )
+            cat_id = config.fallback_category_id
+            sub_id = config.fallback_category_id
+        else:
+            logger.warning(
+                "Category mismatch (Strict Mode). Product creation aborted.\n"
+                "  Source Category URL: %s\n"
+                "  Source SubCategory URL: %s\n"
+                "  Product: %s\n"
+                "  TIP: Set FALLBACK_CATEGORY_ID env var to enable fallback category.",
+                cat_url, sub_url, prod_name
+            )
+            return {"category_id": None, "sub_category_id": None, "product_id": None}
 
     # 3. Ensure Product
     prod_id = None

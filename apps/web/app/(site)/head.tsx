@@ -16,13 +16,6 @@ export default function Head() {
    */
   const fontPreloads: { href: string; type: string }[] = [];
 
-  // Add Google Fonts domains to preconnect list
-  const googleFontsOrigins = [
-    "https://fonts.googleapis.com",
-    "https://fonts.gstatic.com"
-  ];
-
-  googleFontsOrigins.forEach(origin => origins.add(origin));
   const apiOrigin = getOrigin(process.env.NEXT_PUBLIC_API_BASE_URL);
   const imageCdnOrigin = getOrigin(process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL);
   const defaultOptimizer = imageCdnOrigin ? "cloudflare" : "wsrv";

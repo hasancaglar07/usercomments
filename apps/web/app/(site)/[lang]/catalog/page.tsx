@@ -8,10 +8,15 @@ import {
   CatalogSortSelect,
 } from "@/components/catalog/CatalogFilters";
 import type { ReviewCardCatalogData } from "@/components/cards/ReviewCard";
-import type { CatalogTopAuthor } from "@/components/layout/Sidebar";
-import type { Category, Review, UserProfile } from "@/src/types";
+import type { CatalogPopularTopic, CatalogTopAuthor } from "@/components/layout/Sidebar";
+import type { Category, PaginationInfo, Review, UserProfile } from "@/src/types";
 import { buildPopularTopics } from "@/components/layout/PopularReviewsWidget";
 import { Suspense } from "react";
+import {
+  CatalogHeroSkeleton,
+  CatalogListSkeleton,
+  CatalogSidebarSkeleton,
+} from "@/components/catalog/CatalogSectionSkeletons";
 import {
   FALLBACK_AVATARS,
   FALLBACK_REVIEW_IMAGES,
@@ -30,7 +35,11 @@ import {
 } from "@/src/lib/api-direct";
 import { buildMetadata, toAbsoluteUrl } from "@/src/lib/seo";
 import { allowMockFallback } from "@/src/lib/runtime";
-import { localizePath, normalizeLanguage } from "@/src/lib/i18n";
+import {
+  localizePath,
+  normalizeLanguage,
+  type SupportedLanguage,
+} from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 import {
   catalogReviewCards,
@@ -39,7 +48,6 @@ import {
 } from "@/data/mock/reviews";
 import { catalogTopAuthors } from "@/data/mock/users";
 
-export const runtime = 'edge';
 export const revalidate = 60;
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -272,96 +280,150 @@ function buildTopAuthors(
   return authors.length > 0 ? authors : fallback;
 }
 
-export default async function Page(props: CatalogPageProps) {
-  const params = await props.params;
-  const searchParams = await props.searchParams;
-  const lang = normalizeLanguage(params.lang);
-  const page = parseNumber(searchParams?.page, 1);
-  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
-  const sort = parseSort(searchParams?.sort);
-  const categoryId = parseOptionalNumber(searchParams?.categoryId);
-  const apiSort = mapSortToApi(sort);
+type CatalogMainData = {
+  cards: ReviewCardCatalogData[];
+  pagination: PaginationInfo;
+  categories: Category[];
+  errorMessage: string | null;
+};
 
-  const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
-  let cards = allowMockFallback ? catalogReviewCards : [];
-  let pagination = allowMockFallback
-    ? catalogPagination
-    : { page, pageSize, totalPages: 0, totalItems: 0 };
-  let popularTopics = allowMockFallback ? catalogPopularTopics : [];
-  let topAuthors = allowMockFallback ? catalogTopAuthors : [];
-  let categories: Category[] = [];
-  let errorMessage: string | null = null;
+async function getCatalogMainData({
+  apiConfigured,
+  page,
+  pageSize,
+  sort,
+  categoryId,
+  lang,
+  categoriesPromise,
+}: {
+  apiConfigured: boolean;
+  page: number;
+  pageSize: number;
+  sort: "latest" | "popular" | "rating";
+  categoryId?: number;
+  lang: SupportedLanguage;
+  categoriesPromise: Promise<Category[]>;
+}): Promise<CatalogMainData> {
+  if (!apiConfigured) {
+    return {
+      cards: allowMockFallback ? catalogReviewCards : [],
+      pagination: allowMockFallback
+        ? catalogPagination
+        : { page, pageSize, totalPages: 0, totalItems: 0 },
+      categories: [],
+      errorMessage: allowMockFallback
+        ? null
+        : t(lang, "catalog.error.apiNotConfigured"),
+    };
+  }
 
-  if (apiConfigured) {
-    try {
-      const [catalogResult, popularReviews, categoryItems] = await Promise.all([
-        getCatalogPageDirect(page, pageSize, apiSort, categoryId, lang),
-        getPopularReviewsDirect(POPULAR_LIMIT, undefined, lang),
-        getCategoriesDirect(lang),
-      ]);
+  try {
+    const [catalogResult, categoryItems] = await Promise.all([
+      getCatalogPageDirect(page, pageSize, sort, categoryId, lang),
+      categoriesPromise.catch(() => []),
+    ]);
+    return {
+      cards: buildCatalogCards(catalogResult.items, categoryItems, lang),
+      pagination: catalogResult.pageInfo,
+      categories: categoryItems,
+      errorMessage: null,
+    };
+  } catch (error) {
+    console.error("Failed to load catalog API data", error);
+    return {
+      cards: allowMockFallback ? catalogReviewCards : [],
+      pagination: allowMockFallback
+        ? catalogPagination
+        : { page, pageSize, totalPages: 0, totalItems: 0 },
+      categories: [],
+      errorMessage: allowMockFallback ? null : t(lang, "catalog.error.loadFailed"),
+    };
+  }
+}
 
-      categories = categoryItems;
-      cards = buildCatalogCards(catalogResult.items, categories, lang);
-      pagination = catalogResult.pageInfo;
-      const topAuthorUsernames = Array.from(
-        new Set(
-          popularReviews
-            .map((review) => review.author.username)
-            .filter((username): username is string => Boolean(username))
-        )
-      ).slice(0, 3);
-      const profileResults = await Promise.allSettled(
-        topAuthorUsernames.map((username) => getUserProfileDirect(username))
-      );
-      const topAuthorProfiles = profileResults
-        .map((result) => (result.status === "fulfilled" ? result.value : null))
-        .filter((profile): profile is UserProfile => Boolean(profile));
+type CatalogSidebarData = {
+  popularTopics: CatalogPopularTopic[];
+  topAuthors: CatalogTopAuthor[];
+};
 
-      popularTopics = buildPopularTopics(
+async function getCatalogSidebarData({
+  apiConfigured,
+  lang,
+  categoriesPromise,
+}: {
+  apiConfigured: boolean;
+  lang: SupportedLanguage;
+  categoriesPromise: Promise<Category[]>;
+}): Promise<CatalogSidebarData> {
+  if (!apiConfigured) {
+    return {
+      popularTopics: allowMockFallback ? catalogPopularTopics : [],
+      topAuthors: allowMockFallback ? catalogTopAuthors : [],
+    };
+  }
+
+  try {
+    const [popularReviews, categories] = await Promise.all([
+      getPopularReviewsDirect(POPULAR_LIMIT, undefined, lang),
+      categoriesPromise.catch(() => []),
+    ]);
+    const topAuthorUsernames = Array.from(
+      new Set(
+        popularReviews
+          .map((review) => review.author.username)
+          .filter((username): username is string => Boolean(username))
+      )
+    ).slice(0, 3);
+    const profileResults = await Promise.allSettled(
+      topAuthorUsernames.map((username) => getUserProfileDirect(username))
+    );
+    const topAuthorProfiles = profileResults
+      .map((result) => (result.status === "fulfilled" ? result.value : null))
+      .filter((profile): profile is UserProfile => Boolean(profile));
+
+    return {
+      popularTopics: buildPopularTopics(
         popularReviews,
         categories,
         lang,
         POPULAR_LIMIT
-      );
-      topAuthors = buildTopAuthors(
+      ),
+      topAuthors: buildTopAuthors(
         popularReviews,
         topAuthorProfiles,
         allowMockFallback ? catalogTopAuthors : [],
         lang
-      );
-    } catch (error) {
-      console.error("Failed to load catalog API data", error);
-      if (!allowMockFallback) {
-        errorMessage = t(lang, "catalog.error.loadFailed");
-      }
-    }
-  } else if (!allowMockFallback) {
-    errorMessage = t(lang, "catalog.error.apiNotConfigured");
+      ),
+    };
+  } catch (error) {
+    console.error("Failed to load catalog sidebar data", error);
+    return {
+      popularTopics: allowMockFallback ? catalogPopularTopics : [],
+      topAuthors: allowMockFallback ? catalogTopAuthors : [],
+    };
   }
+}
 
+async function CatalogHeaderSection({
+  dataPromise,
+  lang,
+  sort,
+  categoryId,
+}: {
+  dataPromise: Promise<CatalogMainData>;
+  lang: SupportedLanguage;
+  sort: CatalogSortParam;
+  categoryId?: number;
+}) {
+  const { categories, pagination, errorMessage } = await dataPromise;
   const categoryPills = buildCategoryPills(categories, lang);
   const totalReviews = pagination.totalItems ?? 0;
   const catalogSubtitle =
     totalReviews > 0
       ? t(lang, "catalog.subtitle.withCount", {
-        count: formatCompactNumber(totalReviews, lang),
-      })
+          count: formatCompactNumber(totalReviews, lang),
+        })
       : t(lang, "catalog.subtitle.empty");
-  const baseParams = new URLSearchParams();
-  if (searchParams?.pageSize) {
-    baseParams.set("pageSize", String(pageSize));
-  }
-  if (sort !== DEFAULT_SORT) {
-    baseParams.set("sort", sort);
-  }
-  if (categoryId) {
-    baseParams.set("categoryId", String(categoryId));
-  }
-  const buildHref = (targetPage: number) => {
-    const params = new URLSearchParams(baseParams);
-    params.set("page", String(targetPage));
-    return localizePath(`/catalog?${params.toString()}`, lang);
-  };
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -380,6 +442,81 @@ export default async function Page(props: CatalogPageProps) {
       },
     ],
   };
+
+  return (
+    <>
+      <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd)}</script>
+      {errorMessage ? (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+          {errorMessage}
+        </div>
+      ) : null}
+      <div className="mb-10 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <nav aria-label="Breadcrumb" className="flex mb-6 relative z-10">
+          <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+            <li>
+              <Link
+                className="hover:text-primary transition-colors flex items-center"
+                href={localizePath("/", lang)}
+              >
+                <span className="material-symbols-outlined text-[18px] mr-1">
+                  home
+                </span>
+                {t(lang, "catalog.breadcrumb.home")}
+              </Link>
+            </li>
+            <li>
+              <span className="mx-1 text-gray-300">/</span>
+            </li>
+            <li className="font-medium text-gray-900 dark:text-gray-100">
+              {t(lang, "catalog.breadcrumb.catalog")}
+            </li>
+          </ol>
+        </nav>
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-3">
+              {t(lang, "catalog.heading")}
+            </h2>
+            <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+              {catalogSubtitle}
+            </p>
+          </div>
+          <div className="w-full md:w-auto min-w-[200px]">
+            <Suspense fallback={null}>
+              <CatalogSortSelect
+                sort={sort}
+                options={SORT_OPTIONS.map(({ labelKey, value }) => ({
+                  label: t(lang, labelKey),
+                  value,
+                }))}
+              />
+            </Suspense>
+          </div>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+          <Suspense fallback={null}>
+            <CatalogCategoryChips categoryId={categoryId} pills={categoryPills} />
+          </Suspense>
+        </div>
+      </div>
+    </>
+  );
+}
+
+async function CatalogListSection({
+  dataPromise,
+  lang,
+  buildHref,
+}: {
+  dataPromise: Promise<CatalogMainData>;
+  lang: SupportedLanguage;
+  buildHref: (page: number) => string;
+}) {
+  const { cards, pagination } = await dataPromise;
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -394,94 +531,117 @@ export default async function Page(props: CatalogPageProps) {
   };
 
   return (
+    <>
+      <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
+      {cards.length > 0 ? (
+        <ReviewListCatalog
+          cards={cards}
+          pagination={pagination}
+          buildHref={buildHref}
+        />
+      ) : (
+        <div className="lg:col-span-8">
+          <EmptyState
+            title={t(lang, "catalog.empty.title")}
+            description={t(lang, "catalog.empty.description")}
+            ctaLabel={t(lang, "catalog.empty.cta")}
+            authenticatedHref="/node/add/review"
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+async function CatalogSidebarSection({
+  dataPromise,
+  lang,
+}: {
+  dataPromise: Promise<CatalogSidebarData>;
+  lang: SupportedLanguage;
+}) {
+  const { popularTopics, topAuthors } = await dataPromise;
+  return (
+    <SidebarCatalog
+      lang={lang}
+      popularTopics={popularTopics}
+      topAuthors={topAuthors}
+    />
+  );
+}
+
+export default async function Page(props: CatalogPageProps) {
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  const lang = normalizeLanguage(params.lang);
+  const page = parseNumber(searchParams?.page, 1);
+  const pageSize = parseNumber(searchParams?.pageSize, DEFAULT_PAGE_SIZE);
+  const sort = parseSort(searchParams?.sort);
+  const categoryId = parseOptionalNumber(searchParams?.categoryId);
+  const apiSort = mapSortToApi(sort);
+
+  const apiConfigured = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
+  const categoriesPromise = apiConfigured
+    ? getCategoriesDirect(lang)
+    : Promise.resolve<Category[]>([]);
+  const catalogMainDataPromise = getCatalogMainData({
+    apiConfigured,
+    page,
+    pageSize,
+    sort: apiSort,
+    categoryId,
+    lang,
+    categoriesPromise,
+  });
+  const catalogSidebarDataPromise = getCatalogSidebarData({
+    apiConfigured,
+    lang,
+    categoriesPromise,
+  });
+  const baseParams = new URLSearchParams();
+  if (searchParams?.pageSize) {
+    baseParams.set("pageSize", String(pageSize));
+  }
+  if (sort !== DEFAULT_SORT) {
+    baseParams.set("sort", sort);
+  }
+  if (categoryId) {
+    baseParams.set("categoryId", String(categoryId));
+  }
+  const buildHref = (targetPage: number) => {
+    const params = new URLSearchParams(baseParams);
+    params.set("page", String(targetPage));
+    return localizePath(`/catalog?${params.toString()}`, lang);
+  };
+
+  return (
     <div
       className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50 font-display min-h-screen flex flex-col"
       data-page="catalog-page"
     >
       <main className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <script type="application/ld+json">
-          {JSON.stringify(breadcrumbJsonLd)}
-        </script>
-        <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
-        {errorMessage ? (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
-            {errorMessage}
-          </div>
-        ) : null}
-        <div className="mb-10 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-          <nav aria-label="Breadcrumb" className="flex mb-6 relative z-10">
-            <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-              <li>
-                <Link
-                  className="hover:text-primary transition-colors flex items-center"
-                  href={localizePath("/", lang)}
-                >
-                  <span className="material-symbols-outlined text-[18px] mr-1">
-                    home
-                  </span>
-                  {t(lang, "catalog.breadcrumb.home")}
-                </Link>
-              </li>
-              <li>
-                <span className="mx-1 text-gray-300">/</span>
-              </li>
-              <li className="font-medium text-gray-900 dark:text-gray-100">
-                {t(lang, "catalog.breadcrumb.catalog")}
-              </li>
-            </ol>
-          </nav>
-
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
-            <div className="max-w-2xl">
-              <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-3">
-                {t(lang, "catalog.heading")}
-              </h2>
-              <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
-                {catalogSubtitle}
-              </p>
-            </div>
-            <div className="w-full md:w-auto min-w-[200px]">
-              <Suspense fallback={null}>
-                <CatalogSortSelect
-                  sort={sort}
-                  options={SORT_OPTIONS.map(({ labelKey, value }) => ({
-                    label: t(lang, labelKey),
-                    value,
-                  }))}
-                />
-              </Suspense>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <Suspense fallback={null}>
-              <CatalogCategoryChips categoryId={categoryId} pills={categoryPills} />
-            </Suspense>
-          </div>
-        </div>
+        <Suspense fallback={<CatalogHeroSkeleton />}>
+          <CatalogHeaderSection
+            dataPromise={catalogMainDataPromise}
+            lang={lang}
+            sort={sort}
+            categoryId={categoryId}
+          />
+        </Suspense>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {cards.length > 0 ? (
-            <ReviewListCatalog
-              cards={cards}
-              pagination={pagination}
+          <Suspense fallback={<CatalogListSkeleton />}>
+            <CatalogListSection
+              dataPromise={catalogMainDataPromise}
+              lang={lang}
               buildHref={buildHref}
             />
-          ) : (
-            <div className="lg:col-span-8">
-              <EmptyState
-                title={t(lang, "catalog.empty.title")}
-                description={t(lang, "catalog.empty.description")}
-                ctaLabel={t(lang, "catalog.empty.cta")}
-                authenticatedHref="/node/add/review"
-              />
-            </div>
-          )}
-          <SidebarCatalog
-            lang={lang}
-            popularTopics={popularTopics}
-            topAuthors={topAuthors}
-          />
+          </Suspense>
+          <Suspense fallback={<CatalogSidebarSkeleton />}>
+            <CatalogSidebarSection
+              dataPromise={catalogSidebarDataPromise}
+              lang={lang}
+            />
+          </Suspense>
         </div>
       </main>
     </div>

@@ -1,22 +1,19 @@
 import "../../styles/globals.css";
+import { plusJakartaSans } from "@/src/lib/fonts";
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import Script from "next/script";
-import { Inter } from "next/font/google"; // Import Font
-import Header from "../../components/layout/Header";
-import Footer from "../../components/layout/Footer";
-import { Providers } from "../../components/Providers";
+import Footer from "@/components/layout/Footer";
+import Header from "@/components/layout/Header";
+import CookieConsent from "@/components/layout/CookieConsent";
+import ScrollToTop from "@/components/ui/ScrollToTop";
+import { Providers } from "@/components/Providers";
+
+import { getCategories } from "@/src/lib/api";
 import { isRtlLanguage, localizePath, normalizeLanguage } from "@/src/lib/i18n";
-import { getCategoriesDirect } from "@/src/lib/api-direct";
 import { toAbsoluteUrl } from "@/src/lib/seo";
 import type { Category } from "@/src/types";
 
-// Initialize Font
-const inter = Inter({ subsets: ["latin"], display: "swap" });
-
 const SITE_NAME = "UserReview";
-
-export const runtime = 'edge';
 
 export const viewport: Viewport = {
   themeColor: "#137fec",
@@ -43,16 +40,14 @@ export default async function SiteLayout({
   params: Promise<{ lang?: string }>;
 }>) {
   const resolvedParams = await params;
-  const requestHeaders = await headers();
-  const headerLang = requestHeaders.get("x-lang");
-  const lang = normalizeLanguage(resolvedParams?.lang ?? headerLang);
+  const lang = normalizeLanguage(resolvedParams?.lang);
   const dir = isRtlLanguage(lang) ? "rtl" : "ltr";
   let categories: Category[] = [];
 
   try {
-    // Add timeout to prevent hanging on Edge Runtime
+    // Add timeout to prevent hanging on upstream API calls
     const allCategories = await Promise.race([
-      getCategoriesDirect(lang),
+      getCategories(lang),
       new Promise<Category[]>((_, reject) =>
         setTimeout(() => reject(new Error('Categories API timeout')), 15000)
       )
@@ -122,16 +117,16 @@ export default async function SiteLayout({
   }
 
   return (
-    <html lang={lang} dir={dir} className={`light ${inter.className}`}>
-      <body>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+    <html lang={lang} dir={dir} className={`light font-display ${plusJakartaSans.variable}`}>
+      <head>
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap&text=account_circle,add_circle,analytics,chat_bubble,check,chevron_left,chevron_right,close,cloud_upload,cookie,dataset,delete,diamond,do_not_disturb_on,error,expand_more,flag,forum,gavel,group,history_edu,info,link,lock,mail,military_tech,person,rate_review,remove_circle,sentiment_dissatisfied,share,star,thumb_up,verified,visibility"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
         />
+      </head>
+      <body>
         <Providers>
+
           {/* Google Analytics - works in all environments */}
           <Script
             src="https://www.googletagmanager.com/gtag/js?id=G-829FXRQW1V"
@@ -188,11 +183,16 @@ export default async function SiteLayout({
           <script type="application/ld+json">
             {JSON.stringify(organizationJsonLd)}
           </script>
-          <Header lang={lang} categories={categories} />
-          {children}
-          <Footer lang={lang} />
+          <div className="flex min-h-screen flex-col">
+            <Header lang={lang} categories={categories} />
+            <main className="flex-1">{children}</main>
+            <Footer lang={lang} />
+          </div>
+          <CookieConsent lang={lang} />
+          <ScrollToTop />
         </Providers>
       </body>
     </html>
   );
 }
+

@@ -3,7 +3,6 @@ import AdminDashboardClient from "@/components/admin/AdminDashboardClient";
 import { buildMetadata } from "@/src/lib/seo";
 import { normalizeLanguage } from "@/src/lib/i18n";
 
-export const runtime = 'edge';
 
 type AdminPageProps = {
   params: Promise<{ lang: string }>;

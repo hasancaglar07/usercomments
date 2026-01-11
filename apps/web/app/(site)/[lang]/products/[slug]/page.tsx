@@ -12,6 +12,7 @@ import { ReviewListCatalog } from "@/components/lists/ReviewList";
 import CategorySortSelect from "@/components/catalog/CategorySortSelect";
 import EmptyState from "@/components/ui/EmptyState";
 import { RatingStarsCatalog } from "@/components/ui/RatingStars";
+import Breadcrumb, { type BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import type { Category, Product, Review } from "@/src/types";
 import {
   getCategoryPageDirect,
@@ -43,10 +44,10 @@ import {
 } from "@/src/lib/i18n";
 import { t } from "@/src/lib/copy";
 
-export const runtime = 'edge';
 export const revalidate = 300;
 
 const DEFAULT_PAGE_SIZE = 8;
+
 const RELATED_FETCH_LIMIT = 8;
 const RELATED_PRODUCTS_LIMIT = 3;
 const RELATED_REVIEWS_LIMIT = 3;

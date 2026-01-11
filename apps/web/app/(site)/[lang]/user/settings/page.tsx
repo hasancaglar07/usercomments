@@ -9,7 +9,6 @@ type UserSettingsPageProps = {
   params: Promise<{ lang: string }>;
 };
 
-export const runtime = 'edge';
 
 export async function generateMetadata(
   props: UserSettingsPageProps

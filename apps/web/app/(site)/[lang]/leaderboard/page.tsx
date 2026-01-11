@@ -18,7 +18,6 @@ import { t } from "@/src/lib/copy";
 import { DEFAULT_AVATAR, formatCompactNumber } from "@/src/lib/review-utils";
 import { getOptimizedImageUrl } from "@/src/lib/image-optimization";
 
-export const runtime = 'edge';
 export const revalidate = 120;
 
 const DEFAULT_METRIC: LeaderboardMetric = "active";

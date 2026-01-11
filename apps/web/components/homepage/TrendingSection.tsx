@@ -58,8 +58,9 @@ export default function TrendingSection({
                                 prefetch={false}
                                 className={
                                     isActive
-                                        ? "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold rounded-full bg-primary text-white transition-colors whitespace-nowrap shrink-0"
-                                        : "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors hover:border-gray-300 dark:hover:border-gray-600 whitespace-nowrap shrink-0"
+                                        ? "px-4 py-2.5 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-bold rounded-full bg-primary text-white transition-colors whitespace-nowrap shrink-0"
+                                        : "px-4 py-2.5 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-bold rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors hover:border-gray-300 dark:hover:border-gray-600 whitespace-nowrap shrink-0"
+
                                 }
                             >
                                 {t(lang, tab.labelKey)}
