@@ -1,8 +1,10 @@
 import { getSiteUrl } from "@/src/lib/seo";
 import { localizePath, type SupportedLanguage } from "@/src/lib/i18n";
 
-export const SITEMAP_PAGE_SIZE = 50000;
+export const SITEMAP_PAGE_SIZE = 5000;
 export const SITEMAP_CACHE_SECONDS = 1800;
+
+export type ChangeFreq = "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
 
 type SitemapImage = {
   loc: string;
@@ -10,9 +12,11 @@ type SitemapImage = {
   caption?: string;
 };
 
-type SitemapEntry = {
+export type SitemapEntry = {
   loc: string;
   lastmod?: string;
+  changefreq?: ChangeFreq;
+  priority?: number;
   images?: (string | SitemapImage)[];
 };
 
@@ -30,6 +34,9 @@ export function buildUrlset(entries: SitemapEntry[]): string {
   const xmlEntries = entries
     .map((entry) => {
       const lastmod = entry.lastmod ? `<lastmod>${entry.lastmod}</lastmod>` : "";
+      const changefreq = entry.changefreq ? `<changefreq>${entry.changefreq}</changefreq>` : "";
+      const priority = entry.priority !== undefined ? `<priority>${entry.priority.toFixed(1)}</priority>` : "";
+
       const images = entry.images?.length
         ? entry.images
           .map((image) => {
@@ -48,7 +55,7 @@ export function buildUrlset(entries: SitemapEntry[]): string {
           })
           .join("")
         : "";
-      return `<url><loc>${escapeXml(entry.loc)}</loc>${lastmod}${images}</url>`;
+      return `<url><loc>${escapeXml(entry.loc)}</loc>${lastmod}${changefreq}${priority}${images}</url>`;
     })
     .join("");
   const imageNamespace = hasImages
@@ -66,12 +73,12 @@ export async function buildLanguageSitemapXml(
   const entries: SitemapEntry[] = [];
 
   if (part === 1) {
-    entries.push({ loc: `${siteUrl}${localizePath("/", lang)}` });
-    entries.push({ loc: `${siteUrl}${localizePath("/catalog", lang)}` });
-    entries.push({ loc: `${siteUrl}${localizePath("/products", lang)}` });
-    entries.push({ loc: `${siteUrl}${localizePath("/contact", lang)}` });
-    entries.push({ loc: `${siteUrl}${localizePath("/privacy-policy", lang)}` });
-    entries.push({ loc: `${siteUrl}${localizePath("/terms-of-use", lang)}` });
+    entries.push({ loc: `${siteUrl}${localizePath("/", lang)}`, priority: 1.0, changefreq: "daily" });
+    entries.push({ loc: `${siteUrl}${localizePath("/catalog", lang)}`, priority: 0.9, changefreq: "daily" });
+    entries.push({ loc: `${siteUrl}${localizePath("/products", lang)}`, priority: 0.9, changefreq: "daily" });
+    entries.push({ loc: `${siteUrl}${localizePath("/contact", lang)}`, priority: 0.5, changefreq: "monthly" });
+    entries.push({ loc: `${siteUrl}${localizePath("/privacy-policy", lang)}`, priority: 0.3, changefreq: "yearly" });
+    entries.push({ loc: `${siteUrl}${localizePath("/terms-of-use", lang)}`, priority: 0.3, changefreq: "yearly" });
   }
 
   if (!apiBaseUrl) {
@@ -93,12 +100,16 @@ export async function buildLanguageSitemapXml(
               `/catalog/reviews/${category.id}`,
               lang
             )}`,
+            changefreq: "weekly",
+            priority: 0.8
           });
           entries.push({
             loc: `${siteUrl}${localizePath(
               `/catalog/list/${category.id}`,
               lang
             )}`,
+            changefreq: "weekly",
+            priority: 0.8
           });
         }
       }
@@ -119,6 +130,8 @@ export async function buildLanguageSitemapXml(
         entries.push({
           loc: `${siteUrl}${localizePath(`/content/${review.slug}`, lang)}`,
           lastmod: review.updatedAt ?? review.createdAt,
+          changefreq: "weekly",
+          priority: 0.7,
           images: Array.isArray(review.imageUrls) ? review.imageUrls : undefined,
         });
       }

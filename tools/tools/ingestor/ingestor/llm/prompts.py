@@ -48,6 +48,7 @@ SYSTEM_PROMPT = (
     "You are an expert content localizer and native-level copywriter. "
     "Your job is NOT to translate - it's to RECREATE content as if a native speaker wrote it originally. "
     "Keep all factual details, and do not add or remove information. "
+    "Be SEO-aware: use natural, search-intent friendly phrasing (no keyword stuffing). "
     "The output must feel 100% authentic, human, and natural - never robotic or 'translated'. "
     "Always output a single JSON object that matches the requested schema. "
     "Do not include commentary or extra keys."
@@ -114,7 +115,8 @@ def build_translation_prompt(
         "6. USE LOCAL FLOW: Keep natural word order and local phrasing; avoid calques.\n"
         "7. CORRECT TERMINOLOGY: Use correct local terms for products (e.g. 'Baby Porridge' -> 'Kaşık Maması' in TR, 'Brei' in DE). Do not invent words.\n"
         "8. DO NOT OVERUSE CATCHPHRASES: At most 1-2 per review.\n"
-        "9. LENGTH: Do not shorten or summarize; preserve full detail.\n\n"
+        "9. LENGTH: Do not shorten or summarize; preserve full detail.\n"
+        "10. SEO: Use natural, search-intent phrasing and include product/category terms already present in the source (no keyword stuffing).\n\n"
         
         "📋 Content Structure:\n"
         "- content_html: The review body ONLY. Use semantic HTML (h3, h4, p, strong, ul, li).\n"
@@ -226,10 +228,12 @@ def build_content_translation_prompt(
         "2. SOUND HUMAN: Natural speech patterns, local phrasing, no literal calques.\n"
         "3. KEEP THE STORY: Preserve all personal experiences and opinions.\n"
         "4. KEEP HTML TAGS: Preserve all HTML tags exactly as-is.\n"
-        "5. KEEP FACTS: Keep numbers, dates, and brand names unchanged.\n"
-        "6. NO CYRILLIC in output.\n"
-        "7. DO NOT OVERUSE catchphrases (max 1-2).\n"
-        "8. LENGTH: Do not shorten or summarize; preserve full detail.\n\n"
+        "5. You may add sentences inside existing tags to improve flow and detail, but do not add new tags.\n"
+        "6. KEEP FACTS: Keep numbers, dates, and brand names unchanged.\n"
+        "7. NO CYRILLIC in output.\n"
+        "8. DO NOT OVERUSE catchphrases (max 1-2).\n"
+        "9. LENGTH: Do not shorten or summarize; preserve full detail.\n"
+        "10. SEO: Use natural, search-intent phrasing and include product/category terms already present in the source (no keyword stuffing).\n\n"
         "Output JSON schema (MANDATORY):\n"
         "{\n"
         "  \"title\": \"Catchy, natural title\",\n"
@@ -268,6 +272,8 @@ def build_native_polish_prompt(
         "- You may rewrite sentences fully for native flow, but keep the same meaning and detail level.\n"
         "- Do not add new info or remove details.\n"
         "- Do not shorten; preserve length and granularity.\n"
+        "- If the text feels thin, add short clarifying sentences using only existing facts.\n"
+        "- SEO: natural search-intent phrasing, no keyword stuffing.\n"
         "- No Cyrillic in output.\n\n"
         "Input JSON:\n"
         "{\n"
@@ -585,6 +591,48 @@ def build_extraction_prompt(text: str) -> str:
         "- Output ONLY JSON."
     )
 
+def build_content_expansion_prompt(
+    title: str,
+    content_html: str,
+    excerpt: str,
+    product_name: Optional[str],
+    category_name: Optional[str],
+    pros: Optional[List[str]],
+    cons: Optional[List[str]],
+    rating: Optional[float],
+    min_chars: int,
+) -> str:
+    pros_line = ", ".join([str(x) for x in pros if x]) if pros else ""
+    cons_line = ", ".join([str(x) for x in cons if x]) if cons else ""
+    return (
+        "You are an expert review editor. Expand a short review into a fuller, readable review.\n"
+        "Write in the SAME LANGUAGE as the input content. Do NOT translate.\n"
+        "You may rephrase and elaborate, but do not add new facts beyond the provided inputs.\n"
+        "Use only the original content, pros/cons, rating, and product/category context provided.\n"
+        "Be SEO-aware: use natural, search-intent phrasing without keyword stuffing.\n"
+        "If details are missing, stay neutral and avoid inventing features or claims.\n\n"
+        "Input JSON:\n"
+        "{\n"
+        f"  \"title\": {title!r},\n"
+        f"  \"content_html\": {content_html!r},\n"
+        f"  \"excerpt\": {excerpt!r},\n"
+        f"  \"product_name\": {product_name!r},\n"
+        f"  \"category_name\": {category_name!r},\n"
+        f"  \"rating\": {rating!r},\n"
+        f"  \"pros\": {pros_line!r},\n"
+        f"  \"cons\": {cons_line!r}\n"
+        "}\n\n"
+        "Output JSON schema:\n"
+        "{\n"
+        "  \"content_html\": \"<expanded HTML review>\"\n"
+        "}\n\n"
+        "Rules:\n"
+        "- Use semantic HTML: <p>, <h3>, <ul>, <li>, <strong>.\n"
+        "- Keep it coherent and human-sounding.\n"
+        f"- Minimum plain-text length target: {min_chars} characters.\n"
+        "- Output ONLY raw JSON (no markdown, no extra keys).\n"
+    )
+
 
 def build_chunked_translation_prompt(lang: str, chunk: str, chunk_num: int, total_chunks: int) -> str:
     """Build prompt for translating a single chunk of content."""
@@ -610,7 +658,9 @@ def build_chunked_translation_prompt(lang: str, chunk: str, chunk_num: int, tota
         "4. SOUND HUMAN: Use expressions native speakers actually use.\n"
         "5. AVOID AI PHRASES and literal translation artifacts.\n"
         "6. Keep brand names, product names, and numbers unchanged.\n"
-        "7. Do not overuse catchphrases.\n\n"
+        "7. Do not overuse catchphrases.\n"
+        "8. LENGTH: Do not shorten; preserve full detail within this chunk.\n"
+        "9. SEO: Use natural, search-intent phrasing without keyword stuffing.\n\n"
         
         "Content to rewrite:\n"
         f"{chunk}\n\n"
@@ -674,7 +724,9 @@ def build_metadata_prompt(
         "3. BE SPECIFIC: Pros/cons should be concrete observations, not generic statements.\n"
         "4. SOUND AUTHENTIC: Write as if sharing honest opinions with a friend.\n"
         "5. KEEP LANGUAGE CONSISTENT: No English fragments or source-language leftovers.\n"
-        "6. LENGTH: Do not shorten or over-summarize.\n\n"
+        "6. LENGTH: Do not shorten or over-summarize.\n"
+        "7. SEO: Use product/category terms when present, but avoid keyword stuffing.\n"
+        "8. Do not invent features, claims, or specs beyond the review content.\n\n"
         
         "Output JSON schema:\n"
         "{\n"
@@ -787,6 +839,6 @@ def build_native_quality_prompt(
         "}\n\n"
         "Rules:\n"
         "- translation_smell_score: 10 means no translation smell; 1 means obvious translation.\n"
-        "- rewrite should be true if the text does not sound native or is too short.\n"
+        "- rewrite should be true if the text does not sound native, is too short, or feels SEO-thin/robotic.\n"
         + (f"- Minimum content length target: {min_content_chars} characters (plain text).\n" if min_content_chars else "")
     )

@@ -110,7 +110,7 @@ export default function LoginForm() {
             </div>
 
             {/* Main Card */}
-            <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-200/50 dark:border-slate-700/50 p-8 sm:p-10">
+            <div className="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700/50 p-8 sm:p-10">
 
                 {/* Error Message */}
                 {error && (

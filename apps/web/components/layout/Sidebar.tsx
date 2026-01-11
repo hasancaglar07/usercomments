@@ -38,15 +38,12 @@ export function SidebarHomepage({
   const resolvedLang = normalizeLanguage(lang);
   const leaderboardHref = localizePath("/leaderboard", lang);
   return (
-    <div className="w-full lg:w-1/3 flex flex-col gap-6">
-      <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
-        <h3 className="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2">
-          <span className="material-symbols-outlined text-secondary">
-            workspace_premium
-          </span>
+    <div className="w-full lg:w-1/3 flex flex-col gap-8">
+      <div className="bg-background-light dark:bg-surface-dark rounded-xl p-6">
+        <h3 className="text-xl font-bold text-text-main dark:text-white mb-6 flex items-center gap-2">
           {t(resolvedLang, "sidebar.topReviewers")}
         </h3>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {topReviewers.map((reviewer) => (
             <Link
               key={`${reviewer.profile.username}-${reviewer.rankLabel}`}
@@ -60,61 +57,59 @@ export function SidebarHomepage({
                 <UserAvatar
                   src={reviewer.avatarUrl}
                   alt={reviewer.avatarAlt}
-                  size={40}
+                  size={44}
                   className="shrink-0"
                 />
                 <div>
-                  <p className="text-sm font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
+                  <p className="text-base font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
                     {reviewer.profile.displayName ?? reviewer.profile.username}
                   </p>
-                  <p className="text-xs text-text-muted">
+                  <p className="text-sm text-text-muted">
                     {reviewer.reviewCountLabel}
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-primary">
+              <span className="text-sm font-bold text-primary bg-primary/5 px-2 py-1 rounded-md">
                 {reviewer.rankLabel}
               </span>
             </Link>
           ))}
         </div>
         <Link
-          className="mt-4 block w-full py-2 text-xs font-bold text-primary hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition-colors text-center active-press"
+          className="mt-6 block w-full py-2.5 text-sm font-bold text-primary hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors text-center active-press"
           href={leaderboardHref}
         >
           {t(resolvedLang, "sidebar.viewLeaderboard")}
         </Link>
       </div>
-      <div className="bg-gradient-to-br from-primary to-blue-600 rounded-xl p-6 text-white text-center shadow-lg">
-        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-          <span className="material-symbols-outlined text-2xl">
-            campaign
-          </span>
-        </div>
-        <h3 className="font-bold text-lg mb-2">
+
+      <div className="bg-primary rounded-2xl p-8 text-white text-center">
+        <h3 className="font-bold text-xl mb-3">
           {t(resolvedLang, "sidebar.joinCommunity")}
         </h3>
-        <p className="text-sm text-blue-100 mb-4">
+        <p className="text-blue-100 mb-6 leading-relaxed">
           {t(resolvedLang, "sidebar.joinCommunityDescription")}
         </p>
-        <AuthCtaButton className="px-4 py-2 bg-white text-primary text-sm font-bold rounded-lg hover:bg-gray-100 transition-colors shadow-sm">
+        <AuthCtaButton className="w-full py-3 bg-white text-primary text-sm font-bold rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
           {t(resolvedLang, "sidebar.startWriting")}
         </AuthCtaButton>
       </div>
-      <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+
+      <div className="bg-background-light dark:bg-surface-dark rounded-xl p-6">
         <Suspense fallback={<div className="animate-pulse h-40 bg-gray-100 dark:bg-gray-800 rounded-lg" />}>
           <RecentComments lang={normalizeLanguage(lang)} />
         </Suspense>
       </div>
-      <div className="bg-background-light dark:bg-surface-dark rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
-        <h3 className="text-lg font-bold text-text-main dark:text-white mb-4">
+
+      <div className="bg-background-light dark:bg-surface-dark rounded-xl p-6">
+        <h3 className="text-xl font-bold text-text-main dark:text-white mb-6">
           {t(resolvedLang, "sidebar.popularCategories")}
         </h3>
         <div className="flex flex-wrap gap-2">
           {popularCategories.map((category) => (
             <Link
               key={category.id}
-              className="px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active-press"
+              className="px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active-press"
               href={localizePath(`/catalog/reviews/${category.id}`, lang)}
             >
               {category.name}
@@ -158,21 +153,16 @@ export function SidebarCatalog({ lang, popularTopics, topAuthors }: SidebarCatal
     <div className="lg:col-span-4 space-y-8">
       <PopularReviewsWidget lang={lang} topics={popularTopics} />
       <TopAuthorsWidget lang={lang} authors={topAuthors} />
-      <div className="bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-lg p-6 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <span className="material-symbols-outlined text-[120px]">
-            verified
-          </span>
-        </div>
+      <div className="bg-primary rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="relative z-10">
-          <h3 className="font-bold text-xl mb-2">
+          <h3 className="font-bold text-xl mb-3">
             {t(resolvedLang, "sidebar.joinCommunity")}
           </h3>
-          <p className="text-blue-100 text-sm mb-4">
+          <p className="text-blue-100 text-sm mb-6 leading-relaxed">
             {t(resolvedLang, "sidebar.joinCommunityDescription")}
           </p>
           <AuthCtaButton
-            className="bg-white text-primary px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-blue-50 transition-colors w-full"
+            className="bg-white text-primary px-6 py-3 rounded-xl text-sm font-bold shadow-sm hover:bg-gray-50 transition-colors w-full"
             authenticatedHref="/node/add/review"
             guestHref="/user/register"
           >
@@ -217,45 +207,39 @@ export function SidebarCategory({
 }: SidebarCategoryProps) {
   const resolvedLang = normalizeLanguage(lang);
   return (
-    <aside className="lg:col-span-4 flex flex-col gap-6">
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3]">
-        <h3 className="text-[#0d141b] text-lg font-bold mb-4 flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary">
-            trophy
-          </span>
+    <aside className="lg:col-span-4 flex flex-col gap-8">
+      <div className="bg-white dark:bg-surface-dark p-6 rounded-xl">
+        <h3 className="text-text-main dark:text-white text-xl font-bold mb-6 flex items-center gap-2">
           {t(resolvedLang, "sidebar.bestInCategory")}
         </h3>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {bestItems.map((item) => (
             <Link
               key={item.rankLabel}
-              className="flex gap-3 items-center group cursor-pointer active-press"
+              className="flex gap-4 items-center group cursor-pointer active-press"
               href={localizePath(`/content/${item.review.slug}`, lang)}
             >
-              <span className="text-xl font-bold text-gray-300 w-6 text-center group-hover:text-primary transition-colors">
+              <span className="text-xl font-black text-gray-200 w-6 text-center group-hover:text-primary transition-colors">
                 {item.rankLabel}
               </span>
-              <div className="relative size-12 shrink-0">
+              <div className="relative size-14 shrink-0">
                 <Image
                   src={getOptimizedImageUrl(item.imageUrl, 128)}
                   alt={item.imageAlt}
                   fill
-                  sizes="48px"
-                  className="rounded object-cover border border-[#e7edf3]"
+                  sizes="56px"
+                  className="rounded-lg object-cover bg-gray-100 dark:bg-gray-800"
                 />
               </div>
               <div className="flex flex-col min-w-0">
-                <p className="text-sm font-bold text-[#0d141b] leading-tight group-hover:text-primary transition-colors truncate">
+                <p className="text-base font-bold text-text-main dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-2">
                   {item.review.title}
                 </p>
-                <div className="flex text-primary text-[14px]">
-                  <span className="material-symbols-outlined text-[16px] fill-current">
-                    star
-                  </span>
-                  <span className="font-bold ml-1 text-xs">
+                <div className="flex text-primary text-sm mt-1">
+                  <span className="font-bold">
                     {item.ratingLabel}
                   </span>
-                  <span className="text-[#4c739a] ml-1 text-xs">
+                  <span className="text-text-muted ml-1.5 text-xs">
                     {item.ratingCountLabel}
                   </span>
                 </div>
@@ -263,15 +247,15 @@ export function SidebarCategory({
             </Link>
           ))}
         </div>
-        <button className="w-full mt-5 py-2 text-sm font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors active-press">
+        <button className="w-full mt-6 py-2.5 text-sm font-bold text-primary bg-primary/5 rounded-xl hover:bg-primary/10 transition-colors active-press">
           {t(resolvedLang, "sidebar.viewTop100")}
         </button>
       </div>
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3]">
-        <h3 className="text-[#0d141b] text-lg font-bold mb-4">
+      <div className="bg-white dark:bg-surface-dark p-6 rounded-xl">
+        <h3 className="text-text-main dark:text-white text-xl font-bold mb-6">
           {t(resolvedLang, "sidebar.topAuthors")}
         </h3>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {topAuthors.map((author) => (
             <div
               key={author.profile.username}
@@ -287,19 +271,19 @@ export function SidebarCategory({
                 <UserAvatar
                   src={author.avatarUrl}
                   alt={author.avatarAlt}
-                  size={40}
-                  className="shrink-0 border border-[#e7edf3]"
+                  size={44}
+                  className="shrink-0"
                 />
                 <div className="flex flex-col">
-                  <p className="text-sm font-bold text-[#0d141b] group-hover:text-primary transition-colors">
+                  <p className="text-sm font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
                     {author.profile.displayName ?? author.profile.username}
                   </p>
-                  <p className="text-xs text-[#4c739a]">
+                  <p className="text-xs text-text-muted">
                     {author.reviewsLabel}
                   </p>
                 </div>
               </Link>
-              <button className="size-8 rounded-full bg-[#e7edf3] flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors shrink-0 active-press">
+              <button className="size-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors shrink-0 active-press">
                 <span className="material-symbols-outlined text-lg">
                   person_add
                 </span>
@@ -308,8 +292,8 @@ export function SidebarCategory({
           ))}
         </div>
       </div>
-      <div className="bg-white p-5 rounded-xl shadow-sm border border-[#e7edf3]">
-        <h3 className="text-[#0d141b] text-lg font-bold mb-4">
+      <div className="bg-white dark:bg-surface-dark p-6 rounded-xl">
+        <h3 className="text-text-main dark:text-white text-xl font-bold mb-6">
           {t(resolvedLang, "sidebar.popularTags")}
         </h3>
         <div className="flex flex-wrap gap-2">
@@ -321,7 +305,7 @@ export function SidebarCategory({
             return (
               <Link
                 key={tag.id}
-                className="text-xs font-medium text-[#4c739a] bg-[#f6f7f8] px-3 py-1.5 rounded-md hover:bg-[#e7edf3] transition-colors active-press"
+                className="text-sm font-medium text-text-sub dark:text-gray-300 bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors active-press"
                 href={localizePath(href, lang)}
               >
                 {tag.name}
@@ -355,91 +339,95 @@ export function SidebarProfile({ lang, profile, popularReviews }: SidebarProfile
       ? profile.bio
       : t(resolvedLang, "sidebar.noBio");
   return (
-    <aside className="w-full lg:w-1/3 flex flex-col gap-6 order-2 lg:order-1">
-      <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
-        <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-3">
+    <aside className="w-full lg:w-80 flex flex-col gap-6 order-2 lg:order-first">
+      <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6">
+        <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-xl mb-4">
           {t(resolvedLang, "sidebar.aboutMe")}
         </h3>
-        <p className="text-text-sub-light dark:text-text-sub-dark text-sm leading-relaxed mb-4">
+        <p className="text-text-sub-light dark:text-text-sub-dark text-base leading-relaxed mb-6">
           {bio}
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           <UserProfileShareLink
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-background-light dark:bg-background-dark text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors active-press"
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-800 text-text-sub-light dark:text-text-sub-dark hover:text-primary transition-colors active-press"
             href={localizePath(`/users/${profile.username}`, lang)}
             aria-label={t(resolvedLang, "sidebar.copyProfileLink")}
           >
-            <span className="material-symbols-outlined text-[18px]">link</span>
+            <span className="material-symbols-outlined text-[20px]">link</span>
           </UserProfileShareLink>
-          <div className="flex items-center text-xs text-text-sub-light dark:text-text-sub-dark gap-1 ml-auto">
-            <span className="material-symbols-outlined text-[16px]">
+          <div className="flex items-center text-sm text-text-sub-light dark:text-text-sub-dark gap-1 ml-auto font-medium">
+            <span className="material-symbols-outlined text-[18px]">
               location_on
             </span>
             <span>{profile.stats?.location}</span>
           </div>
         </div>
       </div>
-      <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm">
-        <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-4 flex items-center justify-between">
+
+      <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6">
+        <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-xl mb-5 flex items-center justify-between">
           {t(resolvedLang, "sidebar.achievements")}
-          <UserProfileAchievementsTrigger className="text-xs font-normal text-primary cursor-pointer hover:underline active-press">
+          <UserProfileAchievementsTrigger className="text-sm font-semibold text-primary cursor-pointer hover:underline active-press">
             {t(resolvedLang, "sidebar.viewAll")}
           </UserProfileAchievementsTrigger>
         </h3>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-3">
           <div
-            className="aspect-square rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400"
+            className="aspect-square rounded-xl bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center text-yellow-600 dark:text-yellow-400"
             title={t(resolvedLang, "sidebar.achievementGoldReviewer")}
           >
-            <span className="material-symbols-outlined">military_tech</span>
+            <span className="material-symbols-outlined text-2xl">military_tech</span>
           </div>
           <div
-            className="aspect-square rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400"
+            className="aspect-square rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400"
             title={t(resolvedLang, "sidebar.achievementConsistentWriter")}
           >
-            <span className="material-symbols-outlined">history_edu</span>
+            <span className="material-symbols-outlined text-2xl">history_edu</span>
           </div>
           <div
-            className="aspect-square rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400"
+            className="aspect-square rounded-xl bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600 dark:text-green-400"
             title={t(resolvedLang, "sidebar.achievementHelpfulHero")}
           >
-            <span className="material-symbols-outlined">thumb_up</span>
+            <span className="material-symbols-outlined text-2xl">thumb_up</span>
           </div>
-          <div className="aspect-square rounded-lg bg-background-light dark:bg-background-dark border border-dashed border-border-light dark:border-border-dark flex items-center justify-center text-text-sub-light dark:text-text-sub-dark text-xs font-medium">
+          <div className="aspect-square rounded-xl bg-gray-50 dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm font-bold">
             +5
           </div>
         </div>
       </div>
-      <div className="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-5 shadow-sm sticky top-24">
-        <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-lg mb-4">
+
+      <div className="bg-surface-light dark:bg-surface-dark rounded-xl p-6 sticky top-24">
+        <h3 className="text-text-main-light dark:text-text-main-dark font-bold text-xl mb-6">
           {t(resolvedLang, "sidebar.popularReviews")}
         </h3>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {popularReviews.map((item) => (
             <Link
               key={item.review.id}
-              className="flex gap-3 items-center group/item active-press"
+              className="flex gap-4 items-center group/item active-press"
               href={localizePath(`/content/${item.review.slug}`, lang)}
             >
-              <div className="relative w-12 h-12 shrink-0">
+              <div className="relative w-14 h-14 shrink-0">
                 <Image
                   src={getOptimizedImageUrl(item.thumbnailUrl, 128)}
                   alt={item.thumbnailAlt}
                   fill
-                  sizes="48px"
-                  className="rounded-lg object-cover"
+                  sizes="56px"
+                  className="rounded-lg object-cover bg-gray-100 dark:bg-gray-800"
                 />
               </div>
               <div className="flex flex-col min-w-0">
-                <p className="text-text-main-light dark:text-text-main-dark text-sm font-semibold truncate group-hover/item:text-primary transition-colors">
+                <p className="text-text-main-light dark:text-text-main-dark text-sm font-bold truncate group-hover/item:text-primary transition-colors">
                   {item.review.title}
                 </p>
-                <div className="flex items-center gap-1 text-xs text-text-sub-light dark:text-text-sub-dark">
-                  <span className="material-symbols-outlined star-filled text-yellow-400 text-[14px]">
-                    star
-                  </span>
-                  <span>{item.ratingLabel}</span>
-                  <span className="mx-1">•</span>
+                <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5">
+                  <div className="flex items-center gap-0.5 text-yellow-500">
+                    <span className="material-symbols-outlined star-filled text-[14px]">
+                      star
+                    </span>
+                    <span className="font-bold text-text-main dark:text-white">{item.ratingLabel}</span>
+                  </div>
+                  <span className="text-gray-300">•</span>
                   <span>{item.viewsLabel}</span>
                 </div>
               </div>

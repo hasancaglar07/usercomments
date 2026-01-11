@@ -423,8 +423,8 @@ async function CatalogHeaderSection({
   const catalogSubtitle =
     totalReviews > 0
       ? t(lang, "catalog.subtitle.withCount", {
-          count: formatCompactNumber(totalReviews, lang),
-        })
+        count: formatCompactNumber(totalReviews, lang),
+      })
       : t(lang, "catalog.subtitle.empty");
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
@@ -453,40 +453,36 @@ async function CatalogHeaderSection({
           {errorMessage}
         </div>
       ) : null}
-      <div className="mb-10 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <nav aria-label="Breadcrumb" className="flex mb-6 relative z-10">
-          <ol className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+      <div className="mb-12 relative overflow-hidden">
+        <nav aria-label="Breadcrumb" className="flex mb-8 relative z-10">
+          <ol className="flex items-center gap-2 text-sm text-text-sub dark:text-gray-400 font-medium">
             <li>
               <Link
                 className="hover:text-primary transition-colors flex items-center"
                 href={localizePath("/", lang)}
               >
-                <span className="material-symbols-outlined text-[18px] mr-1">
-                  home
-                </span>
                 {t(lang, "catalog.breadcrumb.home")}
               </Link>
             </li>
             <li>
-              <span className="mx-1 text-gray-300">/</span>
+              <span className="text-gray-300 dark:text-gray-600">/</span>
             </li>
-            <li className="font-medium text-gray-900 dark:text-gray-100">
+            <li className="text-text-main dark:text-gray-100 font-bold">
               {t(lang, "catalog.breadcrumb.catalog")}
             </li>
           </ol>
         </nav>
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
-          <div className="max-w-2xl">
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-3">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 relative z-10">
+          <div className="max-w-3xl">
+            <h2 className="text-4xl md:text-6xl font-black tracking-tight text-text-main dark:text-white mb-6 leading-tight">
               {t(lang, "catalog.heading")}
             </h2>
-            <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
+            <p className="text-lg md:text-xl text-text-sub dark:text-gray-400 leading-relaxed font-medium">
               {catalogSubtitle}
             </p>
           </div>
-          <div className="w-full md:w-auto min-w-[200px]">
+          <div className="w-full md:w-auto min-w-[220px]">
             <Suspense fallback={null}>
               <CatalogSortSelect
                 sort={sort}
@@ -499,7 +495,7 @@ async function CatalogHeaderSection({
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800">
+        <div className="mt-8 pt-0 md:pt-4">
           <Suspense fallback={null}>
             <CatalogCategoryChips categoryId={categoryId} pills={categoryPills} />
           </Suspense>

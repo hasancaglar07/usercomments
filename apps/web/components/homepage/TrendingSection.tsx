@@ -41,7 +41,7 @@ export default function TrendingSection({
                     {t(lang, "homepage.heroHeading") || t(lang, "homepage.trendingTitle")}
                 </h1>
 
-                <div className="flex flex-1 sm:flex-none gap-1.5 p-1 overflow-x-auto no-scrollbar sm:flex-wrap bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm">
+                <div className="flex flex-1 sm:flex-none gap-2 p-1 overflow-x-auto no-scrollbar sm:flex-wrap">
                     {TRENDING_TABS.map((tab) => {
                         const isActive = tab.key === activeTab;
                         const params = new URLSearchParams();
@@ -58,8 +58,8 @@ export default function TrendingSection({
                                 prefetch={false}
                                 className={
                                     isActive
-                                        ? "px-4 py-2.5 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-bold rounded-full bg-primary text-white transition-colors whitespace-nowrap shrink-0"
-                                        : "px-4 py-2.5 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-bold rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors hover:border-gray-300 dark:hover:border-gray-600 whitespace-nowrap shrink-0"
+                                        ? "px-5 py-2.5 sm:px-6 sm:py-3 text-sm font-bold rounded-full bg-primary text-white transition-colors whitespace-nowrap shrink-0 shadow-sm"
+                                        : "px-5 py-2.5 sm:px-6 sm:py-3 text-sm font-bold rounded-full text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors whitespace-nowrap shrink-0"
 
                                 }
                             >

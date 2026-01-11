@@ -19,6 +19,7 @@ from .prompts import (
     build_sentiment_enrichment_prompt,
     build_product_translation_prompt,
     build_extraction_prompt,
+    build_content_expansion_prompt,
     build_content_translation_prompt,
     build_chunked_translation_prompt,
     build_title_translation_prompt,
@@ -60,38 +61,38 @@ LANGUAGE_SUFFIXES = {
 DIRECT_TRANSLATION_LANGS = set(LANGUAGE_STYLES.keys()) - {"en"}
 CHUNK_THRESHOLD = 6000
 CHUNK_SIZE = 3500
-MAX_RETRIES = 3
+MAX_RETRIES = 4
 ENABLE_NATIVE_POLISH = True
 ENABLE_METADATA_POLISH = True
 ENABLE_SENTIMENT_ENRICHMENT = True
-MAX_QUALITY_PASSES = 2
-MAX_METADATA_ATTEMPTS = 2
-MIN_NATIVE_SCORE = 8.4
-MIN_TRANSLATION_SMELL_SCORE = 8.2
-MIN_FLUENCY_SCORE = 8.2
-MIN_PROS = 5
-MIN_CONS = 5
-MIN_FAQ = 6
+MAX_QUALITY_PASSES = 3
+MAX_METADATA_ATTEMPTS = 3
+MIN_NATIVE_SCORE = 8.9
+MIN_TRANSLATION_SMELL_SCORE = 8.7
+MIN_FLUENCY_SCORE = 8.7
+MIN_PROS = 6
+MIN_CONS = 6
+MIN_FAQ = 8
 
 _LANG_BASE_TEMPS = {
-    "en": 0.35,
-    "tr": 0.5,
-    "de": 0.4,
-    "es": 0.55,
+    "en": 0.4,
+    "tr": 0.55,
+    "de": 0.45,
+    "es": 0.58,
 }
 
 _MIN_LENGTH_RATIO = {
-    "en": 0.9,
-    "tr": 0.95,
-    "de": 0.95,
-    "es": 0.95,
+    "en": 1.0,
+    "tr": 1.02,
+    "de": 1.02,
+    "es": 1.02,
 }
 
 _MIN_DESC_RATIO = {
-    "en": 0.9,
-    "tr": 0.95,
-    "de": 0.95,
-    "es": 0.95,
+    "en": 1.0,
+    "tr": 1.02,
+    "de": 1.02,
+    "es": 1.02,
 }
 
 
@@ -332,8 +333,8 @@ def _min_description_length(lang: str, source_text: str) -> int:
 def _min_summary_length(source_html: str) -> int:
     base_len = _text_length(source_html)
     if base_len == 0:
-        return 160
-    return max(180, min(420, int(base_len * 0.08)))
+        return 200
+    return max(220, min(520, int(base_len * 0.1)))
 
 
 async def translate_review(
@@ -680,49 +681,44 @@ async def translate_review(
         best_payload: Optional[dict] = None
         translated_title: Optional[str] = None
         translated_content: Optional[str] = None
-        base_translated = False
 
         for attempt in range(MAX_QUALITY_PASSES):
             logger.info("Quality pass %d/%d for %s", attempt + 1, MAX_QUALITY_PASSES, lang)
-            if not base_translated:
-                temp = min(_temperature_for(lang, "translation") + (0.08 * attempt), 0.7)
-                logger.info("Quality pass %d/%d for %s: translating", attempt + 1, MAX_QUALITY_PASSES, lang)
-                content_result = await _translate_content(
+            temp = min(_temperature_for(lang, "translation") + (0.08 * attempt), 0.7)
+            logger.info("Quality pass %d/%d for %s: translating", attempt + 1, MAX_QUALITY_PASSES, lang)
+            content_result = await _translate_content(
+                lang,
+                title_source,
+                content_source,
+                category,
+                pros,
+                cons,
+                source_lang_name,
+                min_chars=min_content_chars if min_content_chars > 0 else None,
+                issues=qa_issues if qa_issues else None,
+                temperature=temp,
+            )
+            if not content_result:
+                logger.warning("Content translation failed for %s, attempting fallback", lang)
+                fallback_prompt = build_translation_prompt(
                     lang,
-                    title_source,
-                    content_source,
-                    category,
-                    pros,
-                    cons,
-                    source_lang_name,
+                    title_ru,
+                    content_html_ru,
+                    category_name_ru,
+                    pros_ru,
+                    cons_ru,
                     min_chars=min_content_chars if min_content_chars > 0 else None,
                     issues=qa_issues if qa_issues else None,
-                    temperature=temp,
                 )
-                if not content_result:
-                    logger.warning("Content translation failed for %s, attempting fallback", lang)
-                    fallback_prompt = build_translation_prompt(
-                        lang,
-                        title_ru,
-                        content_html_ru,
-                        category_name_ru,
-                        pros_ru,
-                        cons_ru,
-                        min_chars=min_content_chars if min_content_chars > 0 else None,
-                        issues=qa_issues if qa_issues else None,
-                    )
-                    fallback_parsed = await _translate_with_retry(
-                        fallback_prompt,
-                        f"{lang}_fallback_full",
-                        _temperature_for(lang, "translation"),
-                    )
-                    if fallback_parsed:
-                        return _normalize_payload(fallback_parsed, lang, fallback_title=title_ru)
-                    return None
-                translated_title, translated_content = content_result
-                base_translated = True
-            else:
-                logger.info("Quality pass %d/%d for %s: native rewrite", attempt + 1, MAX_QUALITY_PASSES, lang)
+                fallback_parsed = await _translate_with_retry(
+                    fallback_prompt,
+                    f"{lang}_fallback_full",
+                    _temperature_for(lang, "translation"),
+                )
+                if fallback_parsed:
+                    return _normalize_payload(fallback_parsed, lang, fallback_title=title_ru)
+                return None
+            translated_title, translated_content = content_result
 
             translated_title, translated_content = await _polish_content(
                 lang,
@@ -732,6 +728,27 @@ async def translate_review(
                 issues=qa_issues if qa_issues else None,
                 temperature=min(_temperature_for(lang, "translation") + 0.1, 0.7) if attempt > 0 else None,
             )
+            if min_content_chars and _text_length(translated_content or "") < min_content_chars:
+                logger.info(
+                    "Content below target length for %s (%d < %d). Expanding.",
+                    lang,
+                    _text_length(translated_content or ""),
+                    min_content_chars,
+                )
+                expanded = await expand_review_content_ai(
+                    client,
+                    title=translated_title or title_source,
+                    content_html=translated_content or content_source,
+                    product_name=None,
+                    category_name=None,
+                    pros=None,
+                    cons=None,
+                    rating=None,
+                    logger=logger,
+                    min_chars=min_content_chars,
+                )
+                if expanded:
+                    translated_content = expanded
             logger.info("Quality pass %d/%d for %s: metadata", attempt + 1, MAX_QUALITY_PASSES, lang)
             payload = await _generate_metadata(
                 lang,
@@ -746,7 +763,7 @@ async def translate_review(
 
             translated_len = _text_length(payload.get("content_html", ""))
             if min_content_chars and translated_len < min_content_chars:
-                qa_issues = ["content too short", "missing details"]
+                qa_issues = ["content too short", "missing details", "expand with existing facts"]
                 if attempt < MAX_QUALITY_PASSES - 1:
                     logger.warning(
                         "Length guard failed for %s (min %d, got %d). Retrying.",
@@ -807,7 +824,7 @@ async def translate_review(
                     smell_score,
                 )
                 if not qa_issues:
-                    qa_issues = ["literal translation", "unnatural phrasing"]
+                    qa_issues = ["literal translation", "unnatural phrasing", "translation smell", "thin content"]
                 continue
 
         if best_payload:
@@ -1114,3 +1131,37 @@ async def extract_review_details_ai(
     except Exception as e:
         logger.error("AI Extraction failed: %s", e)
         return {}
+
+
+async def expand_review_content_ai(
+    client: GroqClient,
+    title: str,
+    content_html: str,
+    product_name: Optional[str],
+    category_name: Optional[str],
+    pros: Optional[List[str]],
+    cons: Optional[List[str]],
+    rating: Optional[float],
+    logger: logging.Logger,
+    min_chars: int,
+) -> Optional[str]:
+    try:
+        excerpt = normalize_whitespace(content_html)[:300]
+        prompt = build_content_expansion_prompt(
+            title=title,
+            content_html=content_html,
+            excerpt=excerpt,
+            product_name=product_name,
+            category_name=category_name,
+            pros=pros,
+            cons=cons,
+            rating=rating,
+            min_chars=min_chars,
+        )
+        raw = await asyncio.to_thread(client.chat_json, SYSTEM_PROMPT, prompt, 0.25)
+        parsed = await _parse_or_repair(client, raw, logger)
+        content = clean_html(str(parsed.get("content_html") or "").strip())
+        return content or None
+    except Exception as e:
+        logger.error("AI content expansion failed: %s", e)
+        return None

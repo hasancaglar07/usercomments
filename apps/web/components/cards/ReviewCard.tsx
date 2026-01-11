@@ -171,8 +171,8 @@ export function ReviewCardHomepage({
   }
 
   return (
-    <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-2xl sm:border sm:shadow-[0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
-      <div className="w-full sm:w-64 h-56 sm:h-auto flex-shrink-0 relative overflow-hidden">
+    <article className="card-hover-glow group flex flex-col sm:flex-row bg-white dark:bg-surface-dark rounded-none border-b border-gray-100 dark:border-gray-800 sm:rounded-xl sm:border sm:shadow-sm overflow-hidden mb-4">
+      <div className="w-full sm:w-72 h-64 sm:h-auto flex-shrink-0 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
         <Link href={href} prefetch={false} className="block h-full w-full active-press">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -186,12 +186,12 @@ export function ReviewCardHomepage({
           {badge && (
             <div className="absolute top-3 left-3">
               {badge === "verified" ? (
-                <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur text-emerald-700 text-[10px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
+                <span className="inline-flex items-center gap-1 bg-white/95 backdrop-blur-md text-emerald-700 text-[11px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
                   <span className="material-symbols-outlined text-[14px]">verified</span>
                   {t(lang, "reviewCard.verifiedPurchase")}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 bg-white/90 backdrop-blur text-blue-700 text-[10px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
+                <span className="inline-flex items-center gap-1 bg-white/95 backdrop-blur-md text-blue-700 text-[11px] px-2.5 py-1 rounded-full font-bold shadow-sm uppercase tracking-wide">
                   <span className="material-symbols-outlined text-[14px]">diamond</span>
                   {t(lang, "reviewCard.expert")}
                 </span>
@@ -201,73 +201,71 @@ export function ReviewCardHomepage({
         </Link>
       </div>
 
-      <div className="flex-1 p-4 sm:p-6 flex flex-col">
+      <div className="flex-1 p-5 sm:p-6 flex flex-col">
         {/* Header: Author & Date */}
         <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <UserAvatar
               src={avatarUrl}
               alt={avatarAlt}
-              size={32}
+              size={40} // Increased size
               className="shrink-0 border border-gray-100 dark:border-gray-700"
             />
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-text-main dark:text-white leading-none">{authorName}</span>
-              <span className="text-[11px] text-text-muted mt-0.5">{authorMeta}</span>
+              <span className="text-base font-bold text-text-main dark:text-white leading-none mb-0.5">{authorName}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">{authorMeta}</span>
+                <span className="text-xs text-text-muted">•</span>
+                <span className="text-xs text-text-muted">{postedLabel}</span>
+              </div>
             </div>
-          </div>
-          <div className="ml-auto shrink-0">
-            <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
           </div>
         </div>
 
         {/* Content: Title & Rating */}
-        <div className="mb-2">
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <RatingStarsHomepage stars={ratingStars} valueText={ratingValue} />
+          </div>
           <Link
             href={href}
             prefetch={false}
             className="group-hover:text-primary transition-colors active-press block"
           >
-            <h3 className="text-[17px] sm:text-xl font-bold text-text-main dark:text-white leading-tight line-clamp-2">
+            <h3 className="text-xl sm:text-2xl font-bold text-text-main dark:text-white leading-tight line-clamp-2">
               {review.title}
             </h3>
           </Link>
         </div>
 
         {/* Excerpt */}
-        <p className="text-sm text-text-sub dark:text-gray-300 line-clamp-2 mb-4 leading-relaxed">
+        <p className="text-base text-text-sub dark:text-gray-300 line-clamp-3 mb-5 leading-relaxed">
           {review.excerpt}
         </p>
 
         {/* Gallery & Footer Split */}
-        <div className="mt-auto flex flex-col gap-4">
+        <div className="mt-auto flex flex-col gap-5">
+          {/* Gallery Thumbnails - Simplified to just rounded rectangles */}
           {galleryPhotos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2.5">
+            <div className="grid grid-cols-4 gap-2 sm:flex sm:gap-3">
               {galleryPhotos.map((photo, index) => (
                 <div
                   key={index}
-                  className={`relative w-full aspect-[4/3] sm:w-24 sm:h-24 sm:aspect-square rounded-lg overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 shadow-sm cursor-pointer hover:ring-2 ring-primary/20 transition-all ${index >= 3 ? 'hidden sm:block' : ''}`}
+                  className={`relative w-full aspect-square sm:w-20 sm:h-20 rounded-lg overflow-hidden shrink-0 border border-gray-100 dark:border-gray-800 cursor-pointer hover:opacity-80 transition-opacity ${index >= 4 ? 'hidden sm:block' : ''}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getOptimizedImageUrl(photo, 300)}
                     alt={`Gallery ${index}`}
-                    className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover"
                     decoding="async"
                     loading="lazy"
                   />
 
-                  {/* Mobile Overlay (on 3rd item) */}
-                  {index === 2 && (review.photoUrls?.length || 0) > 3 && (
-                    <div className="absolute inset-0 bg-black/50 flex sm:hidden items-center justify-center text-white text-xs font-bold transition-colors backdrop-blur-[1px]">
-                      +{(review.photoUrls?.length || 0) - 3}
-                    </div>
-                  )}
-
-                  {/* Desktop Overlay (on 5th item) */}
-                  {index === 4 && remainingCount > 0 && (
-                    <div className="absolute inset-0 bg-black/50 hidden sm:flex items-center justify-center text-white text-sm font-bold transition-colors backdrop-blur-[1px]">
-                      +{remainingCount}
+                  {/* Overlay for more photos */}
+                  {index === 3 && (review.photoUrls?.length || 0) > 4 && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold transition-colors">
+                      +{(review.photoUrls?.length || 0) - 4}
                     </div>
                   )}
                 </div>
@@ -275,18 +273,19 @@ export function ReviewCardHomepage({
             </div>
           )}
 
-          <div className="flex items-center gap-6 pt-3 border-t border-gray-50 dark:border-gray-800">
-            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press group/like">
-              <span className="material-symbols-outlined text-[18px] group-active/like:animate-pop-like transition-transform">thumb_up</span>
-              <span>{likesLabel}</span>
+          <div className="flex items-center gap-6 py-2">
+            <button className="flex items-center gap-2 text-text-muted hover:text-text-main-light dark:hover:text-white transition-colors px-2 py-1 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active-press group/like">
+              <span className="material-symbols-outlined text-[20px] group-active/like:animate-pop-like">thumb_up</span>
+              <span className="text-sm font-semibold">{likesLabel}</span>
             </button>
-            <button className="flex items-center gap-1.5 text-text-muted hover:text-primary transition-colors text-xs font-bold uppercase tracking-wide active-press">
-              <span className="material-symbols-outlined text-[18px]">chat_bubble</span>
-              <span>{commentsLabel}</span>
+            <button className="flex items-center gap-2 text-text-muted hover:text-text-main-light dark:hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active-press">
+              <span className="material-symbols-outlined text-[20px]">chat_bubble</span>
+              <span className="text-sm font-semibold">{commentsLabel}</span>
             </button>
-            <span className="ml-auto block text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
-              {postedLabel}
-            </span>
+            <button className="flex items-center gap-2 text-text-muted hover:text-text-main-light dark:hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 active-press ml-auto">
+              <span className="material-symbols-outlined text-[20px]">share</span>
+              <span className="text-sm font-semibold hidden sm:inline">{t(lang, "reviewCard.share")}</span>
+            </button>
           </div>
         </div>
       </div>

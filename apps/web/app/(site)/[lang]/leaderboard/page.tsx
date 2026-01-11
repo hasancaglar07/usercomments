@@ -165,21 +165,12 @@ const MOCK_FIRST_NAMES = [
   "Hana",
   "Noah",
   "Elif",
+  "Zeynep",
+  "Can"
 ];
 
 const MOCK_LAST_INITIALS = [
-  "M",
-  "K",
-  "S",
-  "R",
-  "L",
-  "T",
-  "B",
-  "G",
-  "D",
-  "A",
-  "N",
-  "P",
+  "M", "K", "S", "R", "L", "T", "B", "G", "D", "A", "N", "P", "Y", "O"
 ];
 
 function buildMockEntries(count: number): LeaderboardEntry[] {
@@ -379,94 +370,60 @@ function PodiumCard({
   const reputation = useRecentStats
     ? entry.stats.recentHelpfulVotes ?? entry.stats.reputation
     : entry.stats.reputation;
-  const podiumStyles =
-    rank === 1
-      ? {
-        card:
-          "bg-gradient-to-br from-amber-100 via-white to-amber-50 border-amber-200 shadow-amber-200/60",
-        ring: "ring-2 ring-amber-300",
-        rankText: "text-amber-700",
-        icon: "🏆",
-      }
-      : rank === 2
-        ? {
-          card: "bg-gradient-to-br from-slate-100 via-white to-slate-50 border-slate-200",
-          ring: "ring-1 ring-slate-300",
-          rankText: "text-slate-600",
-          icon: "🥈",
-        }
-        : {
-          card: "bg-gradient-to-br from-orange-100 via-white to-orange-50 border-orange-200",
-          ring: "ring-1 ring-orange-300",
-          rankText: "text-orange-600",
-          icon: "🥉",
-        };
 
   return (
     <div
-      className={`relative flex flex-col items-center text-center gap-4 rounded-3xl border p-6 shadow-sm ${podiumStyles.card}`}
+      className={`relative flex flex-col items-center text-center gap-4 p-8 rounded-3xl bg-white dark:bg-surface-dark ${isWinner ? "shadow-xl border border-amber-200/20" : "shadow-sm border border-gray-100 dark:border-gray-800"}`}
     >
-      <div className="absolute -top-4 right-6 flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-bold text-text-main shadow-sm whitespace-nowrap">
-        <span className="text-[16px] leading-none" aria-hidden>
-          {podiumStyles.icon}
-        </span>
+      <div className={`absolute -top-4 right-6 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black shadow-sm whitespace-nowrap ${isWinner ? "bg-amber-100 text-amber-900" : "bg-gray-100 text-gray-900"}`}>
+        <span>{rank === 1 ? "🏆" : rank === 2 ? "🥈" : "🥉"}</span>
         #{rank}
       </div>
-      <div
-        className={`relative ${isWinner ? "size-24" : "size-20"} rounded-full bg-white ${podiumStyles.ring}`}
-      >
+
+      <div className="relative">
         <UserAvatar
           src={avatarUrl}
           alt={t(resolvedLang, "leaderboard.avatarAlt", { username: displayName })}
-          size={isWinner ? 96 : 80}
-          className="rounded-full"
+          size={isWinner ? 112 : 96}
+          className="rounded-full object-cover shadow-sm bg-white p-1"
         />
       </div>
+
       <div>
         <Link
           href={localizePath(
             `/users/${encodeURIComponent(entry.profile.username)}`,
             resolvedLang
           )}
-          className="text-lg font-bold text-text-main hover:text-primary transition-colors"
+          className="text-lg font-black text-text-main hover:text-primary transition-colors block mb-1"
         >
           {displayName}
         </Link>
-        <p className={`text-sm font-semibold ${podiumStyles.rankText}`}>
+        <p className="text-sm font-bold opacity-60">
           {t(resolvedLang, "leaderboard.podium.rankLabel", { rank })}
         </p>
       </div>
+
       <div className="flex flex-wrap justify-center gap-2">
-        {badges.map((badge) => (
-          <span key={`${entry.profile.username}-${badge.key}`} className={badge.className}>
+        {badges.slice(0, 2).map((badge) => (
+          <span key={`${entry.profile.username}-${badge.key}`} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-text-sub uppercase tracking-wide">
             {badge.label}
           </span>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3 w-full text-xs">
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wide text-text-muted">
-            {t(resolvedLang, "leaderboard.stats.reviews")}
-          </span>
-          <span className="text-sm font-bold text-text-main">
-            {formatCompactNumber(reviewCount, resolvedLang)}
-          </span>
+
+      <div className="w-full pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between gap-2 text-xs">
+        <div className="flex flex-col items-center">
+          <span className="font-bold text-base text-text-main dark:text-white">{formatCompactNumber(reviewCount, resolvedLang)}</span>
+          <span className="text-[10px] text-text-muted uppercase tracking-wide">{t(resolvedLang, "leaderboard.stats.reviews")}</span>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wide text-text-muted">
-            {t(resolvedLang, "leaderboard.stats.views")}
-          </span>
-          <span className="text-sm font-bold text-text-main">
-            {formatCompactNumber(totalViews, resolvedLang)}
-          </span>
+        <div className="flex flex-col items-center">
+          <span className="font-bold text-base text-text-main dark:text-white">{formatCompactNumber(totalViews, resolvedLang)}</span>
+          <span className="text-[10px] text-text-muted uppercase tracking-wide">{t(resolvedLang, "leaderboard.stats.views")}</span>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-wide text-text-muted">
-            {t(resolvedLang, "leaderboard.stats.reputation")}
-          </span>
-          <span className="text-sm font-bold text-text-main">
-            {formatCompactNumber(reputation, resolvedLang)}
-          </span>
+        <div className="flex flex-col items-center">
+          <span className="font-bold text-base text-green-600 dark:text-green-500">{formatCompactNumber(reputation, resolvedLang)}</span>
+          <span className="text-[10px] text-text-muted uppercase tracking-wide">{t(resolvedLang, "leaderboard.stats.reputation")}</span>
         </div>
       </div>
     </div>
@@ -572,37 +529,19 @@ export default async function LeaderboardPage(props: LeaderboardPageProps) {
             {errorMessage}
           </div>
         ) : null}
-        <section className="relative overflow-hidden rounded-3xl border border-border-light dark:border-border-dark bg-gradient-to-br from-primary/10 via-white to-secondary/10 p-6 sm:p-10">
-          <div className="absolute -top-16 -right-16 size-40 rounded-full bg-primary/20 blur-3xl" aria-hidden />
-          <div className="absolute -bottom-24 -left-10 size-48 rounded-full bg-secondary/20 blur-3xl" aria-hidden />
-          <div className="relative space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-primary shadow-sm">
-              <span className="material-symbols-outlined text-[16px]">social_leaderboard</span>
+
+        <section className="relative overflow-hidden mb-12 py-10">
+          <div className="relative space-y-6 text-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 px-4 py-1.5 text-xs font-bold text-primary">
+              <span className="material-symbols-outlined text-[18px]">social_leaderboard</span>
               {t(lang, "leaderboard.hero.kicker")}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-text-main">
+            <h1 className="text-5xl sm:text-7xl font-black text-text-main dark:text-white tracking-tight">
               {t(lang, "leaderboard.hero.title")}
             </h1>
-            <p className="text-sm sm:text-base text-text-muted max-w-2xl">
+            <p className="text-lg sm:text-xl text-text-sub dark:text-gray-400 max-w-2xl mx-auto leading-relaxed">
               {t(lang, "leaderboard.hero.subtitle")}
             </p>
-            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border-light bg-white px-3 py-1 font-semibold text-text-main shadow-sm">
-                <span className="material-symbols-outlined text-[16px]" aria-hidden>
-                  insights
-                </span>
-                {t(lang, "leaderboard.hero.summary", {
-                  metric: metricLabel,
-                  timeframe: timeframeLabel,
-                })}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border-light bg-white px-3 py-1 font-semibold text-text-main shadow-sm">
-                <span className="material-symbols-outlined text-[16px]" aria-hidden>
-                  groups
-                </span>
-                {t(lang, "leaderboard.hero.topCount", { count: topCount })}
-              </span>
-            </div>
           </div>
         </section>
 

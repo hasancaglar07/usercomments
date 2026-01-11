@@ -21,9 +21,9 @@ type HomepageFeedProps = {
 };
 
 const ACTIVE_FILTER_CLASS =
-  "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold bg-primary text-white rounded-full whitespace-nowrap shrink-0 transition-colors";
+  "px-5 py-2.5 text-sm font-bold bg-primary text-white rounded-full whitespace-nowrap shrink-0 transition-colors shadow-sm";
 const INACTIVE_FILTER_CLASS =
-  "px-3 py-1 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-bold bg-white dark:bg-surface-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-full hover:bg-gray-50 whitespace-nowrap shrink-0 transition-colors";
+  "px-5 py-2.5 text-sm font-bold bg-transparent text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap shrink-0 transition-colors";
 
 export default function HomepageFeed({
   cards,
@@ -71,7 +71,7 @@ export default function HomepageFeed({
         <h2 className="text-sm sm:text-2xl font-bold text-text-main dark:text-white whitespace-nowrap shrink-0">
           {t(resolvedLang, "homepage.recentReviews")}
         </h2>
-        <div className="flex flex-1 sm:flex-none gap-1.5 p-1 overflow-x-auto no-scrollbar sm:flex-wrap bg-gray-50/80 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-800 backdrop-blur-sm">
+        <div className="flex flex-1 sm:flex-none gap-2 p-1 overflow-x-auto no-scrollbar sm:flex-wrap">
           {tabs.map((item) => {
             const isActive = item.key === tab;
             return (

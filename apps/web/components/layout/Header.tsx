@@ -97,7 +97,7 @@ export default function Header({ lang: initialLang, categories }: HeaderProps) {
             <HeaderSearch lang={resolvedLang} variant="mobile" />
             <AuthCtaButton
               as="a"
-              className="hidden sm:flex items-center justify-center h-10 px-4 bg-primary hover:bg-primary-dark text-white text-sm font-bold rounded-lg transition-colors shadow-sm"
+              className="hidden sm:flex items-center justify-center h-10 px-5 bg-primary hover:bg-primary-dark text-white text-[15px] font-bold rounded-full transition-colors shadow-sm"
               authenticatedHref={addReviewHref}
             >
               <span className="material-symbols-outlined text-[18px] mr-1">
@@ -127,11 +127,11 @@ export default function Header({ lang: initialLang, categories }: HeaderProps) {
           </div>
         </div>
         {categories.length > 0 && (
-          <nav className="hidden lg:flex items-center gap-2 py-2 overflow-x-auto no-scrollbar border-t border-gray-100 dark:border-gray-800/50 -mx-4 px-4 md:mx-0 md:px-0 mask-linear-fade">
+          <nav className="hidden lg:flex items-center gap-1 py-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 mask-linear-fade">
             {categories.map((category) => (
               <Link
                 key={category.id}
-                className="flex-shrink-0 px-3 py-1.5 text-[13px] font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-full border border-gray-100 dark:border-gray-700 whitespace-nowrap active:bg-gray-100 dark:active:bg-gray-700 transition-all active-press"
+                className="flex-shrink-0 px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg whitespace-nowrap transition-all active-press"
                 href={localizePath(`/catalog/reviews/${category.id}`, resolvedLang)}
               >
                 {category.name}

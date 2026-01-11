@@ -34,7 +34,12 @@ from .db.upsert import (
 )
 from .db.user_pool import ProfilePool
 from .llm.groq_client import GroqClient
-from .llm.translate_and_seo import translate_product, translate_review, extract_review_details_ai
+from .llm.translate_and_seo import (
+    translate_product,
+    translate_review,
+    extract_review_details_ai,
+    expand_review_content_ai,
+)
 from .llm.category_matcher import match_category_ai
 from .media.r2_upload import R2Uploader
 from .media.image_fetch import fetch_image
@@ -471,6 +476,18 @@ async def _process_review_item_async(
     async with semaphore:
         source_url = item["source_url"]
         logger.info("Starting processing: %s", source_url)
+        existing_rows = await asyncio.to_thread(
+            supabase.select,
+            "reviews",
+            "id",
+            [("eq", "source_url", source_url)],
+            limit=1,
+        )
+        if existing_rows:
+            logger.info("Existing review found; skipping to preserve legacy content: %s", source_url)
+            if not dry_run:
+                await asyncio.to_thread(mark_processed, supabase, source_url, None)
+            return True
         await asyncio.to_thread(mark_processing, supabase, source_url)
         try:
             async def _mark_failed(reason: str) -> None:
@@ -533,17 +550,47 @@ async def _process_review_item_async(
                             len(detail.content_html or ""),
                             source_url,
                         )
+            if not detail.title:
+                detail.title = detail.product_name or detail.source_slug or "Untitled Review"
+
+            min_content_len = max(0, config.min_content_length or 0)
+            soft_min_content_len = max(min_content_len, 1200)
+            content_len = len(detail.content_html or "")
+            if soft_min_content_len and content_len < soft_min_content_len and config.enable_content_expansion:
+                logger.warning(
+                    "Content below min length (%d < %d). Attempting AI expansion for %s",
+                    content_len,
+                    soft_min_content_len,
+                    source_url,
+                )
+                expanded = await expand_review_content_ai(
+                    groq,
+                    title=detail.title,
+                    content_html=detail.content_html or "",
+                    product_name=detail.product_name,
+                    category_name=detail.category_name,
+                    pros=detail.pros,
+                    cons=detail.cons,
+                    rating=detail.rating,
+                    logger=logger,
+                    min_chars=soft_min_content_len,
+                )
+                if expanded:
+                    detail.content_html = expanded
+                    content_len = len(detail.content_html or "")
+                    logger.info("AI expansion successful (%d chars) for %s", content_len, source_url)
+                else:
+                    logger.warning("AI expansion failed or empty for %s", source_url)
+
+            if not detail.content_html:
+                detail.content_html = f"<p>{detail.title}</p>"
+
             if detail.content_html:
                 detail.excerpt = normalize_whitespace(
                     BeautifulSoup(detail.content_html, "lxml").get_text()
                 )[:300]
             else:
                 detail.excerpt = detail.excerpt or ""
-
-            if not detail.title:
-                detail.title = detail.product_name or detail.source_slug or "Untitled Review"
-            if not detail.content_html:
-                detail.content_html = f"<p>{detail.title}</p>"
 
             if not detail.product_image_url and detail.image_urls:
                 detail.product_image_url = detail.image_urls[0]
@@ -570,8 +617,14 @@ async def _process_review_item_async(
             # QUALITY GATE
             # 1. Length Check
             content_len = len(detail.content_html or "")
-            if content_len < 500:
-                logger.warning("Quality Gate Failed: Content too short (%d chars). Skipping %s", content_len, source_url)
+            hard_min_len = max(0, config.min_content_length_hard or 0)
+            if hard_min_len and content_len < hard_min_len:
+                logger.warning(
+                    "Quality Gate Failed: Content too short (%d chars; hard min %d). Skipping %s",
+                    content_len,
+                    hard_min_len,
+                    source_url,
+                )
                 await _mark_failed(f"Quality gate failed: content too short ({content_len} chars)")
                 return False
 
@@ -583,12 +636,21 @@ async def _process_review_item_async(
                      await _mark_failed("Quality gate failed: no images found")
                      return False
             
-            logger.info(
-                "Quality check PASSED: %d chars, %d review images, product image %s",
-                content_len,
-                len(detail.image_urls),
-                "ok" if detail.product_image_url else "missing",
-            )
+            if min_content_len and content_len < min_content_len:
+                logger.warning(
+                    "Quality check SOFT PASS: %d chars < %d, %d review images, product image %s",
+                    content_len,
+                    min_content_len,
+                    len(detail.image_urls),
+                    "ok" if detail.product_image_url else "missing",
+                )
+            else:
+                logger.info(
+                    "Quality check PASSED: %d chars, %d review images, product image %s",
+                    content_len,
+                    len(detail.image_urls),
+                    "ok" if detail.product_image_url else "missing",
+                )
 
             try:
                 category_ids = await _ensure_category_ids_async(
@@ -783,12 +845,15 @@ async def _process_review_item_async(
 async def run_once_async(config: Config, dry_run: bool, run_id: Optional[str] = None) -> None:
     run_id = run_id or uuid.uuid4().hex[:8]
     logger = setup_logging(config.log_file, run_id=run_id)
+    groq_model_source = "env GROQ_MODEL" if os.getenv("GROQ_MODEL") else "default"
+    logger.info("LLM model: %s (%s)", config.groq_model, groq_model_source)
     http = HttpClient(
         timeout_seconds=config.http_timeout_seconds,
         max_retries=config.http_max_retries,
         user_agent=config.user_agent,
         logger=logger,
         proxy=config.http_proxy,
+        proxy_pool=config.http_proxy_pool,
     )
     
     supabase = SupabaseClient(

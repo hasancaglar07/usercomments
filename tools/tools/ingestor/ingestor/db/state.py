@@ -36,10 +36,13 @@ def fetch_new_sources(
     include_failed: bool = False,
     max_retries: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
+    # Default to 3 retries if not specified - prevents infinite retry loops
+    effective_max_retries = max_retries if max_retries and max_retries > 0 else 3
+    
     if include_failed:
         filters: List[Tuple[str, str, Any]] = [("in", "status", ["new", "failed"])]
-        if max_retries is not None and max_retries > 0:
-            filters.append(("lt", "retries", max_retries))
+        # Always filter by max retries for failed items
+        filters.append(("lt", "retries", effective_max_retries))
     else:
         filters = [("eq", "status", "new")]
     return supabase.select(

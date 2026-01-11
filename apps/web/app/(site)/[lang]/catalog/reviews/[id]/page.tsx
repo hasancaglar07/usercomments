@@ -410,70 +410,66 @@ export default async function Page(props: CategoryPageProps) {
       </script>
       <script type="application/ld+json">{JSON.stringify(itemListJsonLd)}</script>
       <div className="flex min-h-screen flex-col">
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-10 py-6">
-          <div className="mb-8 bg-surface-light dark:bg-surface-dark rounded-2xl p-6 md:p-10 shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="flex flex-wrap gap-2 pb-6 relative z-10">
-              <Link
-                className="text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-primary transition-colors flex items-center"
-                href={localizePath("/", lang)}
-              >
-                <span className="material-symbols-outlined text-[18px] mr-1">
-                  home
-                </span>
-                {t(lang, "category.breadcrumb.home")}
-              </Link>
-              <span className="text-gray-300 dark:text-gray-600 text-sm font-medium">/</span>
-              <Link
-                className="text-gray-500 dark:text-gray-400 text-sm font-medium hover:text-primary hover:underline"
-                href={localizePath("/catalog", lang)}
-              >
-                {t(lang, "category.breadcrumb.reviews")}
-              </Link>
-              <span className="text-gray-300 dark:text-gray-600 text-sm font-medium">/</span>
-              <span className="text-gray-900 dark:text-gray-100 text-sm font-medium">
-                {categoryLabel}
-              </span>
-            </div>
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-8">
+          {/* Breadcrumbs */}
+          <nav className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-sub dark:text-gray-400 mb-8">
+            <Link
+              className="hover:text-primary transition-colors"
+              href={localizePath("/", lang)}
+            >
+              {t(lang, "category.breadcrumb.home")}
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">/</span>
+            <Link
+              className="hover:text-primary transition-colors"
+              href={localizePath("/catalog", lang)}
+            >
+              {t(lang, "category.breadcrumb.reviews")}
+            </Link>
+            <span className="text-gray-300 dark:text-gray-600">/</span>
+            <span className="text-text-main dark:text-white font-bold">
+              {categoryLabel}
+            </span>
+          </nav>
 
-            <div className="flex flex-col gap-6 relative z-10">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="max-w-3xl">
-                  <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tight text-gray-900 dark:text-white mb-4">
-                    {categoryLabel}
-                  </h1>
-                  <p className="text-lg text-gray-500 dark:text-gray-400 leading-relaxed">
-                    {categoryDescription}
-                  </p>
-                </div>
+          <header className="mb-12">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+              <div className="max-w-3xl">
+                <h1 className="text-4xl md:text-6xl font-black leading-tight tracking-tight text-text-main dark:text-white mb-4">
+                  {categoryLabel}
+                </h1>
+                <p className="text-lg md:text-xl text-text-sub dark:text-gray-400 leading-relaxed font-medium">
+                  {categoryDescription}
+                </p>
+              </div>
 
-                <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800 rounded-lg self-start shrink-0">
-                  <Link
-                    className="flex h-9 items-center justify-center rounded-md bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white px-5 text-sm font-bold transition-all"
-                    href={localizePath(`/catalog/reviews/${categoryId}`, lang)}
-                  >
-                    {t(lang, "category.tab.reviews")}
-                  </Link>
-                  <Link
-                    className="flex h-9 items-center justify-center rounded-md px-5 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-primary transition-colors"
-                    href={localizePath(`/catalog/list/${categoryId}`, lang)}
-                  >
-                    {t(lang, "category.tab.products")}
-                  </Link>
-                </div>
+              <div className="flex p-1.5 bg-gray-100 dark:bg-gray-800 rounded-xl shrink-0">
+                <Link
+                  className="flex items-center justify-center px-6 py-2.5 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-text-main dark:text-white text-sm font-bold transition-all"
+                  href={localizePath(`/catalog/reviews/${categoryId}`, lang)}
+                >
+                  {t(lang, "category.tab.reviews")}
+                </Link>
+                <Link
+                  className="flex items-center justify-center px-6 py-2.5 rounded-lg text-sm font-bold text-text-sub dark:text-gray-400 hover:text-primary transition-colors"
+                  href={localizePath(`/catalog/list/${categoryId}`, lang)}
+                >
+                  {t(lang, "category.tab.products")}
+                </Link>
               </div>
             </div>
-          </div>
-          <div className="sticky top-[65px] z-40 bg-background-light py-4 -mx-4 px-4 md:mx-0 md:px-0">
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          </header>
+
+          <div className="sticky top-[65px] z-40 bg-background-light dark:bg-background-dark py-4 -mx-4 px-4 md:mx-0 md:px-0 mb-6 transition-all duration-200">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mask-linear-fade">
               <Link
-                className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-transform hover:scale-105 ${subCategoryId
-                  ? "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary transition-all"
-                  : "bg-[#0d141b] text-white"
+                className={`flex h-10 shrink-0 items-center justify-center rounded-full px-6 transition-all active-press font-bold text-sm ${!subCategoryId
+                    ? "bg-primary text-white shadow-md shadow-primary/25"
+                    : "bg-gray-100 dark:bg-gray-800 text-text-sub dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                 href={buildFilterHref()}
               >
-                <p className="text-sm font-bold">{t(lang, "category.filter.all")}</p>
+                {t(lang, "category.filter.all")}
               </Link>
               {subcategoryTags.map((tag) => {
                 const isActive = tag.id === subCategoryId;
@@ -481,19 +477,18 @@ export default async function Page(props: CategoryPageProps) {
                 return (
                   <Link
                     key={tag.id}
-                    className={`flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 transition-all ${isActive
-                      ? "bg-[#0d141b] text-white"
-                      : "bg-white border border-[#e7edf3] hover:border-primary hover:text-primary group"
+                    className={`flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-5 transition-all active-press font-bold text-sm ${isActive
+                        ? "bg-primary text-white shadow-md shadow-primary/25"
+                        : "bg-gray-100 dark:bg-gray-800 text-text-sub dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     href={buildFilterHref(tag.id)}
                   >
-                    <span
-                      className={`material-symbols-outlined text-[18px] ${isActive ? "text-white" : "group-hover:text-primary"
-                        }`}
-                    >
-                      {meta.icon}
-                    </span>
-                    <p className="text-sm font-medium">{tag.name}</p>
+                    {meta.icon && (
+                      <span className={`material-symbols-outlined text-[18px] ${isActive ? "text-white" : ""}`}>
+                        {meta.icon}
+                      </span>
+                    )}
+                    <span>{tag.name}</span>
                   </Link>
                 );
               })}

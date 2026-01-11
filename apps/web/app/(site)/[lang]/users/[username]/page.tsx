@@ -433,82 +433,88 @@ export default async function Page(props: UserProfilePageProps) {
       <script type="application/ld+json">
         {JSON.stringify(profileJsonLd)}
       </script>
-      <div className="flex-1 w-full max-w-[1200px] mx-auto px-0 md:px-10 py-8 flex flex-col gap-6">
+      <div className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-8 flex flex-col gap-10">
         {errorMessage ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
+          <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3">
             {errorMessage}
           </div>
         ) : null}
-        <section className="bg-surface-light dark:bg-surface-dark rounded-none md:rounded-xl border-y md:border border-border-light dark:border-border-dark p-6 shadow-sm">
-          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left w-full">
-              <div className="relative group">
-                <div
-                  className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-28 h-28 ring-4 ring-background-light dark:ring-background-dark"
-                  data-alt={t(lang, "profile.avatarAlt")}
-                  style={{
-                    backgroundImage: `url(${profileAvatarUrl})`,
-                  }}
-                />
-                <div className="absolute bottom-1 right-1 bg-green-500 rounded-full w-4 h-4 border-2 border-white dark:border-surface-dark" />
-              </div>
-              <div className="flex flex-col justify-center gap-1">
-                <div className="flex items-center gap-2 justify-center sm:justify-start">
-                  <h1 className="text-text-main-light dark:text-text-main-dark text-2xl font-bold leading-tight">
-                    {profile.displayName ?? profile.username}
-                  </h1>
-                  {profile.isVerified ? (
-                    <span
-                      className="material-symbols-outlined text-primary text-[20px]"
-                      title={t(lang, "profile.verifiedUser")}
-                    >
-                      verified
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-text-sub-light dark:text-text-sub-dark text-sm">
-                  {memberSinceLabel}
-                </p>
-                {badges.length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
-                    {badges.map((badge) => (
-                      <span key={badge.label} className={badge.className}>
-                        {badge.label}
-                      </span>
-                    ))}
-                  </div>
+
+        <section className="flex flex-col md:flex-row gap-8 items-start justify-between">
+          <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left w-full">
+            <div className="relative group shrink-0">
+              <div
+                className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-32 h-32 md:w-40 md:h-40 shadow-sm border-4 border-white dark:border-background-dark"
+                data-alt={t(lang, "profile.avatarAlt")}
+                style={{
+                  backgroundImage: `url(${profileAvatarUrl})`,
+                }}
+              />
+              <div className="absolute bottom-2 right-2 bg-green-500 rounded-full w-5 h-5 border-4 border-white dark:border-background-dark" />
+            </div>
+
+            <div className="flex flex-col justify-center gap-2 pt-2">
+              <div className="flex items-center gap-2 justify-center sm:justify-start">
+                <h1 className="text-text-main dark:text-white text-3xl md:text-5xl font-black leading-tight">
+                  {profile.displayName ?? profile.username}
+                </h1>
+                {profile.isVerified ? (
+                  <span
+                    className="material-symbols-outlined text-primary text-[28px]"
+                    title={t(lang, "profile.verifiedUser")}
+                  >
+                    verified
+                  </span>
                 ) : null}
               </div>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
-              <div data-profile-header-actions className="contents" />
+
+              <p className="text-text-sub dark:text-gray-400 text-base md:text-lg font-medium">
+                {memberSinceLabel}
+              </p>
+
+              {/* Badges - Simplified */}
+              {badges.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mt-2 justify-center sm:justify-start">
+                  {badges.map((badge) => (
+                    <span key={badge.label} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-primary/5 text-primary">
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Stats - Cleaner */}
+              <div className="flex flex-wrap gap-8 mt-6 justify-center sm:justify-start">
+                <div className="flex flex-col items-center sm:items-start">
+                  <span className="text-2xl font-black text-text-main dark:text-white">
+                    {reviewCountLabel}
+                  </span>
+                  <span className="text-sm font-medium text-text-sub dark:text-gray-400">
+                    {t(lang, "profile.stats.reviews")}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center sm:items-start">
+                  <span className="text-2xl font-black text-text-main dark:text-white">
+                    {totalViewsLabel}
+                  </span>
+                  <span className="text-sm font-medium text-text-sub dark:text-gray-400">
+                    {t(lang, "profile.stats.totalViews")}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center sm:items-start">
+                  <span className="text-2xl font-black text-green-600 dark:text-green-400">
+                    {reputationLabel}
+                  </span>
+                  <span className="text-sm font-medium text-text-sub dark:text-gray-400">
+                    {t(lang, "profile.stats.reputation")}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-border-light dark:border-border-dark">
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-text-main-light dark:text-text-main-dark text-xl md:text-2xl font-bold">
-                {reviewCountLabel}
-              </p>
-              <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
-                {t(lang, "profile.stats.reviews")}
-              </p>
-            </div>
-            <div className="flex flex-col items-center justify-center border-l border-r border-border-light dark:border-border-dark">
-              <p className="text-text-main-light dark:text-text-main-dark text-xl md:text-2xl font-bold">
-                {totalViewsLabel}
-              </p>
-              <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
-                {t(lang, "profile.stats.totalViews")}
-              </p>
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <p className="text-green-600 dark:text-green-400 text-xl md:text-2xl font-bold">
-                {reputationLabel}
-              </p>
-              <p className="text-text-sub-light dark:text-text-sub-dark text-xs md:text-sm font-medium uppercase tracking-wide">
-                {t(lang, "profile.stats.reputation")}
-              </p>
-            </div>
+
+          <div className="flex gap-4 w-full md:w-auto justify-center md:justify-end flex-wrap pt-4">
+            <div data-profile-header-actions className="contents" />
           </div>
         </section>
         <div className="flex flex-col lg:flex-row gap-8">

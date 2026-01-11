@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -33,10 +34,14 @@ class Config:
     log_file: Optional[str]
     user_agent: str
     http_proxy: Optional[str]
+    http_proxy_pool: List[str]
     max_concurrent_tasks: int
     use_source_published_at: bool
     retry_failed_sources: bool
     max_source_retries: int
+    min_content_length: int
+    min_content_length_hard: int
+    enable_content_expansion: bool
     fallback_review_image_url: Optional[str]
     cache_purge_url: Optional[str]
     cache_purge_secret: Optional[str]
@@ -72,6 +77,13 @@ class Config:
                 return None
             value = raw.strip()
             return value if value else None
+        
+        def env_list(key: str) -> List[str]:
+            raw = os.getenv(key)
+            if not raw:
+                return []
+            parts = re.split(r"[,\\n]", raw)
+            return [part.strip() for part in parts if part.strip()]
 
         langs_raw = os.getenv("LANGS", "en,tr,de,es")
         langs = [lang.strip().lower() for lang in langs_raw.split(",") if lang.strip()]
@@ -82,6 +94,11 @@ class Config:
         langs = [lang for lang in langs if lang != "ar"]
 
         source_base_url = os.getenv("SOURCE_BASE_URL", "https://irecommend.ru").rstrip("/")
+        proxy_pool = env_list("CONTENT_PROXY_POOL") or env_list("HTTP_PROXY_POOL")
+        primary_proxy = os.getenv("CONTENT_PROXY") or os.getenv("HTTP_PROXY")
+        if primary_proxy and primary_proxy not in proxy_pool:
+            proxy_pool.insert(0, primary_proxy)
+        http_proxy = proxy_pool[0] if proxy_pool else None
         return Config(
             source_base_url=source_base_url,
             langs=langs,
@@ -95,7 +112,7 @@ class Config:
             image_max_width=env_int("IMAGE_MAX_WIDTH", 1600),
             image_webp_quality=env_int("IMAGE_WEBP_QUALITY", 82),
             groq_api_key=os.getenv("GROQ_API_KEY", ""),
-            groq_model=os.getenv("GROQ_MODEL", "openai/gpt-oss-120b"),
+            groq_model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
             groq_vision_model=os.getenv("GROQ_VISION_MODEL", "llama-3.2-11b-vision-preview"),
             supabase_url=os.getenv("SUPABASE_URL", ""),
             supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
@@ -111,11 +128,15 @@ class Config:
                 "USER_AGENT",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             ),
-            http_proxy=os.getenv("CONTENT_PROXY") or os.getenv("HTTP_PROXY"),  # CONTENT_PROXY preferred, only for content fetching
+            http_proxy=http_proxy,  # CONTENT_PROXY preferred, only for content fetching
+            http_proxy_pool=proxy_pool,
             max_concurrent_tasks=env_int("MAX_CONCURRENT_TASKS", 5),
             use_source_published_at=env_bool("USE_SOURCE_PUBLISHED_AT", False),
             retry_failed_sources=env_bool("RETRY_FAILED_SOURCES", True),
             max_source_retries=env_int("MAX_SOURCE_RETRIES", 0),
+            min_content_length=env_int("MIN_CONTENT_LENGTH", 500),
+            min_content_length_hard=env_int("MIN_CONTENT_LENGTH_HARD", 100),
+            enable_content_expansion=env_bool("ENABLE_CONTENT_EXPANSION", True),
             fallback_review_image_url=os.getenv("FALLBACK_REVIEW_IMAGE_URL"),
             cache_purge_url=env_optional("CACHE_PURGE_URL"),
             cache_purge_secret=env_optional("CACHE_PURGE_SECRET"),

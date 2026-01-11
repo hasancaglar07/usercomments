@@ -81,7 +81,9 @@ If no new rule is detected → do not update the file.
 \- Süreç: En hızlı, en stabil ve en düzgün sonuç için önce düşün, araştır, planla; ardından uygula
 \- Localization: Çeviri işlerinde tüm siteyi eksiksiz, sayfa sayfa sırayla çevir; parçalı bırakma, çünkü kullanıcı tam kapsam bekliyor
 \- Localization: Çevirilerde içerik uzunluğu ve detay kapsamı korunmalı; kısaltma yapılmamalı, çünkü kullanıcı özgün uzunluğu bekliyor
+\- Localization: Çeviriler maksimum kalite, SEO odaklı ve mümkün olduğunca detaylı/uzun olmalı; maliyet kısıtı yok çünkü kullanıcı en iyi sonucu istiyor
 \- Localization: Arapça (`ar`) içerik/çeviri üretilmeyecek; ingestorda `ar` dili tamamen kapalı olmalı çünkü kullanıcı artık istemiyor
+\- Logging: Ingestor başlangıcında yalnızca ana LLM modelini logla; vision model/varsayılan fallback logu gereksiz görülüyor
 \- Ingestor: Post aralığı toplamda 5-15 dakika hedeflenmeli (işleme + uyku), çünkü kullanıcı akışın daha sık olmasını istiyor
 \- Quality: iRecommend ile 1:1 fonksiyonel/UX parite hedefle, çünkü kullanıcı profesyonel birebir klon istiyor
 \- Reliability: İnjestor/bot akışında fail/skip olmasın; mümkün olan her durumda fallback uygula, çünkü kullanıcı sorunsuz çalışmasını istiyor
@@ -151,7 +153,7 @@ If no new rule is detected → do not update the file.
 \- Use `'use client'` only when interactivity is required to avoid unnecessary client components
 \- Localization: Default language should follow user browser/region detection (do not force `/en` in navigation); only missing translations redirect to `/en` for SEO consistency
 \- i18n SEO: each locale must serve locale-specific content and sitemaps so search engines index the correct language
-\- LLM: Ingestor translations should use Groq model `openai/gpt-oss-120b` for highest localization quality, because the user wants the best possible output
+\- LLM: Ingestor translations should use Groq model `llama-3.1-8b-instant`, because the user explicitly requested this model
 
 \### Critical (NEVER violate)
 

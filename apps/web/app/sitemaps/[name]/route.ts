@@ -70,6 +70,8 @@ export async function GET(
                 }) => ({
                     loc: `${siteUrl}${localizePath(`/products/${item.slug}`, lang)}`,
                     lastmod: item.updatedAt ?? item.createdAt ?? undefined,
+                    changefreq: "weekly",
+                    priority: 0.8,
                     images: Array.isArray(item.imageUrls) ? item.imageUrls : undefined,
                 })
             );

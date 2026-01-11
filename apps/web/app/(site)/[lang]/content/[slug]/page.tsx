@@ -679,48 +679,15 @@ export default async function Page(props: PageProps) {
     url: reviewUrl,
   };
 
-  // Build FAQ schema from pros and cons for rich snippets
+  // Build FAQ schema only from actual FAQ items visible on the page
   const faqItems: { question: string; answer: string }[] = [];
 
-  // Add pros as FAQ items
-  if (review.pros && review.pros.length > 0) {
-    faqItems.push({
-      question: t(lang, "faq.whatArePros", { product: productName }),
-      answer: review.pros.join(". ") + ".",
-    });
-    // Individual pros as separate FAQ items (max 2)
-    review.pros.slice(0, 2).forEach((pro) => {
+  if (review.faq && review.faq.length > 0) {
+    review.faq.forEach((item) => {
       faqItems.push({
-        question: t(lang, "faq.whyGood", { feature: pro.split(" ").slice(0, 5).join(" ") }),
-        answer: pro,
+        question: item.question,
+        answer: item.answer,
       });
-    });
-  }
-
-  // Add cons as FAQ items
-  if (review.cons && review.cons.length > 0) {
-    faqItems.push({
-      question: t(lang, "faq.whatAreCons", { product: productName }),
-      answer: review.cons.join(". ") + ".",
-    });
-    // Individual cons as separate FAQ items (max 2)
-    review.cons.slice(0, 2).forEach((con) => {
-      faqItems.push({
-        question: t(lang, "faq.anyIssues", { feature: con.split(" ").slice(0, 5).join(" ") }),
-        answer: con,
-      });
-    });
-  }
-
-  // Add general review questions
-  if (ratingAvg > 0) {
-    faqItems.push({
-      question: t(lang, "faq.isWorthIt", { product: productName }),
-      answer: ratingAvg >= 4
-        ? t(lang, "faq.worthItYes", { product: productName, rating: ratingAvg.toFixed(1) })
-        : ratingAvg >= 3
-          ? t(lang, "faq.worthItMaybe", { product: productName, rating: ratingAvg.toFixed(1) })
-          : t(lang, "faq.worthItNo", { product: productName, rating: ratingAvg.toFixed(1) }),
     });
   }
 
@@ -748,17 +715,17 @@ export default async function Page(props: PageProps) {
       )}
       <ReviewDetailClient reviewId={review.id} />
 
-      <div className="w-full flex justify-center py-6 px-0 md:px-10 lg:px-20 bg-background-light dark:bg-background-dark">
+      <div className="w-full flex justify-center py-8 px-4 md:px-8 bg-background-light dark:bg-background-dark">
         <div className="layout-content-container w-full max-w-7xl">
           {/* Breadcrumbs */}
           <nav
-            className="flex flex-wrap gap-2 text-sm text-slate-500 dark:text-slate-400 mb-6 px-4 md:px-0"
+            className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-sub dark:text-gray-400 mb-8"
             aria-label="Breadcrumb"
           >
             <Link href={localizePath("/", lang)} className="hover:text-primary transition-colors">
               {t(lang, "reviewDetail.breadcrumb.home")}
             </Link>
-            <span className="text-slate-300">/</span>
+            <span className="text-gray-300 dark:text-gray-600">/</span>
             <Link
               href={localizePath("/catalog", lang)}
               className="hover:text-primary transition-colors"
@@ -767,7 +734,7 @@ export default async function Page(props: PageProps) {
             </Link>
             {categoryLabel && (
               <>
-                <span className="text-slate-300">/</span>
+                <span className="text-gray-300 dark:text-gray-600">/</span>
                 <Link
                   href={localizePath(`/catalog/reviews/${review.categoryId}`, lang)}
                   className="hover:text-primary transition-colors"
@@ -778,7 +745,7 @@ export default async function Page(props: PageProps) {
             )}
             {subCategoryLabel && (
               <>
-                <span className="text-slate-300">/</span>
+                <span className="text-gray-300 dark:text-gray-600">/</span>
                 <Link
                   href={localizePath(
                     `/catalog/reviews/${review.categoryId}?subCategoryId=${review.subCategoryId}`,
@@ -790,94 +757,67 @@ export default async function Page(props: PageProps) {
                 </Link>
               </>
             )}
-            <span className="text-slate-300">/</span>
-            <span className="font-medium text-slate-900 dark:text-slate-100 truncate max-w-[200px]">{review.title}</span>
           </nav>
 
-          <div className="flex flex-col lg:flex-row gap-8 items-start">
+          <div className="flex flex-col lg:flex-row gap-12 items-start">
             {/* Main Content Area */}
-            <main className="flex-1 w-full lg:w-2/3 flex flex-col gap-8">
+            <main className="flex-1 w-full lg:w-2/3 flex flex-col gap-10">
               {productName ? (
-                <section className="bg-white dark:bg-slate-800 rounded-none md:rounded-xl shadow-sm border-y md:border border-slate-200 dark:border-slate-700 p-6 md:p-8 flex flex-col gap-4">
-                  <div className="flex flex-col md:flex-row gap-5 items-start">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={productImage}
-                      alt={productName}
-                      className="w-28 h-28 object-contain object-center rounded-xl bg-slate-100 dark:bg-slate-700 shrink-0"
-                      decoding="async"
-                      fetchPriority="high"
-                      loading="eager"
-                    />
-                    <div className="flex-1 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        {categoryLabel ? (
-                          <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 font-semibold text-slate-600 dark:text-slate-300">
-                            {categoryLabel}
-                          </span>
-                        ) : null}
-                        {subCategoryLabel ? (
-                          <span className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 font-semibold text-slate-600 dark:text-slate-300">
-                            {subCategoryLabel}
-                          </span>
-                        ) : null}
+                <section className="bg-gray-50 dark:bg-surface-dark/50 rounded-2xl p-6 flex flex-col sm:flex-row gap-6 items-start">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={productImage}
+                    alt={productName}
+                    className="w-24 h-24 object-contain object-centershrink-0 mix-blend-multiply dark:mix-blend-normal"
+                    decoding="async"
+                    fetchPriority="high"
+                    loading="eager"
+                  />
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      {categoryLabel && (
+                        <span className="text-xs font-bold text-primary bg-primary/5 px-2 py-0.5 rounded-md">
+                          {categoryLabel}
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl font-black text-text-main dark:text-white leading-tight mb-2">
+                      {productLink ? (
+                        <Link href={productLink} className="hover:text-primary transition-colors">
+                          {productName}
+                        </Link>
+                      ) : (
+                        productName
+                      )}
+                    </h2>
+                    {productDetail?.description && (
+                      <p className="text-sm text-text-sub dark:text-gray-400 line-clamp-2 mb-4 leading-relaxed">
+                        {productDetail.description}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-text-main dark:text-white">{productRatingAvg.toFixed(1)}</span>
+                        <RatingStarsCatalog
+                          stars={buildRatingStars(productRatingAvg)}
+                          valueText=""
+                        />
+                        <span className="text-xs text-text-muted">({formatNumber(productRatingCount, lang)})</span>
                       </div>
-                      <div>
-                        {productLink ? (
-                          <Link
-                            href={productLink}
-                            className="text-2xl font-bold text-slate-900 dark:text-white hover:text-primary transition-colors"
-                          >
-                            {productName}
-                          </Link>
-                        ) : (
-                          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                            {productName}
-                          </h2>
-                        )}
-                        {productDetail?.description ? (
-                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-                            {productDetail.description}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4">
-                        <div>
-                          <RatingStarsCatalog
-                            stars={buildRatingStars(productRatingAvg)}
-                            valueText={
-                              productRatingAvg > 0
-                                ? productRatingAvg.toFixed(1)
-                                : t(lang, "productDetail.rating.none")
-                            }
-                          />
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {t(lang, "productDetail.rating.countLabel", {
-                              count: formatNumber(productRatingCount, lang),
-                            })}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold text-slate-900 dark:text-white">
-                            {formatNumber(productReviewCount, lang)}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {t(lang, "productDetail.review.countLabel")}
-                          </p>
-                        </div>
-                      </div>
-                      {productSlug ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                          {productLink ? (
+
+                      {productSlug && (
+                        <div className="flex items-center gap-2">
+                          {productLink && (
                             <Link
-                              className="inline-flex items-center justify-center rounded-lg bg-primary text-white text-xs font-semibold px-4 py-2 hover:bg-primary-dark"
+                              className="text-sm font-bold text-primary hover:underline"
                               href={productLink}
                             >
                               {t(lang, "productCard.viewProduct")}
                             </Link>
-                          ) : null}
+                          )}
                           <Link
-                            className="inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold px-4 py-2 text-slate-700 dark:text-slate-200 hover:border-primary hover:text-primary"
+                            className="text-sm font-bold text-text-main dark:text-white hover:underline"
                             href={`${localizePath("/node/add/review", lang)}?productSlug=${encodeURIComponent(
                               productSlug
                             )}`}
@@ -885,136 +825,111 @@ export default async function Page(props: PageProps) {
                             {t(lang, "productDetail.cta.writeReview")}
                           </Link>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 </section>
               ) : null}
 
-              <article className="bg-white dark:bg-slate-800 rounded-none md:rounded-xl shadow-sm border-y md:border border-slate-200 dark:border-slate-700 overflow-hidden">
-                {/* Review Header */}
-                <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-700">
-                  <div className="flex flex-col gap-4">
-                    <h1 className="text-slate-900 dark:text-white text-3xl md:text-4xl font-extrabold leading-tight tracking-tight">
-                      {review.title}
-                    </h1>
-                    <div className="flex flex-wrap items-center gap-4 text-sm mt-2">
-                      <div className="flex items-center">
-                        <RatingStarsCatalog stars={buildRatingStars(review.ratingAvg)} valueText={ratingLabel} />
-                      </div>
-                      <span className="w-1 h-1 rounded-full bg-slate-300 hidden sm:block"></span>
-                      <span className="text-slate-500 whitespace-nowrap">
-                        {t(lang, "reviewDetail.postedLabel", { relative: dateLabel })}
-                      </span>
-                      <span className="w-1 h-1 rounded-full bg-slate-300 hidden sm:block"></span>
-                      <div className="flex items-center gap-1 text-slate-500 whitespace-nowrap">
-                        <span className="material-symbols-outlined text-[18px]">visibility</span>
-                        <span>
-                          {t(lang, "reviewDetail.viewsLabel", { count: viewsLabel })}
-                        </span>
-                      </div>
-                    </div>
+              <article>
+                <header className="mb-8 px-4 md:px-0">
+                  <h1 className="text-text-main dark:text-white text-3xl md:text-5xl font-black leading-tight tracking-tight mb-6">
+                    {review.title}
+                  </h1>
 
-                    {/* Author Mini Profile */}
-                    <div className="flex items-center gap-4 mt-2 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-100 dark:border-slate-700 group">
+                  <div className="flex flex-wrap items-center gap-6 text-sm text-text-sub dark:text-gray-400">
+                    <div className="flex items-center gap-3">
                       <Link
                         href={localizePath(
                           `/users/${encodeURIComponent(review.author.username.toLowerCase())}`,
                           lang
                         )}
-                        className="shrink-0"
+                        className="flex items-center gap-2 group"
                       >
                         <div
-                          className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 border border-slate-200 dark:border-slate-600"
+                          className="bg-center bg-no-repeat bg-cover rounded-full size-10 bg-gray-100 dark:bg-gray-800"
                           style={{ backgroundImage: `url("${authorPic}")` }}
                         />
-                      </Link>
-                      <div className="flex flex-col">
-                        <Link
-                          href={localizePath(
-                            `/users/${encodeURIComponent(review.author.username.toLowerCase())}`,
-                            lang
-                          )}
-                          className="text-slate-900 dark:text-white font-bold text-lg hover:text-primary transition-colors"
-                        >
+                        <span className="font-bold text-text-main dark:text-white group-hover:text-primary transition-colors">
                           {authorName}
-                        </Link>
-                        <span className="text-slate-500 dark:text-slate-400 text-sm">
-                          {t(lang, "reviewDetail.authorRole")}
                         </span>
-                      </div>
+                      </Link>
+                    </div>
+                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                    <span>{dateLabel}</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
+                    <div className="flex items-center gap-1">
+                      <RatingStarsCatalog stars={buildRatingStars(review.ratingAvg)} valueText={ratingLabel} />
                     </div>
                   </div>
-                </div>
+                </header>
 
-                {/* Pros & Cons */}
-                {((review.pros && review.pros.length > 0) || (review.cons && review.cons.length > 0) || extracted.pros.length > 0 || extracted.cons.length > 0) && (
-                  <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-700">
-                    {((review.pros && review.pros.length > 0) || extracted.pros.length > 0) && (
-                      <div className="flex flex-col gap-3">
-                        <h4 className="flex items-center gap-2 text-green-600 dark:text-green-400 font-bold">
-                          <span className="material-symbols-outlined">add_circle</span>{" "}
-                          {t(lang, "reviewDetail.pros")}
-                        </h4>
-                        <ul className="space-y-2">
-                          {((review.pros && review.pros.length > 0) ? review.pros : extracted.pros).map((p, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
-                              <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
-                              {p}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {((review.cons && review.cons.length > 0) || extracted.cons.length > 0) && (
-                      <div className="flex flex-col gap-3">
-                        <h4 className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold">
-                          <span className="material-symbols-outlined">remove_circle</span>{" "}
-                          {t(lang, "reviewDetail.cons")}
-                        </h4>
-                        <ul className="space-y-2">
-                          {((review.cons && review.cons.length > 0) ? review.cons : extracted.cons).map((c, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
-                              <span className="mt-1 block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
-                              {c}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="bg-white dark:bg-surface-dark rounded-none md:rounded-2xl p-5 md:p-10 shadow-sm md:shadow-none md:border border-gray-100 dark:border-gray-800">
 
-                {/* Gallery */}
-                {review.photoUrls && review.photoUrls.length > 0 && (
-                  <div className="p-6 md:p-8 pb-0">
-                    <h3 className="text-slate-900 dark:text-white font-bold text-lg mb-4">
-                      {t(lang, "reviewDetail.gallery")}
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {review.photoUrls.map((url, idx) => (
-                        <div
-                          key={idx}
-                          className="aspect-square bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 hover:scale-[1.02] transition-transform cursor-zoom-in overflow-hidden"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={getOptimizedImageUrl(url, 480)}
-                            alt={t(lang, "reviewDetail.gallery")}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                            decoding="async"
-                            loading="lazy"
-                          />
+                  {/* Pros & Cons - Cleaner */}
+                  {((review.pros && review.pros.length > 0) || (review.cons && review.cons.length > 0) || extracted.pros.length > 0 || extracted.cons.length > 0) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                      {((review.pros && review.pros.length > 0) || extracted.pros.length > 0) && (
+                        <div>
+                          <h4 className="flex items-center gap-2 text-green-600 dark:text-green-400 font-bold text-lg mb-4">
+                            <span className="material-symbols-outlined">check_circle</span>
+                            {t(lang, "reviewDetail.pros")}
+                          </h4>
+                          <ul className="space-y-3">
+                            {((review.pros && review.pros.length > 0) ? review.pros : extracted.pros).map((p, idx) => (
+                              <li key={idx} className="flex items-start gap-3 text-base text-text-main dark:text-gray-300">
+                                <span className="mt-1.5 block w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
+                                {p}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                      ))}
+                      )}
+                      {((review.cons && review.cons.length > 0) || extracted.cons.length > 0) && (
+                        <div>
+                          <h4 className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-lg mb-4">
+                            <span className="material-symbols-outlined">cancel</span>
+                            {t(lang, "reviewDetail.cons")}
+                          </h4>
+                          <ul className="space-y-3">
+                            {((review.cons && review.cons.length > 0) ? review.cons : extracted.cons).map((c, idx) => (
+                              <li key={idx} className="flex items-start gap-3 text-base text-text-main dark:text-gray-300">
+                                <span className="mt-1.5 block w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                                {c}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Main Content Body */}
-                <div className="flex flex-col-reverse lg:flex-row gap-8">
-                  <div className="flex-1 p-6 md:p-8 prose dark:prose-invert prose-slate max-w-none">
+                  {/* Gallery */}
+                  {review.photoUrls && review.photoUrls.length > 0 && (
+                    <div className="mb-12">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-xl overflow-hidden">
+                        {review.photoUrls.map((url, idx) => (
+                          <div
+                            key={idx}
+                            className="aspect-square bg-gray-100 dark:bg-gray-800 hover:opacity-90 transition-opacity cursor-zoom-in relative"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={getOptimizedImageUrl(url, 640)}
+                              alt={t(lang, "reviewDetail.gallery")}
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover"
+                              decoding="async"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Body Content */}
+                  <div className="prose prose-lg dark:prose-invert prose-slate max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary prose-img:rounded-xl">
                     {/* Summary Section */}
                     {review.summary && (
                       <div className="mb-8">
@@ -1029,7 +944,7 @@ export default async function Page(props: PageProps) {
 
                     {/* Table of Contents (Moved Inline) */}
                     {extracted.blocks.some(b => b.type === "h2" || b.type === "h3") && (
-                      <div className="mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="mb-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-l-4 border-primary">
                         <TableOfContents contentSelector=".prose" titleLabel={t(lang, "common.tableOfContents")} />
                       </div>
                     )}
@@ -1053,56 +968,26 @@ export default async function Page(props: PageProps) {
 
                     {extracted.blocks.length > 0 ? (
                       extracted.blocks.map((block, index) => {
-                        if (block.type === "h2") {
-                          return (
-                            <h2 key={`block-${index}`} id={block.id} className="text-2xl font-bold text-slate-900 dark:text-white mt-8 mb-4">
-                              {block.content}
-                            </h2>
-                          );
-                        }
-                        if (block.type === "h3") {
-                          return (
-                            <h3 key={`block-${index}`} id={block.id} className="text-xl font-semibold text-slate-800 dark:text-slate-100 mt-6 mb-3">
-                              {block.content}
-                            </h3>
-                          );
-                        }
-                        return (
-                          <p
-                            key={`block-${index}`}
-                            className="text-slate-600 dark:text-slate-300 leading-relaxed mb-6"
-                          >
-                            {block.content.split("\n").map((line, lineIndex, lines) => (
-                              <span key={`line-${lineIndex}`}>
-                                {line}
-                                {lineIndex < lines.length - 1 ? (
-                                  <br />
-                                ) : null}
-                              </span>
-                            ))}
-                          </p>
-                        );
+                        const BlockTag = block.type === 'p' ? 'p' : block.type;
+                        // @ts-ignore
+                        return <BlockTag key={index} id={(block as any).id}>{block.content}</BlockTag>;
                       })
                     ) : (
-                      <p className="text-slate-600 dark:text-slate-300 leading-relaxed mb-6">
-                        {review.excerpt ?? ""}
-                      </p>
+                      <p>{review.excerpt}</p>
                     )}
 
-                    {/* FAQ Section (Moved to Bottom) */}
+                    {/* FAQ */}
                     {review.faq && review.faq.length > 0 && (
-                      <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
-                          {t(lang, "reviewDetail.faqSection")}
-                        </h2>
-                        <div className="space-y-6">
+                      <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-800">
+                        <h2 className="mb-6">{t(lang, "reviewDetail.faqSection")}</h2>
+                        <div className="space-y-6 not-prose">
                           {review.faq.map((item, idx) => (
-                            <div key={idx} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl">
-                              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3">
+                            <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
+                              <h3 className="text-lg font-bold text-text-main dark:text-white mb-2">
                                 {item.question}
                               </h3>
                               <div
-                                className="text-slate-600 dark:text-slate-300 leading-relaxed prose-sm dark:prose-invert"
+                                className="text-text-sub dark:text-gray-300 leading-relaxed"
                                 dangerouslySetInnerHTML={{ __html: item.answer }}
                               />
                             </div>
@@ -1111,18 +996,19 @@ export default async function Page(props: PageProps) {
                       </div>
                     )}
                   </div>
-                </div>
 
-                {/* Helpful Bar */}
-                <div className="p-4 md:p-6 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
-                  <ReviewHelpfulButton reviewId={review.id} votesUp={votesUp} />
-                  <div className="flex gap-4">
-                    <button className="text-slate-400 hover:text-primary transition-colors">
-                      <span className="material-symbols-outlined">share</span>
-                    </button>
-                    <button className="text-slate-400 hover:text-red-500 transition-colors">
-                      <span className="material-symbols-outlined">flag</span>
-                    </button>
+                  {/* Action Bar */}
+                  <div className="mt-12 flex flex-wrap items-center justify-between gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
+                    <ReviewHelpfulButton reviewId={review.id} votesUp={votesUp} />
+                    <div className="flex gap-4">
+                      <button className="flex items-center gap-2 text-text-sub hover:text-primary transition-colors text-sm font-medium">
+                        <span className="material-symbols-outlined text-lg">share</span>
+                        {t(lang, "reviewDetail.helpfulReview.share")}
+                      </button>
+                      <button className="flex items-center gap-2 text-text-sub hover:text-red-500 transition-colors text-sm font-medium">
+                        <span className="material-symbols-outlined text-lg">flag</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </article>
@@ -1146,27 +1032,28 @@ export default async function Page(props: PageProps) {
               </Suspense>
             </main>
 
-            {/* Sidebar */}
-            <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
-                <h4 className="font-bold text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary">info</span>
+            {/* Sidebar - Simplified */}
+            <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-8">
+
+              {/* Context Widget */}
+              <div className="bg-white dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                <h4 className="font-bold text-text-main dark:text-white mb-6 flex items-center gap-2 text-lg">
                   {t(lang, "reviewDetail.productContext")}
                 </h4>
-                <div className="flex flex-col items-center py-2">
+                <div className="flex flex-col items-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={productImage}
                     alt={productName}
                     referrerPolicy="no-referrer"
-                    className="w-40 h-40 object-contain object-center mb-4 rounded-lg bg-slate-50 dark:bg-slate-900/50"
+                    className="w-48 h-48 object-contain object-center mb-4 p-4"
                     decoding="async"
                     loading="lazy"
                   />
-                  <h3 className="text-center font-bold text-slate-900 dark:text-white mb-2">
+                  <h3 className="text-center font-bold text-lg text-text-main dark:text-white mb-2">
                     {productName}
                   </h3>
-                  <div className="flex items-center gap-1 text-primary">
+                  <div className="flex items-center justify-center gap-1 mb-6">
                     <RatingStarsCatalog
                       stars={buildRatingStars(productRatingAvg)}
                       valueText={
@@ -1179,14 +1066,14 @@ export default async function Page(props: PageProps) {
                   {productLink ? (
                     <Link
                       href={productLink}
-                      className="mt-4 w-full py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-bold text-center hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                      className="w-full py-3 bg-primary text-white rounded-xl text-sm font-bold text-center hover:bg-primary-dark transition-colors"
                     >
                       {t(lang, "productCard.viewProduct")}
                     </Link>
                   ) : (
                     <Link
                       href={localizePath(`/catalog/reviews/${review.categoryId}`, lang)}
-                      className="mt-4 w-full py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-bold text-center hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                      className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-text-main dark:text-white rounded-xl text-sm font-bold text-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       {t(lang, "reviewDetail.viewCategoryItems")}
                     </Link>
@@ -1194,22 +1081,22 @@ export default async function Page(props: PageProps) {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-primary to-blue-600 rounded-xl shadow-md p-6 text-white text-center">
-                <h4 className="font-bold text-lg mb-2">
+              {/* Share Widget */}
+              <div className="bg-gradient-to-br from-primary to-blue-600 rounded-2xl p-8 text-white text-center shadow-lg">
+                <div className="mb-4 flex justify-center">
+                  <span className="material-symbols-outlined text-4xl bg-white/20 p-3 rounded-full">campaign</span>
+                </div>
+                <h4 className="font-bold text-xl mb-2">
                   {t(lang, "reviewDetail.helpfulReview.title")}
                 </h4>
-                <p className="text-blue-100 text-xs mb-4">
+                <p className="text-blue-100 text-sm mb-6 leading-relaxed">
                   {t(lang, "reviewDetail.helpfulReview.description")}
                 </p>
-                <div className="flex gap-2">
-                  <button className="flex-1 bg-white text-primary py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors">
-                    {t(lang, "reviewDetail.helpfulReview.share")}
-                  </button>
-                  <button className="flex-1 bg-white/20 text-white py-2 rounded-lg text-xs font-bold hover:bg-white/30 transition-colors">
-                    {t(lang, "reviewDetail.helpfulReview.save")}
-                  </button>
-                </div>
+                <button className="w-full bg-white text-primary py-3 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
+                  {t(lang, "reviewDetail.helpfulReview.share")}
+                </button>
               </div>
+
             </aside>
           </div>
         </div>

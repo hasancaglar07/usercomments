@@ -31,7 +31,11 @@ Optional:
 - `USE_SOURCE_PUBLISHED_AT=1` to keep original publish dates (default uses ingest time)
 - `RETRY_FAILED_SOURCES=1` to retry failed sources automatically
 - `MAX_SOURCE_RETRIES=0` for unlimited retries (set >0 to cap)
+- `MIN_CONTENT_LENGTH=500` soft minimum for review length
+- `MIN_CONTENT_LENGTH_HARD=100` hard minimum before skipping
+- `ENABLE_CONTENT_EXPANSION=1` to expand short reviews via Groq
 - `FALLBACK_REVIEW_IMAGE_URL` to use a default image when no photos exist
+- `CONTENT_PROXY_POOL` to rotate between multiple proxies
 
 ## Apply schema
 Use the reference schema in `ingestor/db/schema.sql`.
