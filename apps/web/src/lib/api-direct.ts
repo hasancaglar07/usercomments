@@ -172,10 +172,16 @@ const R2_PUBLIC_BASE_URL = process.env.NEXT_PUBLIC_IMAGE_CDN_BASE_URL;
 
 function fixUrl(url: string | null | undefined): string | undefined {
     if (!url) return undefined;
-    if (R2_PUBLIC_BASE_URL && url.includes(".r2.dev")) {
-        return url.replace(/https:\/\/[^/]+\.r2\.dev/g, R2_PUBLIC_BASE_URL);
+
+    // Fix double slashes in paths (e.g., //profile_icon/ -> /profile_icon/)
+    let fixedUrl = url.replace(/([^:])\/\/+/g, '$1/');
+
+    // Replace R2 dev URLs with CDN URL if configured
+    if (R2_PUBLIC_BASE_URL && fixedUrl.includes(".r2.dev")) {
+        return fixedUrl.replace(/https:\/\/[^/]+\.r2\.dev/g, R2_PUBLIC_BASE_URL);
     }
-    return url;
+
+    return fixedUrl;
 }
 
 function normalizeNumber(

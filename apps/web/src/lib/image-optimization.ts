@@ -22,7 +22,11 @@ function isOptimizableUrl(url: string): boolean {
   if (url.includes("localhost") || url.includes("127.0.0.1")) {
     return false;
   }
+  // Disable optimization for local assets that external services can't access
   if (url.includes("/stitch_assets/")) {
+    return false;
+  }
+  if (url.includes("/profile_icon/")) {
     return false;
   }
   return true;
@@ -47,18 +51,21 @@ export function getOptimizedImageUrl(
     return "";
   }
 
+  // If url starts with / but has double slashes, fix them
+  let cleanUrl = url.replace(/^\/+/, "/");
 
-  let targetUrl = url;
-  if (url.startsWith("/")) {
-    targetUrl = `${SITE_URL}${url}`;
+  let targetUrl = cleanUrl;
+  if (cleanUrl.startsWith("/")) {
+    // SITE_URL already doesn't have trailing slash, cleanUrl starts with single /
+    targetUrl = `${SITE_URL}${cleanUrl}`;
   }
 
   if (IMAGE_OPTIMIZER === "none") {
-    return url;
+    return cleanUrl;
   }
 
   if (!isOptimizableUrl(targetUrl)) {
-    return url;
+    return cleanUrl;
   }
 
   if (IMAGE_OPTIMIZER === "cloudflare") {
@@ -75,6 +82,6 @@ export function getOptimizedImageUrl(
     const encodedUrl = encodeURIComponent(urlObj.href);
     return `https://wsrv.nl/?url=${encodedUrl}&w=${width}&q=${quality}&output=webp&il`;
   } catch {
-    return url;
+    return cleanUrl;
   }
 }
