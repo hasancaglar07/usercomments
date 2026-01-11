@@ -4,8 +4,7 @@ import { getSiteUrl } from "@/src/lib/seo";
 import { SUPPORTED_LANGUAGES } from "@/src/lib/i18n";
 import { SITEMAP_CACHE_SECONDS, SITEMAP_PAGE_SIZE } from "@/src/lib/sitemap";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 1800;
+export const revalidate = 3600;
 
 function buildSitemapIndex(urls: string[]): string {
   const entries = urls
@@ -14,15 +13,30 @@ function buildSitemapIndex(urls: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`;
 }
 
+async function fetchWithTimeout(url: string) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: SITEMAP_CACHE_SECONDS },
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
 async function getPageCounts(lang: string, apiBaseUrl: string | undefined) {
   let reviewPages = 1;
   let productPages = 1;
 
   if (!apiBaseUrl) return { reviewPages, productPages };
 
-  const fetchReviews = fetch(
-    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`,
-    { next: { revalidate: SITEMAP_CACHE_SECONDS } }
+  const fetchReviews = fetchWithTimeout(
+    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`
   ).then(async (res) => {
     if (res.ok) {
       const data = await res.json();
@@ -34,9 +48,8 @@ async function getPageCounts(lang: string, apiBaseUrl: string | undefined) {
     // ignore API errors
   });
 
-  const fetchProducts = fetch(
-    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/products?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`,
-    { next: { revalidate: SITEMAP_CACHE_SECONDS } }
+  const fetchProducts = fetchWithTimeout(
+    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/products?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`
   ).then(async (res) => {
     if (res.ok) {
       const data = await res.json();

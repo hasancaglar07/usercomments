@@ -93,4 +93,18 @@ def parse_json_strict(raw: str) -> Optional[dict]:
         except json.JSONDecodeError:
              pass
 
+    # 6. Salvage large HTML payloads when JSON is missing closing brace or has trailing junk.
+    match = re.search(r'"(translated_text|content_html)"\s*:\s*"', cleaned)
+    if match:
+        key = match.group(1)
+        content = cleaned[match.end():].strip()
+        if content.endswith("}"):
+            content = re.sub(r'"\s*}\s*$', '', content, flags=re.DOTALL).strip()
+        content_fixed = re.sub(r'(?<!\\)"', r'\\"', content)
+        content_fixed = content_fixed.replace('\n', '\\n').replace('\r', '').replace('\t', '\\t')
+        try:
+            return json.loads(f'{{"{key}": "{content_fixed}"}}')
+        except json.JSONDecodeError:
+            pass
+
     return None
