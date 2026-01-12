@@ -2121,47 +2121,53 @@ async function handleSitemapCategoriesJson({ env, url }: HandlerContext): Promis
 
 async function handleSitemapIndexXml({ env, request }: HandlerContext): Promise<Response> {
   const query = getQueryObject(new URL(request.url));
-  const lang = z.object({ lang: langSchema }).parse(query).lang;
-
-  // Allow overriding origin (e.g. from Next.js rewrite)
   const origin = query.origin || new URL(request.url).origin;
-  // If true, generate URLs like /sitemap-... instead of /api/sitemap-...
   const webUrls = query.webUrls === "true";
-
-  const reviewCount = await fetchSitemapReviewCount(env, lang);
-  const productCount = await fetchSitemapProductCount(env, lang);
-  const pageSize = 5000;
-  const totalPages = Math.ceil(reviewCount / pageSize);
-  const productPages = Math.ceil(productCount / pageSize);
-  const urls = [] as string[];
-
   const prefix = webUrls ? "" : "/api";
-  const suffix = webUrls ? "" : ".xml"; // API routes often don't enforce .xml but web ones might
 
-  // Categories
-  urls.push(`${origin}${prefix}/sitemap-categories.xml?lang=${lang}`);
+  const allUrls: string[] = [];
 
-  // Products
-  for (let part = 1; part <= productPages; part += 1) {
-    // API: /api/sitemap-products?part=...
-    // Web: /sitemap-products-en-1.xml (rewrite handling needed) OR keep query params
-    // Simply using query params is safer and standard: /sitemap-products?part=1
-    if (webUrls) {
-      urls.push(`${origin}/sitemap-products-${lang}-${part}.xml`);
-    } else {
-      urls.push(`${origin}/api/sitemap-products?part=${part}&lang=${lang}`);
-    }
-  }
+  // Generate sitemaps for all supported languages in parallel
+  await Promise.all(
+    SUPPORTED_LANGUAGES.map(async (lang) => {
+      const reviewCount = await fetchSitemapReviewCount(env, lang);
+      const productCount = await fetchSitemapProductCount(env, lang);
 
-  // Reviews
-  for (let part = 1; part <= totalPages; part += 1) {
-    if (webUrls) {
-      urls.push(`${origin}/sitemap-${lang}-${part}.xml`);
-    } else {
-      urls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
-    }
-  }
-  return xmlResponse(buildSitemapIndex(urls));
+      const pageSize = 5000;
+      const totalPages = Math.ceil(reviewCount / pageSize) || 1;
+      const productPages = Math.ceil(productCount / pageSize) || 1;
+
+      const langUrls: string[] = [];
+
+      // Categories
+      langUrls.push(`${origin}${prefix}/sitemap-categories.xml?lang=${lang}`);
+
+      // Products
+      for (let part = 1; part <= productPages; part += 1) {
+        if (webUrls) {
+          langUrls.push(`${origin}/sitemap-products-${lang}-${part}.xml`);
+        } else {
+          langUrls.push(`${origin}/api/sitemap-products?part=${part}&lang=${lang}`);
+        }
+      }
+
+      // Reviews
+      for (let part = 1; part <= totalPages; part += 1) {
+        if (webUrls) {
+          langUrls.push(`${origin}/sitemap-${lang}-${part}.xml`);
+        } else {
+          langUrls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
+        }
+      }
+
+      allUrls.push(...langUrls);
+    })
+  );
+
+  // Sort for consistent output
+  allUrls.sort();
+
+  return xmlResponse(buildSitemapIndex(allUrls));
 }
 
 async function handleSitemapCategoriesXml({ env, request }: HandlerContext): Promise<Response> {
@@ -2204,6 +2210,80 @@ async function handleSitemapProductsXml({ env, request, url }: HandlerContext): 
     lastmod: item.updatedAt ?? item.createdAt,
     images: item.imageUrls,
   }));
+  return xmlResponse(buildUrlset(urls));
+}
+
+// Web-friendly URL handlers (parse lang/part from URL path instead of query params)
+async function handleWebSitemapReviews({ env, request, params }: HandlerContext): Promise<Response> {
+  const query = getQueryObject(new URL(request.url));
+  const origin = query.origin || "https://userreview.net";
+
+  // Parse lang and part from URL: /api/sitemap-en-1.xml
+  const rawLang = params.lang;
+  const rawPart = params.part;
+
+  const lang = isSupportedLanguage(rawLang) ? rawLang : DEFAULT_LANGUAGE;
+  const part = parseInt(rawPart ?? "1", 10) || 1;
+  const pageSize = 5000;
+
+  const result = await fetchSitemapReviews(env, part, pageSize, lang);
+  const urls = result.items.map((item) => ({
+    loc: `${origin}/${lang}/content/${item.slug}`,
+    lastmod: item.updatedAt ?? item.createdAt,
+    changefreq: "weekly" as const,
+    priority: 0.7,
+    images: item.imageUrls,
+  }));
+  return xmlResponse(buildUrlset(urls));
+}
+
+async function handleWebSitemapProducts({ env, request, params }: HandlerContext): Promise<Response> {
+  const query = getQueryObject(new URL(request.url));
+  const origin = query.origin || "https://userreview.net";
+
+  // Parse lang and part from URL: /api/sitemap-products-en-1.xml
+  const rawLang = params.lang;
+  const rawPart = params.part;
+
+  const lang = isSupportedLanguage(rawLang) ? rawLang : DEFAULT_LANGUAGE;
+  const part = parseInt(rawPart ?? "1", 10) || 1;
+  const pageSize = 5000;
+
+  const result = await fetchSitemapProducts(env, part, pageSize, lang);
+  const urls = result.items.map((item) => ({
+    loc: `${origin}/${lang}/products/${item.slug}`,
+    lastmod: item.updatedAt ?? item.createdAt,
+    changefreq: "weekly" as const,
+    priority: 0.8,
+    images: item.imageUrls,
+  }));
+  return xmlResponse(buildUrlset(urls));
+}
+
+async function handleWebSitemapCategories({ env, request, params }: HandlerContext): Promise<Response> {
+  const query = getQueryObject(new URL(request.url));
+  const origin = query.origin || "https://userreview.net";
+
+  const rawLang = params.lang || query.lang;
+  const lang = isSupportedLanguage(rawLang) ? rawLang : DEFAULT_LANGUAGE;
+
+  const categories = await fetchSitemapCategories(env, lang);
+  const urls = [
+    { loc: `${origin}/${lang}`, changefreq: "daily" as const, priority: 1.0 },
+    { loc: `${origin}/${lang}/catalog`, changefreq: "daily" as const, priority: 0.9 },
+    { loc: `${origin}/${lang}/leaderboard`, changefreq: "daily" as const, priority: 0.7 },
+    { loc: `${origin}/${lang}/contact`, changefreq: "monthly" as const, priority: 0.5 },
+    { loc: `${origin}/${lang}/privacy-policy`, changefreq: "yearly" as const, priority: 0.3 },
+    { loc: `${origin}/${lang}/terms-of-use`, changefreq: "yearly" as const, priority: 0.3 },
+    { loc: `${origin}/${lang}/about-us`, changefreq: "monthly" as const, priority: 0.5 },
+  ];
+  for (const category of categories.items) {
+    urls.push({
+      loc: `${origin}/${lang}/catalog/reviews/${category.id}`,
+      changefreq: "weekly" as const,
+      priority: 0.8,
+    });
+  }
   return xmlResponse(buildUrlset(urls));
 }
 
@@ -3083,6 +3163,25 @@ const routes: Route[] = [
     method: "GET",
     pattern: new URLPattern({ pathname: "/api/sitemap-products" }),
     handler: handleSitemapProductsXml,
+    cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
+  },
+  // Web-friendly sitemap URLs (parsed from path)
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/sitemap-:lang-:part.xml" }),
+    handler: handleWebSitemapReviews,
+    cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/sitemap-products-:lang-:part.xml" }),
+    handler: handleWebSitemapProducts,
+    cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
+  },
+  {
+    method: "GET",
+    pattern: new URLPattern({ pathname: "/api/sitemap-categories-:lang.xml" }),
+    handler: handleWebSitemapCategories,
     cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
   },
   {

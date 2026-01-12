@@ -25,27 +25,24 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
-      // Sitemap Rewrites - Proxy directly to Worker API for max performance
+      // Sitemap Rewrites - Route to Worker API
+      // Order matters: more specific patterns first
       {
         source: "/sitemap.xml",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap.xml?origin=https://userreview.net&webUrls=true`,
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap.xml`,
       },
       {
-        source: "/sitemap-:slug.xml",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-:slug.xml?origin=https://userreview.net&webUrls=true`,
+        source: "/sitemap-categories-:lang.xml",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-categories-:lang.xml`,
       },
       {
-        source: "/sitemap-products:slug*",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-products:slug*?origin=https://userreview.net&webUrls=true`
+        source: "/sitemap-products-:lang-:part.xml",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-products-:lang-:part.xml`,
       },
       {
-        source: "/sitemap-reviews:slug*",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-reviews:slug*?origin=https://userreview.net&webUrls=true`
+        source: "/sitemap-:lang-:part.xml",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-:lang-:part.xml`,
       },
-      {
-        source: "/sitemap-categories.xml",
-        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-categories.xml?origin=https://userreview.net&webUrls=true`
-      }
     ];
   },
   async headers() {
