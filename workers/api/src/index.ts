@@ -691,6 +691,7 @@ const sitemapReviewsQuerySchema = z.object({
     .max(MAX_SITEMAP_PAGE_SIZE)
     .default(5000),
   lang: langSchema,
+  countOnly: z.string().optional().transform((val) => val === "true"),
 });
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -1397,15 +1398,15 @@ async function handleHomepage({ env, url }: HandlerContext): Promise<Response> {
   const fallbackTopReviewers =
     resolvedTopReviewers.length === 0 && topUsernames.length > 0
       ? topUsernames.map((username) => {
-          const match = popular.find(
-            (review) => review.author.username === username
-          );
-          return {
-            username,
-            displayName: match?.author.displayName,
-            profilePicUrl: match?.author.profilePicUrl,
-          };
-        })
+        const match = popular.find(
+          (review) => review.author.username === username
+        );
+        return {
+          username,
+          displayName: match?.author.displayName,
+          profilePicUrl: match?.author.profilePicUrl,
+        };
+      })
       : [];
   const payload: HomepagePayload = {
     latest,
@@ -2081,26 +2082,6 @@ async function handleInternalCachePurge({
   });
   const purged = await purgeCacheUrls(urls);
   return jsonResponse(
-    { ok: true, purged, urls: urls.length },
-    { headers: { "Cache-Control": "no-store" } }
-  );
-}
-
-async function handleSitemapReviewsJson({ env, url }: HandlerContext): Promise<Response> {
-  const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
-  const result = await fetchSitemapReviews(env, part, pageSize, lang);
-  return jsonResponse(result);
-}
-
-async function handleSitemapProductsJson({ env, url }: HandlerContext): Promise<Response> {
-  const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
-  const result = await fetchSitemapProducts(env, part, pageSize, lang);
-  return jsonResponse(result);
-}
-
-async function handleSitemapCategoriesJson({ env, url }: HandlerContext): Promise<Response> {
-  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
-  const result = await fetchSitemapCategories(env, lang);
   return jsonResponse(result);
 }
 

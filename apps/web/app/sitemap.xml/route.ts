@@ -36,7 +36,7 @@ async function getPageCounts(lang: string, apiBaseUrl: string | undefined) {
   if (!apiBaseUrl) return { reviewPages, productPages };
 
   const fetchReviews = fetchWithTimeout(
-    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`
+    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/reviews?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}&countOnly=true`
   ).then(async (res) => {
     if (res.ok) {
       const data = await res.json();
@@ -49,7 +49,7 @@ async function getPageCounts(lang: string, apiBaseUrl: string | undefined) {
   });
 
   const fetchProducts = fetchWithTimeout(
-    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/products?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}`
+    `${apiBaseUrl.replace(/\/$/, "")}/api/sitemap/products?lang=${lang}&part=1&pageSize=${SITEMAP_PAGE_SIZE}&countOnly=true`
   ).then(async (res) => {
     if (res.ok) {
       const data = await res.json();
