@@ -88,7 +88,7 @@ const envSchema = z.object({
   CACHE_TTL_USER_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_USER_REVIEWS_SEC: z.coerce.number().int().positive().default(90),
   CACHE_TTL_SEARCH_SEC: z.coerce.number().int().positive().default(30),
-  CACHE_TTL_SITEMAP_SEC: z.coerce.number().int().positive().default(1800),
+  CACHE_TTL_SITEMAP_SEC: z.coerce.number().int().positive().default(86400),
   CACHE_WARMUP_ORIGIN: z.string().url().optional(),
   CACHE_PURGE_SECRET: z.string().min(1).optional(),
 });

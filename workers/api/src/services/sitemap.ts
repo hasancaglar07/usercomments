@@ -78,7 +78,7 @@ export async function fetchSitemapReviews(
   const { data, error, count } = await supabase
     .from("reviews")
     .select("created_at, updated_at, photo_urls, review_translations!inner(lang, slug)", {
-      count: "exact",
+      count: "estimated",
     })
     .eq("review_translations.lang", lang)
     .eq("status", "published")
@@ -121,7 +121,7 @@ export async function fetchSitemapReviewCount(
   const supabase = getSupabaseClient(env);
   const { count, error } = await supabase
     .from("reviews")
-    .select("id, review_translations!inner(lang)", { count: "exact", head: true })
+    .select("id, review_translations!inner(lang)", { count: "estimated", head: true })
     .eq("review_translations.lang", lang)
     .eq("status", "published");
 
@@ -194,7 +194,7 @@ export async function fetchSitemapProducts(
     .select(
       "created_at, updated_at, product_translations!inner(lang, slug), product_images(url, sort_order)",
       {
-      count: "exact",
+        count: "estimated",
       }
     )
     .eq("product_translations.lang", lang)
@@ -252,7 +252,7 @@ export async function fetchSitemapProductCount(
   const supabase = getSupabaseClient(env);
   const { count, error } = await supabase
     .from("products")
-    .select("id, product_translations!inner(lang)", { count: "exact", head: true })
+    .select("id, product_translations!inner(lang)", { count: "estimated", head: true })
     .eq("product_translations.lang", lang)
     .eq("status", "published");
 
