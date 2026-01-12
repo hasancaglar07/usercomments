@@ -25,10 +25,27 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
+      // Sitemap Rewrites - Proxy directly to Worker API for max performance
+      {
+        source: "/sitemap.xml",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap.xml?origin=https://userreview.net&webUrls=true`,
+      },
       {
         source: "/sitemap-:slug.xml",
-        destination: "/sitemaps/sitemap-:slug.xml",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-:slug.xml?origin=https://userreview.net&webUrls=true`,
       },
+      {
+        source: "/sitemap-products:slug*",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-products:slug*?origin=https://userreview.net&webUrls=true`
+      },
+      {
+        source: "/sitemap-reviews:slug*",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-reviews:slug*?origin=https://userreview.net&webUrls=true`
+      },
+      {
+        source: "/sitemap-categories.xml",
+        destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-categories.xml?origin=https://userreview.net&webUrls=true`
+      }
     ];
   },
   async headers() {

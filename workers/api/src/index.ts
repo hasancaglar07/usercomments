@@ -2082,26 +2082,84 @@ async function handleInternalCachePurge({
   });
   const purged = await purgeCacheUrls(urls);
   return jsonResponse(
+    { ok: true, purged, urls: urls.length },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+}
+
+async function handleSitemapReviewsJson({ env, url }: HandlerContext): Promise<Response> {
+  const { part, pageSize, lang, countOnly } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
+  if (countOnly) {
+    const totalItems = await fetchSitemapReviewCount(env, lang);
+    return jsonResponse({
+      items: [],
+      pageInfo: buildPaginationInfo(part, pageSize, totalItems),
+    });
+  }
+  const result = await fetchSitemapReviews(env, part, pageSize, lang);
+  return jsonResponse(result);
+}
+
+async function handleSitemapProductsJson({ env, url }: HandlerContext): Promise<Response> {
+  const { part, pageSize, lang, countOnly } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
+  if (countOnly) {
+    const totalItems = await fetchSitemapProductCount(env, lang);
+    return jsonResponse({
+      items: [],
+      pageInfo: buildPaginationInfo(part, pageSize, totalItems),
+    });
+  }
+  const result = await fetchSitemapProducts(env, part, pageSize, lang);
+  return jsonResponse(result);
+}
+
+async function handleSitemapCategoriesJson({ env, url }: HandlerContext): Promise<Response> {
+  const { lang } = z.object({ lang: langSchema }).parse(getQueryObject(url));
+  const result = await fetchSitemapCategories(env, lang);
   return jsonResponse(result);
 }
 
 async function handleSitemapIndexXml({ env, request }: HandlerContext): Promise<Response> {
-  const origin = new URL(request.url).origin;
-  const { lang } = z.object({ lang: langSchema }).parse(
-    getQueryObject(new URL(request.url))
-  );
+  const query = getQueryObject(new URL(request.url));
+  const lang = z.object({ lang: langSchema }).parse(query).lang;
+
+  // Allow overriding origin (e.g. from Next.js rewrite)
+  const origin = query.origin || new URL(request.url).origin;
+  // If true, generate URLs like /sitemap-... instead of /api/sitemap-...
+  const webUrls = query.webUrls === "true";
+
   const reviewCount = await fetchSitemapReviewCount(env, lang);
   const productCount = await fetchSitemapProductCount(env, lang);
   const pageSize = 5000;
   const totalPages = Math.ceil(reviewCount / pageSize);
   const productPages = Math.ceil(productCount / pageSize);
   const urls = [] as string[];
-  urls.push(`${origin}/api/sitemap-categories.xml?lang=${lang}`);
+
+  const prefix = webUrls ? "" : "/api";
+  const suffix = webUrls ? "" : ".xml"; // API routes often don't enforce .xml but web ones might
+
+  // Categories
+  urls.push(`${origin}${prefix}/sitemap-categories.xml?lang=${lang}`);
+
+  // Products
   for (let part = 1; part <= productPages; part += 1) {
-    urls.push(`${origin}/api/sitemap-products?part=${part}&lang=${lang}`);
+    // API: /api/sitemap-products?part=...
+    // Web: /sitemap-products-en-1.xml (rewrite handling needed) OR keep query params
+    // Simply using query params is safer and standard: /sitemap-products?part=1
+    if (webUrls) {
+      urls.push(`${origin}/sitemap-products-${lang}-${part}.xml`);
+    } else {
+      urls.push(`${origin}/api/sitemap-products?part=${part}&lang=${lang}`);
+    }
   }
+
+  // Reviews
   for (let part = 1; part <= totalPages; part += 1) {
-    urls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
+    if (webUrls) {
+      urls.push(`${origin}/sitemap-${lang}-${part}.xml`);
+    } else {
+      urls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
+    }
   }
   return xmlResponse(buildSitemapIndex(urls));
 }
