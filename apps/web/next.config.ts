@@ -74,6 +74,20 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Sitemap caching headers for optimal bot performance
+      {
+        source: "/sitemap:path*.xml",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600",
+          },
+          {
+            key: "Content-Type",
+            value: "application/xml; charset=utf-8",
+          },
+        ],
+      },
     ];
   },
   env: {

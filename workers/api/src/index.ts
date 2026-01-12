@@ -828,12 +828,20 @@ function escapeXml(value: string): string {
 }
 
 function buildUrlset(
-  urls: Array<{ loc: string; lastmod?: string; images?: string[] }>
+  urls: Array<{
+    loc: string;
+    lastmod?: string;
+    changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
+    priority?: number;
+    images?: string[];
+  }>
 ): string {
   const hasImages = urls.some((item) => item.images && item.images.length > 0);
   const entries = urls
     .map((item) => {
       const lastmod = item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : "";
+      const changefreq = item.changefreq ? `<changefreq>${item.changefreq}</changefreq>` : "";
+      const priority = item.priority !== undefined ? `<priority>${item.priority.toFixed(1)}</priority>` : "";
       const images = item.images?.length
         ? item.images
           .map(
@@ -842,7 +850,7 @@ function buildUrlset(
           )
           .join("")
         : "";
-      return `<url><loc>${escapeXml(item.loc)}</loc>${lastmod}${images}</url>`;
+      return `<url><loc>${escapeXml(item.loc)}</loc>${lastmod}${changefreq}${priority}${images}</url>`;
     })
     .join("");
   const imageNamespace = hasImages
@@ -851,9 +859,15 @@ function buildUrlset(
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"${imageNamespace}>${entries}</urlset>`;
 }
 
-function buildSitemapIndex(urls: string[]): string {
+function buildSitemapIndex(urls: Array<string | { loc: string; lastmod?: string }>): string {
   const entries = urls
-    .map((url) => `<sitemap><loc>${escapeXml(url)}</loc></sitemap>`)
+    .map((item) => {
+      if (typeof item === "string") {
+        return `<sitemap><loc>${escapeXml(item)}</loc></sitemap>`;
+      }
+      const lastmod = item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : "";
+      return `<sitemap><loc>${escapeXml(item.loc)}</loc>${lastmod}</sitemap>`;
+    })
     .join("");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</sitemapindex>`;
 }
@@ -2119,11 +2133,9 @@ async function handleSitemapCategoriesJson({ env, url }: HandlerContext): Promis
   return jsonResponse(result);
 }
 
-async function handleSitemapIndexXml({ env, request }: HandlerContext): Promise<Response> {
-  const query = getQueryObject(new URL(request.url));
-  const origin = query.origin || new URL(request.url).origin;
-  const webUrls = query.webUrls === "true";
-  const prefix = webUrls ? "" : "/api";
+async function handleSitemapIndexXml({ env }: HandlerContext): Promise<Response> {
+  // Always use the main website domain for sitemap URLs
+  const origin = "https://userreview.net";
 
   const allUrls: string[] = [];
 
@@ -2139,25 +2151,17 @@ async function handleSitemapIndexXml({ env, request }: HandlerContext): Promise<
 
       const langUrls: string[] = [];
 
-      // Categories
-      langUrls.push(`${origin}${prefix}/sitemap-categories.xml?lang=${lang}`);
+      // Categories - web-friendly URL
+      langUrls.push(`${origin}/sitemap-categories-${lang}.xml`);
 
-      // Products
+      // Products - web-friendly URLs
       for (let part = 1; part <= productPages; part += 1) {
-        if (webUrls) {
-          langUrls.push(`${origin}/sitemap-products-${lang}-${part}.xml`);
-        } else {
-          langUrls.push(`${origin}/api/sitemap-products?part=${part}&lang=${lang}`);
-        }
+        langUrls.push(`${origin}/sitemap-products-${lang}-${part}.xml`);
       }
 
-      // Reviews
+      // Reviews - web-friendly URLs
       for (let part = 1; part <= totalPages; part += 1) {
-        if (webUrls) {
-          langUrls.push(`${origin}/sitemap-${lang}-${part}.xml`);
-        } else {
-          langUrls.push(`${origin}/api/sitemap-reviews?part=${part}&lang=${lang}`);
-        }
+        langUrls.push(`${origin}/sitemap-${lang}-${part}.xml`);
       }
 
       allUrls.push(...langUrls);
@@ -2177,16 +2181,16 @@ async function handleSitemapCategoriesXml({ env, request }: HandlerContext): Pro
   );
   const categories = await fetchSitemapCategories(env, lang);
   const urls = [
-    `${origin}/${lang}`,
-    `${origin}/${lang}/catalog`,
-    `${origin}/${lang}/contact`,
-    `${origin}/${lang}/privacy-policy`,
-    `${origin}/${lang}/terms-of-use`,
+    { loc: `${origin}/${lang}`, changefreq: "daily" as const, priority: 1.0 },
+    { loc: `${origin}/${lang}/catalog`, changefreq: "daily" as const, priority: 0.9 },
+    { loc: `${origin}/${lang}/contact`, changefreq: "monthly" as const, priority: 0.5 },
+    { loc: `${origin}/${lang}/privacy-policy`, changefreq: "yearly" as const, priority: 0.3 },
+    { loc: `${origin}/${lang}/terms-of-use`, changefreq: "yearly" as const, priority: 0.3 },
   ];
   for (const category of categories.items) {
-    urls.push(`${origin}/${lang}/catalog/reviews/${category.id}`);
+    urls.push({ loc: `${origin}/${lang}/catalog/reviews/${category.id}`, changefreq: "weekly" as const, priority: 0.8 });
   }
-  return xmlResponse(buildUrlset(urls.map((loc) => ({ loc }))));
+  return xmlResponse(buildUrlset(urls));
 }
 
 async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): Promise<Response> {
@@ -2196,6 +2200,8 @@ async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): P
   const urls = result.items.map((item) => ({
     loc: `${origin}/${lang}/content/${item.slug}`,
     lastmod: item.updatedAt ?? item.createdAt,
+    changefreq: "weekly" as const,
+    priority: 0.7,
     images: item.imageUrls,
   }));
   return xmlResponse(buildUrlset(urls));
@@ -2208,6 +2214,8 @@ async function handleSitemapProductsXml({ env, request, url }: HandlerContext): 
   const urls = result.items.map((item) => ({
     loc: `${origin}/${lang}/products/${item.slug}`,
     lastmod: item.updatedAt ?? item.createdAt,
+    changefreq: "weekly" as const,
+    priority: 0.8,
     images: item.imageUrls,
   }));
   return xmlResponse(buildUrlset(urls));
