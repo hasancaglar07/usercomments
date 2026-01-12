@@ -56,7 +56,24 @@ function pickImageUrls(urls: string[] | undefined): string[] | undefined {
   }
   const filtered = urls
     .map((url) => url.trim())
-    .filter((url) => url.length > 0);
+    .filter((url) => url.length > 0)
+    // Transform R2 URLs to CDN URLs
+    .map((url) => {
+      // Replace R2 public bucket URLs with main site domain
+      if (url.includes("r2.dev") || url.includes("r2.cloudflarestorage.com")) {
+        // Extract path after the bucket portion and use main domain
+        const match = url.match(/r2\.(dev|cloudflarestorage\.com)\/(public\/.*)/);
+        if (match && match[2]) {
+          return `https://userreview.net/cdn-images/${match[2]}`;
+        }
+        // Alternative pattern: just the path after domain
+        const pathMatch = url.match(/r2\.(dev|cloudflarestorage\.com)\/(.+)/);
+        if (pathMatch && pathMatch[2]) {
+          return `https://userreview.net/cdn-images/${pathMatch[2]}`;
+        }
+      }
+      return url;
+    });
   if (filtered.length === 0) {
     return undefined;
   }

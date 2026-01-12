@@ -43,6 +43,11 @@ const nextConfig: NextConfig = {
         source: "/sitemap-:lang-:part.xml",
         destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-:lang-:part.xml`,
       },
+      // CDN Images - Proxy to R2 storage via images subdomain
+      {
+        source: "/cdn-images/:path*",
+        destination: "https://images.userreview.net/:path*",
+      },
     ];
   },
   async headers() {
