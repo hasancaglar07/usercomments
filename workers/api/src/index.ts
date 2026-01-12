@@ -96,7 +96,7 @@ import {
   fetchSitemapReviewCount,
   fetchSitemapReviews,
 } from "./services/sitemap";
-import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage } from "./utils/i18n";
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, normalizeLanguage, isSupportedLanguage } from "./utils/i18n";
 import type { HomepagePayload, UploadHealth, UserProfile } from "./types";
 import { hashString } from "./utils/crypto";
 
