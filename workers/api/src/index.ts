@@ -2175,7 +2175,7 @@ async function handleSitemapIndexXml({ env }: HandlerContext): Promise<Response>
 }
 
 async function handleSitemapCategoriesXml({ env, request }: HandlerContext): Promise<Response> {
-  const origin = new URL(request.url).origin;
+  const origin = "https://userreview.net";
   const { lang } = z.object({ lang: langSchema }).parse(
     getQueryObject(new URL(request.url))
   );
@@ -2193,8 +2193,8 @@ async function handleSitemapCategoriesXml({ env, request }: HandlerContext): Pro
   return xmlResponse(buildUrlset(urls));
 }
 
-async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): Promise<Response> {
-  const origin = new URL(request.url).origin;
+async function handleSitemapReviewsXml({ env, url }: HandlerContext): Promise<Response> {
+  const origin = "https://userreview.net";
   const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
   const result = await fetchSitemapReviews(env, part, pageSize, lang);
   const urls = result.items.map((item) => ({
@@ -2207,8 +2207,8 @@ async function handleSitemapReviewsXml({ env, request, url }: HandlerContext): P
   return xmlResponse(buildUrlset(urls));
 }
 
-async function handleSitemapProductsXml({ env, request, url }: HandlerContext): Promise<Response> {
-  const origin = new URL(request.url).origin;
+async function handleSitemapProductsXml({ env, url }: HandlerContext): Promise<Response> {
+  const origin = "https://userreview.net";
   const { part, pageSize, lang } = sitemapReviewsQuerySchema.parse(getQueryObject(url));
   const result = await fetchSitemapProducts(env, part, pageSize, lang);
   const urls = result.items.map((item) => ({
