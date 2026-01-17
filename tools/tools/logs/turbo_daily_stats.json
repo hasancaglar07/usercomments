@@ -1,10 +1,17 @@
 {
-  "2026-01-17": {
-    "urls_indexed": 2374,
-    "success": 2374,
+  "2026-01-18": {
+    "urls_indexed": 62,
+    "success": 62,
     "fail": 0,
-    "light_triggers": 227904,
-    "heavy_triggers": 30875
+    "light_triggers": 5952,
+    "heavy_triggers": 780
+  },
+  "2026-01-17": {
+    "urls_indexed": 2387,
+    "success": 2387,
+    "fail": 0,
+    "light_triggers": 229152,
+    "heavy_triggers": 31005
   },
   "2026-01-16": {
     "urls_indexed": 1769,

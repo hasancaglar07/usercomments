@@ -422,50 +422,8 @@ export default async function Page(props: PageProps) {
         name: product.brand.name,
       }
       : undefined,
-    offers: {
-      "@type": "Offer",
-      availability: "https://schema.org/InStock",
-      shippingDetails: {
-        "@type": "OfferShippingDetails",
-        shippingRate: {
-          "@type": "MonetaryAmount",
-          value: "0",
-          currency: "USD",
-        },
-        shippingDestination: {
-          "@type": "DefinedRegion",
-          addressCountry: "US",
-        },
-        deliveryTime: {
-          "@type": "ShippingDeliveryTime",
-          handlingTime: {
-            "@type": "QuantitativeValue",
-            minValue: 0,
-            maxValue: 1,
-            unitCode: "DAY",
-          },
-          transitTime: {
-            "@type": "QuantitativeValue",
-            minValue: 1,
-            maxValue: 5,
-            unitCode: "DAY",
-          },
-        },
-      },
-      hasMerchantReturnPolicy: {
-        "@type": "MerchantReturnPolicy",
-        applicableCountry: "US",
-        returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
-        merchantReturnDays: 30,
-        returnMethod: "https://schema.org/ReturnByMail",
-        returnFees: "https://schema.org/FreeReturn",
-      },
-      priceCurrency: "USD",
-      price: "0",
-      priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      url: productUrl,
-      itemCondition: "https://schema.org/NewCondition",
-    },
+    // Removed 'offers' (price: 0) to prevent Rich Snippet validation issues. 
+    // This is a review site, not a merchant.
     aggregateRating:
       ratingCount > 0
         ? {
