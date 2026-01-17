@@ -140,7 +140,8 @@ export default async function Page(props: ProductsPageProps) {
   const heading = categoryId
     ? t(lang, "products.heading.withCategory", { label: categoryLabel })
     : t(lang, "products.heading.default");
-    ?t(lang, "products.description.withCategory", { label: categoryLabel })
+  const description = categoryId
+    ? t(lang, "products.description.withCategory", { label: categoryLabel })
     : t(lang, "products.description.default");
   const popularCategoryLabel = categoryLabel ?? t(lang, "common.general");
   const popularProductsHref = categoryId
