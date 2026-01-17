@@ -56,9 +56,10 @@ export default function HomepageFeed({
   ] as const;
 
   const loadMoreControl = hasMore && loadMoreHref ? (
-    <Link className={loadMoreClasses} href={loadMoreHref} prefetch={false}>
+    <Link className={loadMoreClasses} href={loadMoreHref} prefetch={false} scroll={false}>
       {loadMoreLabel}
     </Link>
+
   ) : (
     <span className={`${loadMoreClasses} cursor-not-allowed opacity-60`}>
       {loadMoreLabel}

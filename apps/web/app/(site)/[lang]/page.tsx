@@ -359,12 +359,14 @@ async function HomepageFeedSectionSlot({
 
   try {
     const [feedResult, apiCategories] = await Promise.all([
+
       getCatalogPageWithTimeout({
-        page: feedPage,
-        pageSize: HOMEPAGE_LIMIT,
+        page: 1, // Fetch from start to current depth to allow appending
+        pageSize: feedPage * HOMEPAGE_LIMIT,
         sort: feedTab === "popular" ? "popular" : "latest",
         lang,
       }),
+
       getCategories(lang).catch(() => []),
     ]);
 
@@ -380,8 +382,10 @@ async function HomepageFeedSectionSlot({
         : feedWithPhotos;
     feedCards = buildHomepageCards(visibleFeed, categories, lang);
 
-    const totalPages = feedResult.pageInfo.totalPages ?? feedPage;
-    hasMore = feedPage < totalPages;
+    const totalItems = feedResult.pageInfo.totalItems ?? 0;
+    const currentCount = feedPage * HOMEPAGE_LIMIT;
+    hasMore = currentCount < totalItems;
+
   } catch (e) {
     if (e instanceof Error) {
       console.error("Homepage feed fetch failed:", e.message);
@@ -473,10 +477,10 @@ async function HomepageSidebarSectionSlot({
       realTopReviewers.length > 0
         ? realTopReviewers
         : buildTopReviewers(
-            popularReviews,
-            allowMockFallback ? homepageTopReviewers : [],
-            lang
-          );
+          popularReviews,
+          allowMockFallback ? homepageTopReviewers : [],
+          lang
+        );
   } catch (e) {
     if (e instanceof Error) {
       console.error("Homepage sidebar fetch failed:", e.message);
