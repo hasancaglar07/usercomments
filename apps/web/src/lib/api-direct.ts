@@ -28,7 +28,9 @@ type DbProductTranslationRow = {
     name?: string | null;
     description?: string | null;
     meta_title?: string | null;
+    meta_title?: string | null;
     meta_description?: string | null;
+    seo_content_html?: string | null;
 };
 
 type DbProductImage = {
@@ -323,6 +325,8 @@ function mapProductRow(
     const resolvedSlug = translation?.slug ?? row.slug;
     const resolvedName = translation?.name ?? row.name;
     const resolvedDescription = translation?.description ?? row.description;
+    const resolvedSeoContent = translation?.seo_content_html;
+
     const safeName = sanitizeProductName(resolvedName, resolvedSlug);
     const safeDescription = sanitizeProductDescription(resolvedDescription);
 
@@ -332,6 +336,8 @@ function mapProductRow(
         slug: resolvedSlug,
         name: safeName ?? resolvedName,
         description: safeDescription ?? undefined,
+        seoContentHtml: resolvedSeoContent ?? undefined,
+
         status: (row.status as ProductStatus) ?? undefined,
         brand: brand?.id
             ? {
@@ -675,7 +681,8 @@ export async function getProductBySlugDirect(
     product_images(id, url, sort_order),
     product_categories(category_id),
     product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count),
-    product_translations(lang, slug, name, description, meta_title, meta_description)
+    product_stats(review_count, rating_avg, rating_count, recommend_up, recommend_down, photo_count),
+    product_translations(lang, slug, name, description, meta_title, meta_description, seo_content_html)
     `;
 
     const { data: translation } = await supabase

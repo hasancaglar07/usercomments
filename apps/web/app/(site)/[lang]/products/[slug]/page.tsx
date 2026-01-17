@@ -16,6 +16,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import AdSquare from "@/components/ads/AdSquare";
 import AdMultiplex from "@/components/ads/AdMultiplex";
 import AdBillboard from "@/components/ads/AdBillboard";
+import SeoContentCollapse from "@/components/product/SeoContentCollapse";
 
 import { RatingStarsCatalog } from "@/components/ui/RatingStars";
 
@@ -810,8 +811,16 @@ export default async function Page(props: PageProps) {
               ) : null}
             </div>
           </section>
+            </section>
         ) : null}
-      </div>
-    </main>
+
+      <SeoContentCollapse
+        contentHtml={product.seoContentHtml ?? ""}
+        lang={lang}
+        className="mt-8"
+      />
+    </div>
+
+    </main >
   );
 }

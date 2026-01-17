@@ -253,6 +253,7 @@ export type Product = {
     lang: string;
     slug: string;
   }[];
+  seoContentHtml?: string;
 };
 
 export type SearchSuggestion = {
@@ -273,6 +274,7 @@ export type ProductTranslation = {
   description?: string | null;
   metaTitle?: string | null;
   metaDescription?: string | null;
+  seoContentHtml?: string | null;
 };
 
 export type UploadHealth = {

@@ -284,6 +284,8 @@ async function RelatedReviewsSection({
         review.categoryId,
         1,
         RELATED_FETCH_LIMIT,
+        "latest",
+        undefined,
         lang
       ).catch(() => ({ items: [] }));
       relatedReviews = relatedResult?.items ?? [];
