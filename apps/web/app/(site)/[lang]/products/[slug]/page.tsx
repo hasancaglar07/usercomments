@@ -811,16 +811,14 @@ export default async function Page(props: PageProps) {
               ) : null}
             </div>
           </section>
-            </section>
         ) : null}
 
-      <SeoContentCollapse
-        contentHtml={product.seoContentHtml ?? ""}
-        lang={lang}
-        className="mt-8"
-      />
-    </div>
-
-    </main >
+        <SeoContentCollapse
+          contentHtml={product.seoContentHtml ?? ""}
+          lang={lang}
+          className="mt-8"
+        />
+      </div>
+    </main>
   );
 }
