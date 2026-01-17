@@ -909,8 +909,11 @@ export default async function Page(props: PageProps) {
                     </div>
                   )}
 
+                  <AdSquare />
+
                   {/* Gallery */}
                   {review.photoUrls && review.photoUrls.length > 0 && (
+
                     <div className="mb-12">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 rounded-xl overflow-hidden">
                         {review.photoUrls.map((url, idx) => (
@@ -995,23 +998,28 @@ export default async function Page(props: PageProps) {
 
                     {/* FAQ */}
                     {review.faq && review.faq.length > 0 && (
-                      <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-800">
-                        <h2 className="mb-6">{t(lang, "reviewDetail.faqSection")}</h2>
-                        <div className="space-y-6 not-prose">
-                          {review.faq.map((item, idx) => (
-                            <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
-                              <h3 className="text-lg font-bold text-text-main dark:text-white mb-2">
-                                {item.question}
-                              </h3>
-                              <div
-                                className="text-text-sub dark:text-gray-300 leading-relaxed"
-                                dangerouslySetInnerHTML={{ __html: item.answer }}
-                              />
-                            </div>
-                          ))}
+                      <>
+                        <AdSquare />
+                        <div className="mt-12 pt-8 border-t border-gray-100 dark:border-gray-800">
+                          <h2 className="mb-6">{t(lang, "reviewDetail.faqSection")}</h2>
+
+                          <div className="space-y-6 not-prose">
+                            {review.faq.map((item, idx) => (
+                              <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl">
+                                <h3 className="text-lg font-bold text-text-main dark:text-white mb-2">
+                                  {item.question}
+                                </h3>
+                                <div
+                                  className="text-text-sub dark:text-gray-300 leading-relaxed"
+                                  dangerouslySetInnerHTML={{ __html: item.answer }}
+                                />
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      </>
                     )}
+
                   </div>
 
                   {/* Action Bar */}
