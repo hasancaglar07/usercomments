@@ -43,6 +43,11 @@ import {
   ReviewCommentsSkeleton,
   ReviewRelatedSkeleton,
 } from "@/components/content/ReviewDetailSectionSkeletons";
+import AdSquare from "@/components/ads/AdSquare";
+import AdMultiplex from "@/components/ads/AdMultiplex";
+import AdVertical from "@/components/ads/AdVertical";
+
+
 import {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
@@ -969,9 +974,21 @@ export default async function Page(props: PageProps) {
                     {extracted.blocks.length > 0 ? (
                       extracted.blocks.map((block, index) => {
                         const BlockTag = block.type === 'p' ? 'p' : block.type;
-                        // @ts-ignore
-                        return <BlockTag key={index} id={(block as any).id}>{block.content}</BlockTag>;
+
+                        // Calculate ad insertion points
+                        const showFirstAd = index === 3; // Approx after 3rd block (likely intro + 1-2 headers/paras)
+                        const showSecondAd = index === 12; // Approx mid-content for longer articles
+
+                        return (
+                          <div key={index}>
+                            {/* @ts-ignore */}
+                            <BlockTag id={(block as any).id}>{block.content}</BlockTag>
+                            {showFirstAd && <AdSquare />}
+                            {showSecondAd && <AdSquare />}
+                          </div>
+                        );
                       })
+
                     ) : (
                       <p>{review.excerpt}</p>
                     )}
@@ -1010,6 +1027,10 @@ export default async function Page(props: PageProps) {
                       </button>
                     </div>
                   </div>
+
+                  {/* End of Content Multiplex Ad */}
+                  <AdMultiplex />
+
                 </div>
               </article>
 
@@ -1034,8 +1055,10 @@ export default async function Page(props: PageProps) {
 
             {/* Sidebar - Simplified */}
             <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-8">
+              <AdVertical className="sticky top-24 z-10" />
 
               {/* Context Widget */}
+
               <div className="bg-white dark:bg-surface-dark rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
                 <h4 className="font-bold text-text-main dark:text-white mb-6 flex items-center gap-2 text-lg">
                   {t(lang, "reviewDetail.productContext")}

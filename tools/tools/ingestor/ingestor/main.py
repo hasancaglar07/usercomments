@@ -50,6 +50,11 @@ from .utils.slugify import slugify, contains_cyrillic, transliterate_name
 from .utils.text_clean import clean_html, normalize_whitespace
 from .utils.timing import sleep_jitter
 from .utils.linker import inject_internal_links
+from .stability import (
+    setup_signal_handlers,
+    GracefulShutdown,
+    get_stats,
+)
 
 
 async def _fetch_html_async(http: HttpClient, url: str, logger: logging.Logger) -> str:
@@ -235,6 +240,18 @@ async def _ensure_category_ids_async(
 
         if sub_id:
             logger.info("Subcategory matched: '%s' -> ID %s", detail.subcategory_name, sub_id)
+
+    # NEW: If we have sub_id but no cat_id, try to get cat_id from parent_map or use sub_id as cat_id
+    if sub_id and not cat_id:
+        if sub_id in parent_map:
+            cat_id = parent_map[sub_id]
+            logger.info("Category inferred from subcategory parent: sub_id %s -> cat_id %s", sub_id, cat_id)
+        elif config.fallback_category_id:
+            cat_id = config.fallback_category_id
+            logger.info("Category set to fallback (sub_id exists but no parent): %s", cat_id)
+        else:
+            cat_id = sub_id
+            logger.info("Category set to sub_id as fallback (no parent found): %s", cat_id)
 
     # STRICT CHECK: If no category match, try fallback category.
     # If no fallback configured, abort product creation.
@@ -1160,24 +1177,43 @@ async def main_async() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    # Setup graceful shutdown handler
+    shutdown = setup_signal_handlers()
+    stats = get_stats()
+    
     config = Config.from_env()
     if args.once:
         await run_once_async(config, args.dry_run)
     else:
-        while True:
+        while not shutdown.should_stop:
             run_id = uuid.uuid4().hex[:8]
             logger = setup_logging(config.log_file, run_id=run_id)
             start = datetime.now(timezone.utc)
             try:
                 await run_once_async(config, args.dry_run, run_id=run_id)
+                stats.record_success()
             except Exception as e:
                 logger.error("Loop error: %s", e)
+                stats.record_failure(str(e))
+            
+            # Check for shutdown before sleeping
+            if shutdown.should_stop:
+                logger.info("Shutdown requested, exiting gracefully...")
+                break
+                
             elapsed = (datetime.now(timezone.utc) - start).total_seconds()
             min_wait = max(0.0, config.loop_min_seconds - elapsed)
             max_wait = max(0.0, config.loop_max_seconds - elapsed)
             wait_for = sleep_jitter(min_wait, max_wait)
-            logger.info("Cycle finished in %.1fs, sleeping for %.1fs", elapsed, wait_for)
+            
+            # Log stats periodically
+            summary = stats.get_summary()
+            logger.info("Cycle finished in %.1fs, sleeping for %.1fs | Stats: %d processed, %d failed", 
+                       elapsed, wait_for, summary['total_processed'], summary['total_failed'])
             await asyncio.sleep(wait_for)
+        
+        # Final stats on shutdown
+        logger.info("Bot stopped. Final stats: %s", stats.get_summary())
 
 
 if __name__ == "__main__":

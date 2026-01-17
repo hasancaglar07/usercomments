@@ -13,7 +13,12 @@ import {
 import { ReviewListCatalog } from "@/components/lists/ReviewList";
 import CategorySortSelect from "@/components/catalog/CategorySortSelect";
 import EmptyState from "@/components/ui/EmptyState";
+import AdSquare from "@/components/ads/AdSquare";
+import AdMultiplex from "@/components/ads/AdMultiplex";
+import AdBillboard from "@/components/ads/AdBillboard";
+
 import { RatingStarsCatalog } from "@/components/ui/RatingStars";
+
 import Breadcrumb, { type BreadcrumbItem } from "@/components/ui/Breadcrumb";
 import type { Category, Product, Review } from "@/src/types";
 import {
@@ -533,7 +538,9 @@ export default async function Page(props: PageProps) {
   return (
     <main className="flex-1 flex justify-center py-10 px-4 sm:px-6 bg-background-light dark:bg-background-dark">
       <div className="layout-content-container flex flex-col max-w-6xl w-full gap-8">
+        <AdBillboard />
         <script type="application/ld+json">{JSON.stringify(productJsonLd)}</script>
+
         <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd)}</script>
         <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
@@ -577,7 +584,9 @@ export default async function Page(props: PageProps) {
                 </p>
               </div>
 
+              <AdSquare />
               {/* Rating Block: Histogram & Big Numbers */}
+
               <div className="flex flex-col sm:flex-row gap-8 py-6 border-y border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-6 sm:border-r sm:border-slate-100 sm:dark:border-slate-800 sm:pr-8">
                   <div className="text-center">
@@ -729,6 +738,7 @@ export default async function Page(props: PageProps) {
           </section>
         )}
 
+        <AdMultiplex />
         {relatedProducts.length > 0 || relatedReviewCards.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 md:p-8 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">

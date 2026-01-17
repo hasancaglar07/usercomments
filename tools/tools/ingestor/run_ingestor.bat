@@ -41,7 +41,7 @@ set DRYRUN=0
 set MAX_NEW_REVIEWS_PER_LOOP=1
 set DAILY_REVIEW_LIMIT=1000
 set LOOP_MIN_SECONDS=300
-set LOOP_MAX_SECONDS=900
+set LOOP_MAX_SECONDS=300
 
 :: Fallback category for unmatched reviews (ID 928 = "Others")
 set FALLBACK_CATEGORY_ID=928

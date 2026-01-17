@@ -40,11 +40,50 @@ def parse_json_strict(raw: str) -> Optional[dict]:
 
     cleaned = cleaned.strip()
     
+    # Support function to sanitize JSON string (newlines, invalid escapes)
+    def sanitize_for_loader(text: str) -> str:
+        # 1. Handle literal newlines inside strings
+        # Simple state machine to find if we are in string
+        res = []
+        i = 0
+        n = len(text)
+        in_string = False
+        while i < n:
+            c = text[i]
+            if c == '\\':
+                # Skip next char (escape sequence)
+                res.append(c)
+                i += 1
+                if i < n: res.append(text[i])
+                i += 1
+                continue
+            if c == '"':
+                in_string = not in_string
+            
+            if c == '\n' and in_string:
+                res.append('\\n')
+            else:
+                res.append(c)
+            i += 1
+        
+        sanitized = "".join(res)
+        
+        # 2. Fix invalid escape sequences (e.g. \I, \s) that are not valid JSON
+        # Valid JSON escapes: \", \\, \/, \b, \f, \n, \r, \t, \uXXXX
+        # We find backslashes NOT followed by these chars and escape them (e.g. \I -> \\I)
+        # Use regex negative lookahead
+        sanitized = re.sub(r'\\(?![/\\\"bfnrtu])', r'\\\\', sanitized)
+        return sanitized
+
     # 1. Try standard parse
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        pass
+        try:
+             # Try with sanitization
+             return json.loads(sanitize_for_loader(cleaned))
+        except json.JSONDecodeError:
+             pass
 
     # 2. Extract outermost braces
     start = cleaned.find("{")

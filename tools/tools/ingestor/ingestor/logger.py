@@ -1,5 +1,6 @@
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
 from typing import Optional
 
 from rich.console import Console
@@ -62,9 +63,14 @@ def setup_logging(log_file: Optional[str] = None, run_id: Optional[str] = None) 
     rich_handler.addFilter(RunIdFilter(run_id))
     logger.addHandler(rich_handler)
 
-    # 2. File Handler (Standard Text for permanent logs)
+    # 2. File Handler with ROTATION (prevents 80MB+ log files)
     if log_file:
-        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler = RotatingFileHandler(
+            log_file, 
+            encoding='utf-8',
+            maxBytes=10 * 1024 * 1024,  # 10 MB per file
+            backupCount=5  # Keep 5 backup files
+        )
         file_fmt = logging.Formatter(
             fmt="%(asctime)s | %(levelname)-8s | %(run_id)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"

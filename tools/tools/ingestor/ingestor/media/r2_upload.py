@@ -30,8 +30,9 @@ class R2Uploader:
             config=BotoConfig(
                 signature_version="s3v4",
                 s3={"addressing_style": "path"},
-                connect_timeout=15,
-                read_timeout=15
+                connect_timeout=60,
+                read_timeout=60,
+                retries={"max_attempts": 3, "mode": "adaptive"}
             )
         )
 
