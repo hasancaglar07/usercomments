@@ -32,15 +32,18 @@ const nextConfig: NextConfig = {
         destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap.xml`,
       },
       {
-        source: "/sitemap-categories-:lang.xml",
+        // Categories: sitemap-categories-en.xml (no part number)
+        source: "/sitemap-categories-:lang(en|tr|de|es).xml",
         destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-categories-:lang.xml`,
       },
       {
-        source: "/sitemap-products-:lang-:part.xml",
+        // Products: sitemap-products-en-1.xml (has part number)
+        source: "/sitemap-products-:lang(en|tr|de|es)-:part(\\d+).xml",
         destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-products-:lang-:part.xml`,
       },
       {
-        source: "/sitemap-:lang-:part.xml",
+        // Reviews: sitemap-en-1.xml (has part number, no prefix)
+        source: "/sitemap-:lang(en|tr|de|es)-:part(\\d+).xml",
         destination: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sitemap-:lang-:part.xml`,
       },
       // CDN Images - Proxy to R2 storage via images subdomain
