@@ -3174,10 +3174,11 @@ const routes: Route[] = [
     cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
   },
   // Web-friendly sitemap URLs (parsed from path)
+  // ORDER MATTERS: More specific patterns FIRST!
   {
     method: "GET",
-    pattern: new URLPattern({ pathname: "/api/sitemap-:lang-:part.xml" }),
-    handler: handleWebSitemapReviews,
+    pattern: new URLPattern({ pathname: "/api/sitemap-categories-:lang.xml" }),
+    handler: handleWebSitemapCategories,
     cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
   },
   {
@@ -3188,8 +3189,8 @@ const routes: Route[] = [
   },
   {
     method: "GET",
-    pattern: new URLPattern({ pathname: "/api/sitemap-categories-:lang.xml" }),
-    handler: handleWebSitemapCategories,
+    pattern: new URLPattern({ pathname: "/api/sitemap-:lang-:part.xml" }),
+    handler: handleWebSitemapReviews,
     cacheTtl: (env) => env.CACHE_TTL_SITEMAP_SEC,
   },
   {
