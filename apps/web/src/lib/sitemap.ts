@@ -2,7 +2,7 @@ import { getSiteUrl } from "@/src/lib/seo";
 import { localizePath, type SupportedLanguage } from "@/src/lib/i18n";
 
 export const SITEMAP_PAGE_SIZE = 1000;
-export const SITEMAP_CACHE_SECONDS = 86400;
+export const SITEMAP_CACHE_SECONDS = 600;
 
 export type ChangeFreq = "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
 

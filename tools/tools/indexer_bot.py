@@ -106,9 +106,9 @@ def save_history(file_path, new_urls):
         log(f"HATA: Kayıt yapılamadı ({file_path}): {e}")
 
 def fetch_sitemap_urls_recursive(sitemap_url, depth=0):
-    if depth > 2: return set() # Sonsuz dongu onlemi
+    if depth > 2: return [] # Sonsuz dongu onlemi
     
-    urls = set()
+    urls = [] # LISTE kullaniyoruz (Duplicate'lere izin ver)
     try:
         log(f"Alt Sitemap taranıyor: {sitemap_url}")
         headers = {
@@ -144,7 +144,7 @@ def fetch_sitemap_urls_recursive(sitemap_url, depth=0):
             for sitemap in children:
                 loc = sitemap.find(tag_loc, ns)
                 if loc is not None and loc.text:
-                    urls.update(fetch_sitemap_urls_recursive(loc.text, depth+1))
+                    urls.extend(fetch_sitemap_urls_recursive(loc.text, depth+1))
 
         elif root.tag.endswith('urlset'):
             children = root.findall(tag_url, ns)
@@ -153,8 +153,6 @@ def fetch_sitemap_urls_recursive(sitemap_url, depth=0):
             # Eger 0 URL bulunduysa icerige bakalim, belki yanlis parse ediyoruz
             if len(children) == 0:
                 log(f"  UYARI: URL bulunamadı. İçerik özeti: {response.text[:200]}")
-                # Namespace olmadan deneyelim (bazen parser sasirabilir)
-                # Duzeltme: invalid predicate hatasini onlemek icin namespace temizleyip bakalim
                 try:
                     # XML'i string olarak regex ile tarayalim (en garantisi)
                     import re
@@ -162,7 +160,7 @@ def fetch_sitemap_urls_recursive(sitemap_url, depth=0):
                     if links:
                         log(f"  > Regex yöntemiyle {len(links)} URL kurtarıldı.")
                         for link in links:
-                            urls.add(link.strip())
+                            urls.append(link.strip())
                 except Exception as rex:
                      log(f"  Regex hatası: {rex}")
             
@@ -173,7 +171,7 @@ def fetch_sitemap_urls_recursive(sitemap_url, depth=0):
                      loc = url.find('loc')
                 
                 if loc is not None and loc.text:
-                    urls.add(loc.text)
+                    urls.append(loc.text)
         else:
             log(f"  > Format anlaşılamadı: {root.tag}")
                     
@@ -184,7 +182,7 @@ def fetch_sitemap_urls_recursive(sitemap_url, depth=0):
 
 def fetch_sitemap_urls(sitemap_url):
     """Sitemap ve alt sitemapleri tarar."""
-    urls = set()
+    urls = []
     try:
         # Ana sitemap deneme
         urls = fetch_sitemap_urls_recursive(sitemap_url, depth=0)
@@ -207,7 +205,7 @@ def fetch_sitemap_urls(sitemap_url):
         for fallback in fallback_sitemaps:
             found = fetch_sitemap_urls_recursive(fallback)
             if found:
-                urls.update(found)
+                urls.extend(found)
                 
     return urls
 
@@ -246,31 +244,60 @@ def submit_indexnow(urls):
         save_history(HISTORY_INDEXNOW, urls)
 
 def submit_google(urls):
-    """Google Indexing API'sine URL'leri tek tek gönderir."""
+    """Google Indexing API'sine URL'leri tek tek gönderir (Çoklu Key Desteği)."""
     if not urls:
         return
 
     print("\n--- Google Indexing API Gönderimi ---")
     
-    if not os.path.exists(GOOGLE_KEY_FILE):
-        log(f"HATA: Google JSON anahtar dosyası bulunamadı: {GOOGLE_KEY_FILE}")
-        return
-    else:
-        log(f"Google anahtar dosyası: {GOOGLE_KEY_FILE}")
+    # 1. Anahtar dosyalarini bul
+    key_files = []
+    
+    # Once keys klasorune bak
+    keys_dir = os.path.join(BASE_DIR, "keys")
+    if os.path.exists(keys_dir):
+        import glob
+        found_keys = glob.glob(os.path.join(keys_dir, "*.json"))
+        if found_keys:
+            key_files.extend(found_keys)
+            log(f"Keys klasöründe {len(found_keys)} adet anahtar bulundu.")
+    
+    # Eger keys klasorumde bulamazsak veya bos ise eski yontemi dene
+    if not key_files:
+        if os.path.exists(GOOGLE_KEY_FILE):
+            key_files.append(GOOGLE_KEY_FILE)
+            log(f"Tekil anahtar dosyası kullanılacak: {GOOGLE_KEY_FILE}")
+        else:
+            log(f"HATA: Google JSON anahtar dosyası bulunamadı! (Aranan: {keys_dir} veya {GOOGLE_KEY_FILE})")
+            return
 
-    try:
-        credentials = service_account.Credentials.from_service_account_file(
-            GOOGLE_KEY_FILE, scopes=SCOPES
-        )
-        service = build("indexing", "v3", credentials=credentials)
-        log("Google API bağlantısı sağlandı.")
+    remaining_urls = list(urls)
+    success_urls = set()
+    total_initial = len(urls)
+    
+    # Her bir anahtar dosyasini sirayla dene
+    for k_idx, key_file in enumerate(key_files):
+        if not remaining_urls:
+            break
+            
+        filename = os.path.basename(key_file)
+        log(f"Anahtar ile oturum açılıyor ({k_idx+1}/{len(key_files)}): {filename}")
         
-        count = 0
-        total = len(urls)
-        success_urls = set()
+        try:
+            credentials = service_account.Credentials.from_service_account_file(
+                key_file, scopes=SCOPES
+            )
+            service = build("indexing", "v3", credentials=credentials)
+        except Exception as e:
+            log(f"  X Bu anahtar dosyarında hata var, geçiliyor: {e}")
+            continue
+
+        # Bu anahtarla kalan URL'leri deneyelim
+        # Kopyası üzerinde dönüyoruz ki orijinal listeden silme yapabilelim
+        batch_urls = list(remaining_urls)
+        quota_exceeded = False
         
-        for url in urls:
-            count += 1
+        for i, url in enumerate(batch_urls):
             content = {
                 "url": url,
                 "type": "URL_UPDATED"
@@ -278,21 +305,34 @@ def submit_google(urls):
             
             try:
                 service.urlNotifications().publish(body=content).execute()
-                log(f"[{count}/{total}] ✓ Google'a iletildi: {url}")
+                log(f"[Kalan: {len(remaining_urls)-1}] ✓ Google'a iletildi ({filename}): {url}")
                 success_urls.add(url)
+                remaining_urls.remove(url)
+                
             except Exception as e:
                 err_str = str(e)
                 if "429" in err_str or "Quota exceeded" in err_str:
-                    log("UYARI: Google API günlük kotası doldu (429/Quota). Bugünlük durduruluyor.")
+                    log(f"  ! KOTA DOLDU ({filename}). Diğer anahtara geçiliyor...")
+                    quota_exceeded = True
+                    break # Bu anahtar bitti, donguden cik (diger anahtara gec)
+                elif "403" in err_str or "Permission denied" in err_str:
+                    log(f"  ! YETKİ HATASI ({filename}). Bu anahtarın yetkisi yok. Geçiliyor...")
+                    quota_exceeded = True # Aslinda yetki hatasi ama bu anahtari yakmamak/zaman kaybetmemek icin geciyoruz
                     break
                 else:
-                    log(f"[{count}/{total}] X Hata ({url}): {e}")
+                    log(f"  X Hata ({url}): {e}")
+                    # URL hataliysa listeden cikartalim tekrar denenmesin (400 Bad Request vb)
+                    remaining_urls.remove(url)
         
-        if success_urls:
-            save_history(HISTORY_GOOGLE, success_urls)
-                    
-    except Exception as e:
-        log(f"Google API genel hatası: {e}")
+        if not remaining_urls:
+            log("Tüm URL'ler başarıyla işlendi.")
+            break
+            
+    if success_urls:
+        save_history(HISTORY_GOOGLE, success_urls)
+    
+    if remaining_urls:
+        log(f"UYARI: {len(remaining_urls)} URL gönderilemedi (Tüm kotalar dolmuş veya hata alınmış olabilir).")
 
 def ping_sitemaps(sitemap_url):
     """Bing ve Yandex'e sitemap ping gönderir."""
@@ -322,63 +362,116 @@ def ping_sitemaps(sitemap_url):
         log(f"X Yandex ping başarısız: {e}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Multi-Search Engine Indexer (IndexNow + Google)")
-    parser.add_argument('--force', action='store_true', help='Tüm URLleri tekrar gönder')
+    parser = argparse.ArgumentParser(description="Multi-Search Engine Indexer (Google + IndexNow) - PERSISTENT QUEUE MODE")
+    parser.add_argument('--force', action='store_true', help='Tüm URLleri tekrar gönder (Artık varsayılan olarak açık)')
     parser.add_argument('--manual', nargs='*', help='Otomatik çekmek yerine elle URL gir')
+    parser.add_argument('--loop-interval', type=int, default=0, help='Döngüler arası bekleme süresi (saniye). Varsayılan: 0 (Hemen başla)')
     
     args = parser.parse_args()
     
-    log("Bot başlatılıyor...")
-    migrate_legacy_history() # Eski gecmisi tasi
+    print("!!! PERSISTENT QUEUE MODE AKTIF !!!")
+    print("!!! BOT KAPATILSA BİLE KALDIĞI YERDEN DEVAM EDER !!!")
     
-    target_urls = set()
+    # Kuyruk dosya yolu
+    QUEUE_FILE = os.path.join(BASE_DIR, "queue.json")
     
-    if args.manual:
-        target_urls.update(args.manual)
-        log(f"Manuel olarak {len(target_urls)} URL girildi.")
-    else:
-        log("Sitemap taraması yapılıyor...")
-        target_urls = fetch_sitemap_urls(SITEMAP_URL)
-        log(f"Sitemap taraması bitti. Toplam {len(target_urls)} URL bulundu.")
+    def load_queue():
+        if os.path.exists(QUEUE_FILE):
+            try:
+                with open(QUEUE_FILE, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                return []
+        return []
 
-    if not target_urls:
-        log("Hiç URL bulunamadı. Çıkış yapılıyor.")
-        sys.exit(0)
+    def save_queue(q):
+        try:
+            with open(QUEUE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(q, f, indent=2)
+        except Exception as e:
+            log(f"Kuyruk dosyasını kaydederken hata: {e}")
 
-    # 1. IndexNow Filtreleme ve Gönderim
-    hist_indexnow = load_history(HISTORY_INDEXNOW)
-    to_indexnow = target_urls - hist_indexnow
-    
-    if args.force:
-        to_indexnow = target_urls
+    migrate_legacy_history() 
+
+    # Sonsuz dongu
+    loop_count = 0
+    while True:
+        loop_count += 1
         
-    if to_indexnow:
-        log(f"IndexNow için {len(to_indexnow)} yeni URL bulundu.")
-        submit_indexnow(to_indexnow)
-    else:
-        log("IndexNow için yeni URL yok.")
+        # 1. Kuyrugu Yukle
+        queue = load_queue()
+        
+        # 2. Kuyruk Boss veya Manual Giris ise Doldur
+        if not queue:
+            log(f"\n=======================================================")
+            log(f"             YENI DONGU: KUYRUK DOLUMU (TUR #{loop_count})")
+            log(f"=======================================================")
+            
+            target_urls = []
+            if args.manual:
+                target_urls.extend(args.manual)
+                log(f"Manuel olarak {len(target_urls)} URL girildi.")
+            else:
+                log("Sitemap taraması yapılıyor (Duplicate'ler dahil, Filtresiz)...")
+                found_urls_set = fetch_sitemap_urls(SITEMAP_URL)
+                target_urls = list(found_urls_set)
+                
+                # TERS SIRALAMA (Newest First stratejisi icin basit varsayim)
+                # Genelde sitemapler append edildigi icin son eklenenler sondadir.
+                target_urls.reverse()
+                
+                log(f"Sitemap taraması bitti. {len(target_urls)} URL kuyruğa eklenecek.")
 
-    # 2. Google Filtreleme ve Gönderim
-    hist_google = load_history(HISTORY_GOOGLE)
-    to_google = target_urls - hist_google
-    
-    if args.force:
-        to_google = target_urls
+            if not target_urls:
+                log("Hiç URL bulunamadı. Bir sonraki kontrol bekleniyor...")
+                time.sleep(60) # Kisa bekleme
+                continue
+                
+            queue = target_urls
+            save_queue(queue) # Diske yaz
+        else:
+            log(f"\n=======================================================")
+            log(f"             DEVAM EDILIYOR: {len(queue)} URL KALDI (TUR #{loop_count})")
+            log(f"=======================================================")
 
-    if to_google:
-        log(f"Google için {len(to_google)} yeni URL bulundu (Kota dahilinde gönderilecek).")
-        submit_google(to_google)
-    else:
-        log("Google için yeni URL yok.")
-    
-    # Baidu Gonderimi (Token varsa)
-    submit_baidu(target_urls) # Baidu icin hepsini gonderelim, kendi filtresi vardir veya hizli indexlenir
-
-    
-    # 3. YENI EKLENTI: Eger yeni link varsa veya zorla yapiliyorsa Ping gonder
-    if to_indexnow or to_google or args.force:
+        # 3. Kuyruktan Batch Isleme (Persistency icin kucuk batchler)
+        BATCH_SIZE = 50 
+        # Cok buyuk yaparsak ve bot kapanirsa o batch yanar. 50 ideal.
+        
+        while queue:
+            # Batch al
+            current_batch = queue[:BATCH_SIZE]
+            remaining_queue = queue[BATCH_SIZE:]
+            
+            log(f"\n>> {len(queue)} URL kaldı. {len(current_batch)} tanesi işleniyor...")
+            
+            # IndexNow Gonder
+            submit_indexnow(current_batch)
+            
+            # Google Gonder
+            submit_google(current_batch)
+            
+            # Ping (Her batch sonrasi yapmayalim, cok spam olur. Sadece queue bitince yapabiliriz veya aralarda)
+            # Ama kullanici cok agresif istedi, her batchte degil ama her 10 batchte bir olabilir.
+            # Simdilik sadece dongu sonunda yapalim veya cok onemliyse burayi acalim.
+            
+            # Kuyrugu guncelle ve kaydet
+            queue = remaining_queue
+            save_queue(queue)
+            
+            # Hizli dongu icin minik sleep (CPU relax)
+            time.sleep(0.5)
+        
+        # Kuyruk bitti
+        log("KUYRUK TÜKENDİ. TÜM LİNKLER İŞLENDİ.")
+        
+        # Ping at (Tur bitimi)
         ping_sitemaps(SITEMAP_URL)
-    else:
-        log("Yeni içerik olmadığı için Sitemap Ping atlanıyor.")
-
-    log("\nBÜTÜN İŞLEMLER TAMAMLANDI.")
+        
+        # Kullanici loop intervali
+        if args.loop_interval > 0:
+            log(f"{args.loop_interval} saniye bekleniyor...")
+            time.sleep(args.loop_interval)
+        else:
+            log("Bekleme süresi 0, hemen yeni sitemap taraması yapılacak...")
+            time.sleep(1)

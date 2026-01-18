@@ -69,3 +69,7 @@ apps/web/public/acikliyorum-*.json
 apps/web/public/client_secrets.json
 
 SOSYAL_MEDYA_BOTU_BASLAT.bat
+
+# Google Indexing API Keys (Service Accounts)
+tools/tools/keys/
+tools/tools/queue.json
